@@ -9,16 +9,9 @@ import { Type } from "@sinclair/typebox";
 import { StringEnum } from "@mariozechner/pi-ai";
 import { apiGet } from "../lib/api.js";
 import { wsCommand } from "../lib/ws.js";
+import type { HAState } from "../lib/types.js";
 
 // ── Types ────────────────────────────────────────────────────
-
-interface HAState {
-  entity_id: string;
-  state: string;
-  attributes: Record<string, unknown>;
-  last_changed: string;
-  last_updated: string;
-}
 
 interface WSEntityRegistryEntry {
   entity_id: string;
@@ -102,13 +95,17 @@ Actions:
 - domains: Overview of all domains with entity counts.
 - update: Update entity — rename, change entity_id, set area/labels, disable/enable, change icon.
 - remove: Remove an entity from the registry.
+- regenerate-ids: Preview and apply new entity IDs based on current device/entity names. Accepts entity_ids array or device_id to select all entities for a device. Shows old→new mapping AND all automations/scripts/scenes that reference the affected entities. The agent MUST review the related items before confirming the rename.
 
 Entity listings include device name and area when available.`,
 
     parameters: Type.Object({
-      action: StringEnum(["list", "get", "domains", "update", "remove"] as const, {
+      action: StringEnum(["list", "get", "domains", "update", "remove", "regenerate-ids"] as const, {
         description: "Action to perform",
       }),
+      entity_ids: Type.Optional(
+        Type.Array(Type.String(), { description: "Entity IDs for regenerate-ids action" })
+      ),
       entity_id: Type.Optional(
         Type.String({ description: "Entity ID for get/update/remove (e.g., sensor.temperature)" })
       ),
@@ -155,6 +152,9 @@ Entity listings include device name and area when available.`,
       hidden_by: Type.Optional(
         Type.String({ description: "Set to 'user' to hide, null to unhide" })
       ),
+      confirm: Type.Optional(
+        Type.Boolean({ description: "For regenerate-ids: set true to apply renames after previewing (default: false, preview only)" })
+      ),
     }),
 
     async execute(toolCallId, params, signal, onUpdate, ctx) {
@@ -178,8 +178,10 @@ async function executeAction(params: Record<string, unknown>): Promise<string> {
       return handleUpdate(params);
     case "remove":
       return handleRemove(params.entity_id as string | undefined);
+    case "regenerate-ids":
+      return handleRegenerateIds(params);
     default:
-      throw new Error(`Unknown action '${params.action}'. Valid: list, get, domains, update, remove`);
+      throw new Error(`Unknown action '${params.action}'. Valid: list, get, domains, update, remove, regenerate-ids`);
   }
 }
 
@@ -425,4 +427,153 @@ async function handleRemove(entityId?: string): Promise<string> {
 
   await wsCommand("config/entity_registry/remove", { entity_id: entityId });
   return `✅ Removed entity '${entityId}' from registry`;
+}
+
+// ── Regenerate Entity IDs ────────────────────────────────────
+
+interface RelatedResult {
+  automation?: string[];
+  script?: string[];
+  scene?: string[];
+  group?: string[];
+  [key: string]: string[] | undefined;
+}
+
+async function handleRegenerateIds(params: Record<string, unknown>): Promise<string> {
+  let entityIds = params.entity_ids as string[] | undefined;
+  const deviceId = params.device_id as string | undefined;
+  const confirm = params.confirm as boolean | undefined;
+
+  // If device_id provided, get all entities for that device
+  if (!entityIds && deviceId) {
+    const entityReg = await loadEntityRegistry();
+    entityIds = [];
+    for (const [eid, entry] of entityReg) {
+      if (entry.device_id === deviceId) {
+        entityIds.push(eid);
+      }
+    }
+    if (entityIds.length === 0) {
+      throw new Error(`No entities found for device '${deviceId}'`);
+    }
+  }
+
+  if (!entityIds || entityIds.length === 0) {
+    throw new Error("Provide 'entity_ids' array or 'device_id' to select entities for ID regeneration");
+  }
+
+  // Get suggested new IDs from HA
+  const mapping = await wsCommand<Record<string, string | null>>(
+    "config/entity_registry/get_automatic_entity_ids",
+    { entity_ids: entityIds }
+  );
+
+  // Categorize results
+  const willRename: [string, string][] = [];
+  const cantRename: string[] = [];
+  const noChange: string[] = [];
+
+  for (const [oldId, newId] of Object.entries(mapping)) {
+    if (newId === null) {
+      cantRename.push(oldId);
+    } else if (oldId === newId) {
+      noChange.push(oldId);
+    } else {
+      willRename.push([oldId, newId]);
+    }
+  }
+
+  if (willRename.length === 0) {
+    const lines = ["No entities need renaming."];
+    if (noChange.length > 0) lines.push(`\nAlready correct (${noChange.length}): ${noChange.join(", ")}`);
+    if (cantRename.length > 0) lines.push(`\nCannot rename (${cantRename.length}): ${cantRename.join(", ")}`);
+    return lines.join("\n");
+  }
+
+  // Find related automations/scripts/scenes for ALL entities that will be renamed
+  const allRelated: Map<string, RelatedResult> = new Map();
+  for (const [oldId] of willRename) {
+    try {
+      const related = await wsCommand<RelatedResult>("search/related", {
+        item_type: "entity",
+        item_id: oldId,
+      });
+      if (related && (related.automation?.length || related.script?.length || related.scene?.length || related.group?.length)) {
+        allRelated.set(oldId, related);
+      }
+    } catch {
+      // search component may not be loaded — continue without
+    }
+  }
+
+  // Build output
+  const lines: string[] = [];
+  lines.push(`## Entity ID Regeneration Preview\n`);
+  lines.push(`### Will rename (${willRename.length}):\n`);
+  lines.push("| Old Entity ID | New Entity ID |");
+  lines.push("|---|---|");
+  for (const [oldId, newId] of willRename) {
+    lines.push(`| ${oldId} | ${newId} |`);
+  }
+
+  if (noChange.length > 0) {
+    lines.push(`\n### Already correct (${noChange.length}): ${noChange.join(", ")}`);
+  }
+  if (cantRename.length > 0) {
+    lines.push(`\n### Cannot rename (${cantRename.length}): ${cantRename.join(", ")}`);
+  }
+
+  // Show related items that will need updating
+  if (allRelated.size > 0) {
+    lines.push(`\n### ⚠️ References found — these items use renamed entities:\n`);
+    for (const [entityId, related] of allRelated) {
+      const refs: string[] = [];
+      if (related.automation?.length) refs.push(`automations: ${related.automation.join(", ")}`);
+      if (related.script?.length) refs.push(`scripts: ${related.script.join(", ")}`);
+      if (related.scene?.length) refs.push(`scenes: ${related.scene.join(", ")}`);
+      if (related.group?.length) refs.push(`groups: ${related.group.join(", ")}`);
+      lines.push(`**${entityId}** → ${refs.join("; ")}`);
+    }
+    lines.push(`\n⚠️ **ACTION REQUIRED**: After renaming, you MUST update the automations, scripts, scenes, and groups listed above to use the new entity IDs. Failure to do so will break them.`);
+  }
+
+  // If confirm not set, return preview only
+  if (!confirm) {
+    lines.push(`\n---\nThis is a **preview only**. To apply, call again with \`confirm: true\`.`);
+    lines.push(`\n🔍 **Before confirming**: Review all referenced automations/scripts above and plan updates for the new entity IDs.`);
+    return lines.join("\n");
+  }
+
+  // Apply renames
+  const succeeded: [string, string][] = [];
+  const failed: [string, string][] = [];
+
+  for (const [oldId, newId] of willRename) {
+    try {
+      await wsCommand("config/entity_registry/update", {
+        entity_id: oldId,
+        new_entity_id: newId,
+      });
+      succeeded.push([oldId, newId]);
+    } catch (err: any) {
+      failed.push([oldId, err.message || "unknown error"]);
+    }
+  }
+
+  lines.push(`\n---\n### Results\n`);
+  if (succeeded.length > 0) {
+    lines.push(`✅ Renamed ${succeeded.length} entities successfully.`);
+  }
+  if (failed.length > 0) {
+    lines.push(`\n❌ Failed (${failed.length}):`);
+    for (const [oldId, err] of failed) {
+      lines.push(`  - ${oldId}: ${err}`);
+    }
+  }
+
+  if (allRelated.size > 0) {
+    lines.push(`\n⚠️ **IMPORTANT**: Now update the automations, scripts, scenes, and groups listed above to use the new entity IDs.`);
+  }
+
+  return lines.join("\n");
 }
