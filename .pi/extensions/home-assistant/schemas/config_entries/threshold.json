@@ -1,0 +1,61 @@
+{
+  "domain": "threshold",
+  "storage_key": "core.config_entries",
+  "storage_type": "config_entry",
+  "name": "Threshold",
+  "integration_type": "helper",
+  "documentation": "https://www.home-assistant.io/integrations/threshold",
+  "create_fields": [
+    {
+      "field": "name",
+      "required": true,
+      "type": "string"
+    },
+    {
+      "field": "hysteresis",
+      "required": true,
+      "type": "number",
+      "default": "DEFAULT_HYSTERESIS"
+    },
+    {
+      "field": "lower",
+      "required": false,
+      "type": "number"
+    },
+    {
+      "field": "upper",
+      "required": false,
+      "type": "number"
+    },
+    {
+      "field": "entity_id",
+      "required": true,
+      "type": "string",
+      "format": "entity_id"
+    }
+  ],
+  "update_fields": [
+    {
+      "field": "hysteresis",
+      "required": true,
+      "type": "number",
+      "default": "DEFAULT_HYSTERESIS"
+    },
+    {
+      "field": "lower",
+      "required": false,
+      "type": "number"
+    },
+    {
+      "field": "upper",
+      "required": false,
+      "type": "number"
+    },
+    {
+      "field": "entity_id",
+      "required": true,
+      "type": "string",
+      "format": "entity_id"
+    }
+  ]
+}

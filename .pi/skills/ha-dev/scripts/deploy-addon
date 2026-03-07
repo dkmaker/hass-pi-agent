@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 #
-# Deploy the hass-claude-code add-on to the HAOS dev VM via SSH/rsync.
+# Deploy the Pi Agent add-on to the HAOS dev VM via SCP.
+#
+# The VM does not have rsync, so we use scp to copy files.
+# Local addons go into /addons/<folder>/ on the VM (SSH path).
+# The Supervisor scans this directory on `ha store reload`.
 #
 set -euo pipefail
 
@@ -10,6 +14,7 @@ source "$REPO_ROOT/.env"
 
 ADDON_DIR="$REPO_ROOT/addon"
 NET_NAME="${HAOS_NET_NAME:-haos-isolated}"
+ADDON_SLUG="pi_agent"
 
 VM_IP=$(sudo virsh net-dhcp-leases "$NET_NAME" 2>/dev/null | grep -oP '10\.99\.0\.\d+' | head -1)
 if [ -z "$VM_IP" ]; then
@@ -29,18 +34,25 @@ if ! $SSH_CMD echo "SSH OK" 2>/dev/null; then
   exit 1
 fi
 
-echo "==> Syncing addon/ → VM:/addons/claude_code/"
-rsync -avz --delete \
-  -e "ssh $SSH_OPTS" \
-  "$ADDON_DIR/" \
-  "root@${VM_IP}:/addons/claude_code/"
+echo "==> Cleaning remote /addons/${ADDON_SLUG}/"
+$SSH_CMD "rm -rf /addons/${ADDON_SLUG} && mkdir -p /addons/${ADDON_SLUG}"
 
-echo "==> Reloading Supervisor add-on list..."
-$SSH_CMD 'ha addons reload' 2>/dev/null || true
+echo "==> Copying addon/ → VM:/addons/${ADDON_SLUG}/"
+scp -r $SSH_OPTS "$ADDON_DIR/"* "root@${VM_IP}:/addons/${ADDON_SLUG}/"
+
+echo "==> Reloading add-on store..."
+$SSH_CMD 'ha store reload' 2>/dev/null || true
 
 echo ""
 echo "Done! Add-on synced to VM."
-echo "  http://${VM_IP}:8123 → Settings → Add-ons → Add-on Store → Local add-ons"
 echo ""
-echo "Rebuild after changes:"
-echo "  .pi/skills/ha-dev/scripts/ha-supervisor addon-rebuild local_claude_code"
+echo "First time:"
+echo "  http://${VM_IP}:8123 → Settings → Add-ons → Add-on Store → Local add-ons"
+echo "  → Pi Agent for Home Assistant → Install"
+echo ""
+echo "After code changes:"
+echo "  .pi/skills/ha-dev/scripts/deploy-addon"
+echo "  .pi/skills/ha-dev/scripts/ha-supervisor addon-rebuild local_${ADDON_SLUG}"
+echo ""
+echo "Check logs:"
+echo "  .pi/skills/ha-dev/scripts/ha-api addon-logs local_${ADDON_SLUG}"

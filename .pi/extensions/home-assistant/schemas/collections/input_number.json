@@ -1,0 +1,60 @@
+{
+  "domain": "input_number",
+  "storage_key": "input_number",
+  "storage_type": "collection",
+  "storage_version": 1,
+  "storage_minor_version": 1,
+  "fields": [
+    {
+      "field": "name",
+      "required": true,
+      "type": "string",
+      "min_length": 1
+    },
+    {
+      "field": "min",
+      "required": true,
+      "type": "number"
+    },
+    {
+      "field": "max",
+      "required": true,
+      "type": "number"
+    },
+    {
+      "field": "initial",
+      "required": false,
+      "type": "number"
+    },
+    {
+      "field": "step",
+      "required": false,
+      "type": "number",
+      "minimum": 1e-09,
+      "default": 1
+    },
+    {
+      "field": "icon",
+      "required": false,
+      "type": "string"
+    },
+    {
+      "field": "unit_of_measurement",
+      "required": false,
+      "type": "string"
+    },
+    {
+      "field": "mode",
+      "required": false,
+      "type": "string",
+      "enum": [
+        "box",
+        "slider"
+      ],
+      "default": "slider"
+    }
+  ],
+  "name": "Input Number",
+  "integration_type": "helper",
+  "documentation": "https://www.home-assistant.io/integrations/input_number"
+}

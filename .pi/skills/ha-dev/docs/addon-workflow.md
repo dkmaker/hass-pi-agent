@@ -2,12 +2,15 @@
 
 ## Overview
 
-The `hass-claude-code` add-on source lives in `addon/` at the repo root. To test it:
+The **Pi Agent for Home Assistant** add-on source lives in `addon/` at the repo root.
 
-1. **Edit** code in `addon/`
-2. **Deploy** to VM (rsync via SSH)
-3. **Install or rebuild** on the VM's Supervisor
-4. **Check logs** via API
+| Property | Value |
+|----------|-------|
+| Add-on name | Pi Agent for Home Assistant |
+| Slug | `pi_agent` |
+| Supervisor slug | `local_pi_agent` (local add-ons get `local_` prefix) |
+| VM path | `/addons/pi_agent/` (SSH) |
+| Config | `addon/config.yaml` |
 
 ## Deploy
 
@@ -16,14 +19,19 @@ The `hass-claude-code` add-on source lives in `addon/` at the repo root. To test
 ```
 
 This script:
-- Rsyncs `addon/` → `/addons/claude_code/` on the VM via SSH
-- Runs `ha addons reload` on the VM to tell Supervisor about changes
+1. Cleans `/addons/pi_agent/` on the VM via SSH
+2. Copies `addon/*` to the VM via `scp` (no rsync on HAOS)
+3. Runs `ha store reload` to tell Supervisor about changes
+
+**Note:** The VM does not have `rsync`. We use `scp` instead.
 
 ### First time after deploy
 
-Go to http://10.99.0.13:8123 → Settings → Add-ons → Add-on Store → Local add-ons → Claude Code → Install
+1. Go to http://10.99.0.13:8123 → Settings → Add-ons → Add-on Store
+2. Click ⋮ (top right) → Check for updates
+3. Scroll to "Local add-ons" → Pi Agent for Home Assistant → Install
 
-Supervisor builds the Docker image locally on the VM from the Dockerfile. This takes several minutes on first build.
+Supervisor builds the Docker image locally on the VM from the Dockerfile. This takes a few minutes on first build.
 
 ### After code changes
 
@@ -32,69 +40,91 @@ Supervisor builds the Docker image locally on the VM from the Dockerfile. This t
 .pi/skills/ha-dev/scripts/deploy-addon
 
 # Rebuild the add-on (rebuilds Docker image + restarts)
-.pi/skills/ha-dev/scripts/ha-api addon-rebuild local_claude_code
+.pi/skills/ha-dev/scripts/ha-supervisor addon-rebuild local_pi_agent
 ```
 
-### Quick restart (no rebuild, e.g. config-only changes)
+### Quick restart (no rebuild, e.g. run.sh-only changes after rebuild)
 
 ```bash
-.pi/skills/ha-dev/scripts/ha-api addon-restart local_claude_code
+.pi/skills/ha-dev/scripts/ha-supervisor addon-restart local_pi_agent
 ```
 
 ## Checking Logs
 
 ```bash
-# Via API
-.pi/skills/ha-dev/scripts/ha-api addon-logs local_claude_code
+# Via REST API (returns recent output, may be truncated)
+.pi/skills/ha-dev/scripts/ha-api addon-logs local_pi_agent
 
 # Via SSH
-.pi/skills/ha-dev/scripts/vm-ctl ssh 'ha addons logs local_claude_code'
+.pi/skills/ha-dev/scripts/vm-ctl ssh 'ha apps logs local_pi_agent'
 ```
 
-## Add-on Structure
+**Tip:** The log API truncates long output. For full logs, download from the
+HA UI: Settings → Add-ons → Pi Agent → Log tab.
+
+## Add-on Structure (current)
 
 ```
 addon/
-├── Dockerfile              # Multi-stage: build MCP server + index docs → final image
-├── config.yaml             # Add-on manifest (name, slug, version, options, arch)
-├── build.yaml              # Build config (base images per arch)
-├── CHANGELOG.md
-├── mcp-server/             # TypeScript MCP server
-│   ├── package.json
-│   ├── tsconfig.json
-│   └── src/
-│       ├── index.ts        # MCP server entry point
-│       ├── ha-api.ts       # HA REST API client
-│       ├── ha-websocket.ts # HA WebSocket client
-│       ├── docs-search.ts  # Documentation search tool
-│       ├── search.ts       # Search implementation (keyword + semantic)
-│       ├── indexer.ts       # Markdown → SQLite indexer
-│       ├── embeddings.ts   # Vector embeddings (optional)
-│       ├── db.ts           # SQLite database
-│       └── build-index.ts  # CLI to build search index
-└── rootfs/                 # s6-overlay filesystem
-    └── etc/s6-overlay/s6-rc.d/
-        ├── init-claude/    # Claude Code setup
-        ├── init-mcp/       # MCP server setup
-        ├── init-packages/  # Extra package install
-        └── ttyd/           # Web terminal service
+├── config.yaml     # Add-on manifest (name, slug, version, arch, access)
+├── Dockerfile      # Alpine base + curl/jq
+└── run.sh          # Startup script
 ```
 
-## Build Details
+## Add-on Config (config.yaml)
 
-The Dockerfile has 2 stages:
+Current access configuration:
 
-1. **mcp-builder** (Alpine): clone docs from repo, install pnpm deps, build TypeScript, create keyword index in SQLite
-2. **Final** (HA base image): install runtime deps (Node.js, tmux, ttyd, ripgrep), copy compiled MCP server + docs + pre-built DB
+```yaml
+homeassistant_api: true       # Core REST + WebSocket API via http://supervisor/core/
+hassio_api: true              # Supervisor API via http://supervisor/
+hassio_role: admin            # Full admin access to all Supervisor endpoints
+auth_api: true                # Can validate HA user credentials
+map:
+  - homeassistant_config:rw   # /homeassistant — full HA config dir (.storage/, yaml, DB)
+  - all_addon_configs:rw      # /addon_configs — all add-ons' config folders
+  - ssl:rw                    # /ssl
+  - share:rw                  # /share
+  - media:rw                  # /media
+  - backup:rw                 # /backup
+init: false                   # Disable s6 default init (we use our own CMD)
+```
 
-The add-on exposes:
-- **ttyd** web terminal via HA Ingress (no external port needed)
-- **MCP server** on a Unix socket for Claude Code to connect to
+## Environment Inside the Container
 
-## Key Config (config.yaml)
+| Variable | Source | Notes |
+|----------|--------|-------|
+| `SUPERVISOR_TOKEN` | `/run/s6/container_environment/SUPERVISOR_TOKEN` | NOT in env by default when `init: false`. Must be sourced from s6 container_environment file. |
 
-- `slug: claude_code`
-- `ingress: true` (web UI via HA sidebar)
-- `homeassistant_api: true` (gets Supervisor token for HA API access)
-- `hassio_api: true` / `hassio_role: admin`
-- Maps: `homeassistant_config:rw`, `addon_config:rw`, `share:rw`, `ssl:ro`, `media:ro`
+**Important:** Because `init: false` is set, `$SUPERVISOR_TOKEN` is **not** automatically
+injected into the shell environment. Scripts must load it:
+
+```bash
+if [ -z "$SUPERVISOR_TOKEN" ] && [ -f /run/s6/container_environment/SUPERVISOR_TOKEN ]; then
+  SUPERVISOR_TOKEN=$(cat /run/s6/container_environment/SUPERVISOR_TOKEN)
+  export SUPERVISOR_TOKEN
+fi
+```
+
+## Filesystem Mounts (verified working)
+
+| Container path | Content |
+|----------------|---------|
+| `/homeassistant` | Full HA config: `configuration.yaml`, `.storage/`, `automations.yaml`, `secrets.yaml`, SQLite DB, blueprints |
+| `/homeassistant/.storage/` | All registries: `core.entity_registry`, `core.device_registry`, `core.config_entries`, `auth`, `lovelace.*`, etc. |
+| `/addon_configs` | Per-addon config folders (e.g. `45df7312_zigbee2mqtt/`) |
+| `/ssl` | SSL certificates |
+| `/share` | Shared data between add-ons |
+| `/media` | Media files |
+| `/backup` | Backup tarballs |
+| `/data` | Add-on persistent storage (always mapped, contains `options.json`) |
+
+## API Access (verified working)
+
+All API calls use `Authorization: Bearer $SUPERVISOR_TOKEN`.
+
+| API | URL from inside container | What it does |
+|-----|---------------------------|-------------|
+| Supervisor | `http://supervisor/` | Add-on management, system info, backups, host, OS, network |
+| Core REST | `http://supervisor/core/api/` | Entity states, service calls, history, templates, config check |
+| Core WebSocket | `ws://supervisor/core/websocket` | Real-time events, subscriptions, all WebSocket commands |

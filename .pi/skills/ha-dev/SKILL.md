@@ -1,6 +1,6 @@
 ---
 name: ha-dev
-description: Use this skill for ANY interaction with the local Home Assistant development environment — querying the HA API, managing entities/services/add-ons, controlling the HAOS dev VM (start/stop/ssh), deploying the hass-claude-code add-on, or searching HA documentation. Triggers on any mention of Home Assistant, HA entities, the dev VM, add-on deployment, or HA docs lookup.
+description: Use this skill for ANY interaction with the local Home Assistant development environment — querying the HA API, managing entities/services/add-ons, controlling the HAOS dev VM (start/stop/ssh), deploying the Pi Agent add-on, or searching HA documentation. Triggers on any mention of Home Assistant, HA entities, the dev VM, add-on deployment, or HA docs lookup.
 ---
 
 # Home Assistant Development Skill
@@ -27,8 +27,22 @@ Unified skill for the local HAOS dev VM. All scripts are in `./scripts/` relativ
 | VM IP | `10.99.0.13` |
 | HA URL | http://10.99.0.13:8123 |
 | HA version | 2026.3.1 |
+| HAOS | 17.1 |
+| Supervisor | 2026.02.3 |
 | SSH | `root@10.99.0.13` (port 22, ed25519 key) |
 | API token | `.env` in repo root (`HAOS_API_TOKEN`) |
+
+## Add-on
+
+| Property | Value |
+|----------|-------|
+| Name | Pi Agent for Home Assistant |
+| Slug | `pi_agent` |
+| Supervisor slug | `local_pi_agent` |
+| Source | `addon/` in repo root |
+| Deploy | `./scripts/deploy-addon` (uses scp, no rsync on VM) |
+| Rebuild | `./scripts/ha-supervisor addon-rebuild local_pi_agent` |
+| Logs | `./scripts/ha-api addon-logs local_pi_agent` |
 
 ## Usage
 

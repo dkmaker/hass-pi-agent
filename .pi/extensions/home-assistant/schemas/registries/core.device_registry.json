@@ -1,0 +1,193 @@
+{
+  "domain": "device_registry",
+  "storage_key": "core.device_registry",
+  "storage_type": "registry",
+  "storage_version": 1,
+  "storage_minor_version": 12,
+  "data_key": "devices",
+  "entry_class": "DeviceEntry",
+  "fields": [
+    {
+      "field": "area_id",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null,
+      "required": false
+    },
+    {
+      "field": "config_entries",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "required": false
+    },
+    {
+      "field": "config_entries_subentries",
+      "type": "object",
+      "required": false
+    },
+    {
+      "field": "configuration_url",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null,
+      "required": false
+    },
+    {
+      "field": "connections",
+      "type": "array",
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "required": false
+    },
+    {
+      "field": "created_at",
+      "type": "string",
+      "format": "datetime",
+      "required": false
+    },
+    {
+      "field": "disabled_by",
+      "type": "unknown",
+      "python_type": "DeviceEntryDisabler | None",
+      "default": null,
+      "required": false
+    },
+    {
+      "field": "entry_type",
+      "type": "unknown",
+      "python_type": "DeviceEntryType | None",
+      "default": null,
+      "required": false
+    },
+    {
+      "field": "hw_version",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null,
+      "required": false
+    },
+    {
+      "field": "id",
+      "type": "string",
+      "required": false
+    },
+    {
+      "field": "identifiers",
+      "type": "array",
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "required": false
+    },
+    {
+      "field": "labels",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "required": false
+    },
+    {
+      "field": "manufacturer",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null,
+      "required": false
+    },
+    {
+      "field": "model",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null,
+      "required": false
+    },
+    {
+      "field": "model_id",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null,
+      "required": false
+    },
+    {
+      "field": "modified_at",
+      "type": "string",
+      "format": "datetime",
+      "required": false
+    },
+    {
+      "field": "name_by_user",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null,
+      "required": false
+    },
+    {
+      "field": "name",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null,
+      "required": false
+    },
+    {
+      "field": "primary_config_entry",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null,
+      "required": false
+    },
+    {
+      "field": "serial_number",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null,
+      "required": false
+    },
+    {
+      "field": "sw_version",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null,
+      "required": false
+    },
+    {
+      "field": "via_device_id",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null,
+      "required": false
+    }
+  ]
+}

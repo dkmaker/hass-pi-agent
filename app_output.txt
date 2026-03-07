@@ -1,0 +1,384 @@
+  ],
+  "config_dir": "/config",
+  "config_source": "storage",
+  "country": "DK",
+  "currency": "DKK",
+  "debug": false,
+  "elevation": 0,
+  "external_url": null,
+  "internal_url": null,
+  "language": "da",
+  "latitude": 55.716101,
+  "location_name": "Hjem",
+  "longitude": 11.730411,
+  "radius": 100,
+  "recovery_mode": false,
+  "safe_mode": false,
+  "state": "RUNNING",
+  "time_zone": "Europe/Copenhagen",
+  "unit_system": {
+    "length": "km",
+    "accumulated_precipitation": "mm",
+    "area": "m²",
+    "mass": "g",
+    "pressure": "Pa",
+    "temperature": "°C",
+    "volume": "L",
+    "wind_speed": "m/s"
+  },
+  "version": "2026.3.1",
+  "whitelist_external_dirs": [
+    "/config/www",
+    "/media"
+  ]
+}
+
+=== HA .storage files ===
+total 168
+drwxr-xr-x    2 root     root          4096 Mar  7 16:22 .
+drwxr-xr-x    9 root     root          4096 Mar  7 16:15 ..
+-rw-r--r--    1 root     root           634 Mar  7 15:18 assist_pipeline.pipelines
+-rw-------    1 root     root          4846 Mar  7 16:19 auth
+-rw-------    1 root     root           263 Mar  7 15:38 auth_provider.homeassistant
+-rw-r--r--    1 root     root           101 Mar  7 16:22 bluetooth.passive_update_processor
+-rw-r--r--    1 root     root           348 Mar  7 15:54 core.analytics
+-rw-r--r--    1 root     root          1263 Mar  7 15:38 core.area_registry
+-rw-------    1 root     root           391 Mar  7 15:39 core.config
+-rw-r--r--    1 root     root          3334 Mar  7 15:39 core.config_entries
+-rw-r--r--    1 root     root          8357 Mar  7 16:18 core.device_registry
+-rw-r--r--    1 root     root         53210 Mar  7 16:18 core.entity_registry
+-rw-r--r--    1 root     root          8428 Mar  7 16:22 core.restore_state
+-rw-------    1 root     root           126 Mar  7 15:18 core.uuid
+-rw-r--r--    1 root     root           200 Mar  7 15:39 frontend.system_data
+-rw-r--r--    1 root     root           202 Mar  7 15:39 frontend.user_data_6b7b39880ef24e16befe785c9ecc1a58
+-rw-r--r--    1 root     root           285 Mar  7 15:18 hassio
+-rw-r--r--    1 root     root           586 Mar  7 15:18 homeassistant.exposed_entities
+-rw-r--r--    1 root     root           300 Mar  7 15:21 http
+
+=== SERVICES (MQTT etc) ===
+{
+  "result": "ok",
+  "data": {
+    "services": [
+      {
+        "slug": "mqtt",
+        "available": false,
+        "providers": [
+          "core_mosquitto"
+        ]
+      },
+      {
+        "slug": "mysql",
+        "available": false,
+        "providers": []
+      }
+    ]
+  }
+}
+
+=== DONE — sleeping forever ===
+s6-rc: info: service legacy-services: stopping
+s6-rc: info: service legacy-services successfully stopped
+s6-rc: info: service legacy-cont-init: stopping
+s6-rc: info: service legacy-cont-init successfully stopped
+s6-rc: info: service fix-attrs: stopping
+s6-rc: info: service fix-attrs successfully stopped
+s6-rc: info: service s6rc-oneshot-runner: stopping
+s6-rc: info: service s6rc-oneshot-runner successfully stopped
+s6-rc: info: service s6rc-oneshot-runner: starting
+s6-rc: info: service s6rc-oneshot-runner successfully started
+s6-rc: info: service fix-attrs: starting
+s6-rc: info: service fix-attrs successfully started
+s6-rc: info: service legacy-cont-init: starting
+s6-rc: info: service legacy-cont-init successfully started
+s6-rc: info: service legacy-services: starting
+s6-rc: info: service legacy-services successfully started
+Loaded SUPERVISOR_TOKEN from s6 container_environment
+=== ENVIRONMENT ===
+SUPERVISOR_TOKEN present: YES
+SUPERVISOR_TOKEN length: 112
+OLDPWD=/
+PATH=/command:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+PWD=/
+SHLVL=2
+SUPERVISOR_TOKEN=470fe680a215b84a72ee28bdf2703997e36e4e61cd60f5dcd6a5f23a61a1740a00cc47e5db8bcef5564b0d6db505cbb0baf34c195412b754
+_=/usr/bin/env
+
+=== FILESYSTEM MOUNTS ===
+/homeassistant: EXISTS (13 items)
+total 2364
+drwxr-xr-x    9 root     root          4096 Mar  7 16:15 .
+drwxr-xr-x    1 root     root          4096 Mar  7 16:27 ..
+-rw-r--r--    1 root     root             8 Mar  7 15:18 .HA_VERSION
+drwxr-xr-x    3 root     root          4096 Mar  7 15:56 .cache
+drwxr-xr-x    2 root     root          4096 Mar  7 15:18 .cloud
+-rw-r--r--    1 root     root            83 Mar  7 15:18 .ha_run.lock
+drwxr-xr-x    2 root     root          4096 Mar  7 16:22 .storage
+-rw-r--r--    1 root     root           268 Mar  7 15:57 automations.yaml
+drwxr-xr-x    4 root     root          4096 Mar  7 15:18 blueprints
+
+/config: NOT FOUND
+
+/addon_configs: EXISTS (1 items)
+total 12
+drwxr-xr-x    3 root     root          4096 Mar  7 16:15 .
+drwxr-xr-x    1 root     root          4096 Mar  7 16:27 ..
+drwxr-xr-x    2 root     root          4096 Mar  7 16:15 45df7312_zigbee2mqtt
+
+/ssl: EXISTS (0 items)
+total 8
+drwxr-xr-x    2 root     root          4096 Mar  7 15:15 .
+drwxr-xr-x    1 root     root          4096 Mar  7 16:27 ..
+
+/share: EXISTS (0 items)
+total 8
+drwxr-xr-x    2 root     root          4096 Mar  7 15:15 .
+drwxr-xr-x    1 root     root          4096 Mar  7 16:27 ..
+
+/media: EXISTS (0 items)
+total 8
+drwxr-xr-x    2 root     root          4096 Mar  7 15:15 .
+drwxr-xr-x    1 root     root          4096 Mar  7 16:27 ..
+
+/backup: EXISTS (0 items)
+total 8
+drwxr-xr-x    2 root     root          4096 Mar  7 15:15 .
+drwxr-xr-x    1 root     root          4096 Mar  7 16:27 ..
+
+/data: EXISTS (1 items)
+total 12
+drwxr-xr-x    2 root     root          4096 Mar  7 16:27 .
+drwxr-xr-x    1 root     root          4096 Mar  7 16:27 ..
+-rw-------    1 root     root             2 Mar  7 16:27 options.json
+
+=== SUPERVISOR API TEST ===
+{"result":"ok","data":{}}
+=== SUPERVISOR INFO ===
+{
+  "result": "ok",
+  "data": {
+    "supervisor": "2026.02.3",
+    "homeassistant": "2026.3.1",
+    "hassos": "17.1",
+    "docker": "29.1.3",
+    "hostname": "homeassistant",
+    "operating_system": "Home Assistant OS 17.1",
+    "features": [
+      "reboot",
+      "shutdown",
+      "services",
+      "network",
+      "hostname",
+      "timedate",
+      "os_agent",
+      "haos",
+      "resolved",
+      "journal",
+      "disk",
+      "mount"
+    ],
+    "machine": "qemux86-64",
+    "machine_id": "52cafb660fa44df6a95827e796ab5a8a",
+    "arch": "amd64",
+    "state": "running",
+    "supported_arch": [
+      "amd64",
+      "i386"
+    ],
+    "supported": true,
+    "channel": "stable",
+    "logging": "info",
+    "timezone": "Europe/Copenhagen"
+  }
+}
+
+=== CORE API TEST ===
+{"message":"API running."}
+=== CORE CONFIG ===
+{
+  "allowlist_external_dirs": [
+    "/config/www",
+    "/media"
+  ],
+  "allowlist_external_urls": [],
+  "components": [
+    "input_datetime",
+    "system_log",
+    "intent",
+    "stt",
+    "stream",
+    "history",
+    "input_button",
+    "homeassistant.scene",
+    "input_select",
+    "api",
+    "websocket_api",
+    "homeassistant_alerts",
+    "mobile_app",
+    "search",
+    "script",
+    "recorder",
+    "hassio.binary_sensor",
+    "blueprint",
+    "device_automation",
+    "assist_pipeline",
+    "backup.event",
+    "input_number",
+    "go2rtc",
+    "sun.binary_sensor",
+    "update",
+    "hassio.switch",
+    "conversation",
+    "diagnostics",
+    "media_source",
+    "notify",
+    "homeassistant",
+    "dhcp",
+    "usage_prediction",
+    "scene",
+    "google_translate",
+    "input_boolean",
+    "my",
+    "hassio.sensor",
+    "google_translate.tts",
+    "backup.sensor",
+    "mobile_app.notify",
+    "timer",
+    "automation",
+    "file",
+    "lovelace",
+    "network",
+    "sensor",
+    "http",
+    "ssdp",
+    "logbook",
+    "sun.sensor",
+    "camera",
+    "system_health",
+    "event",
+    "hassio.update",
+    "labs",
+    "met.weather",
+    "application_credentials",
+    "brands",
+    "onboarding",
+    "todo",
+    "analytics",
+    "repairs",
+    "person",
+    "image_upload",
+    "default_config",
+    "logger",
+    "trace",
+    "persistent_notification",
+    "energy",
+    "sun",
+    "radio_browser",
+    "web_rtc",
+    "energy.sensor",
+    "tag",
+    "weather",
+    "hardware",
+    "tts",
+    "shopping_list",
+    "webhook",
+    "input_text",
+    "schedule",
+    "backup",
+    "switch",
+    "cloud",
+    "config",
+    "usb",
+    "ffmpeg",
+    "wake_word",
+    "cloud.tts",
+    "shopping_list.todo",
+    "zone",
+    "bluetooth",
+    "binary_sensor",
+    "frontend",
+    "hassio",
+    "met",
+    "zeroconf",
+    "auth",
+    "file_upload",
+    "counter"
+  ],
+  "config_dir": "/config",
+  "config_source": "storage",
+  "country": "DK",
+  "currency": "DKK",
+  "debug": false,
+  "elevation": 0,
+  "external_url": null,
+  "internal_url": null,
+  "language": "da",
+  "latitude": 55.716101,
+  "location_name": "Hjem",
+  "longitude": 11.730411,
+  "radius": 100,
+  "recovery_mode": false,
+  "safe_mode": false,
+  "state": "RUNNING",
+  "time_zone": "Europe/Copenhagen",
+  "unit_system": {
+    "length": "km",
+    "accumulated_precipitation": "mm",
+    "area": "m²",
+    "mass": "g",
+    "pressure": "Pa",
+    "temperature": "°C",
+    "volume": "L",
+    "wind_speed": "m/s"
+  },
+  "version": "2026.3.1",
+  "whitelist_external_dirs": [
+    "/config/www",
+    "/media"
+  ]
+}
+
+=== HA .storage files ===
+total 168
+drwxr-xr-x    2 root     root          4096 Mar  7 16:22 .
+drwxr-xr-x    9 root     root          4096 Mar  7 16:15 ..
+-rw-r--r--    1 root     root           634 Mar  7 15:18 assist_pipeline.pipelines
+-rw-------    1 root     root          4846 Mar  7 16:19 auth
+-rw-------    1 root     root           263 Mar  7 15:38 auth_provider.homeassistant
+-rw-r--r--    1 root     root           101 Mar  7 16:22 bluetooth.passive_update_processor
+-rw-r--r--    1 root     root           348 Mar  7 15:54 core.analytics
+-rw-r--r--    1 root     root          1263 Mar  7 15:38 core.area_registry
+-rw-------    1 root     root           391 Mar  7 15:39 core.config
+-rw-r--r--    1 root     root          3334 Mar  7 15:39 core.config_entries
+-rw-r--r--    1 root     root          8357 Mar  7 16:18 core.device_registry
+-rw-r--r--    1 root     root         53210 Mar  7 16:18 core.entity_registry
+-rw-r--r--    1 root     root          8428 Mar  7 16:22 core.restore_state
+-rw-------    1 root     root           126 Mar  7 15:18 core.uuid
+-rw-r--r--    1 root     root           200 Mar  7 15:39 frontend.system_data
+-rw-r--r--    1 root     root           202 Mar  7 15:39 frontend.user_data_6b7b39880ef24e16befe785c9ecc1a58
+-rw-r--r--    1 root     root           285 Mar  7 15:18 hassio
+-rw-r--r--    1 root     root           586 Mar  7 15:18 homeassistant.exposed_entities
+-rw-r--r--    1 root     root           300 Mar  7 15:21 http
+
+=== SERVICES (MQTT etc) ===
+{
+  "result": "ok",
+  "data": {
+    "services": [
+      {
+        "slug": "mqtt",
+        "available": false,
+        "providers": [
+          "core_mosquitto"
+        ]
+      },
+      {
+        "slug": "mysql",
+        "available": false,
+        "providers": []
+      }
+    ]
+  }
+}
+
+=== DONE — sleeping forever ===

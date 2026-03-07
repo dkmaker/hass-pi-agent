@@ -1,0 +1,82 @@
+{
+  "domain": "integration",
+  "storage_key": "core.config_entries",
+  "storage_type": "config_entry",
+  "name": "Integral",
+  "integration_type": "helper",
+  "documentation": "https://www.home-assistant.io/integrations/integration",
+  "create_fields": [
+    {
+      "field": "name",
+      "required": true,
+      "type": "string"
+    },
+    {
+      "field": "unit_prefix",
+      "required": false,
+      "type": "string",
+      "format": "select"
+    },
+    {
+      "field": "unit_time",
+      "required": true,
+      "type": "string",
+      "format": "select",
+      "default": "UnitOfTime.HOURS"
+    },
+    {
+      "field": "source",
+      "required": true,
+      "type": "unknown",
+      "raw": "entity_selector"
+    },
+    {
+      "field": "method",
+      "required": true,
+      "type": "string",
+      "format": "select",
+      "default": "METHOD_TRAPEZOIDAL"
+    },
+    {
+      "field": "round",
+      "required": false,
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 6.0
+    },
+    {
+      "field": "max_sub_interval",
+      "required": false,
+      "type": "object",
+      "format": "duration"
+    }
+  ],
+  "update_fields": [
+    {
+      "field": "source",
+      "required": true,
+      "type": "unknown",
+      "raw": "entity_selector"
+    },
+    {
+      "field": "method",
+      "required": true,
+      "type": "string",
+      "format": "select",
+      "default": "METHOD_TRAPEZOIDAL"
+    },
+    {
+      "field": "round",
+      "required": false,
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 6.0
+    },
+    {
+      "field": "max_sub_interval",
+      "required": false,
+      "type": "object",
+      "format": "duration"
+    }
+  ]
+}

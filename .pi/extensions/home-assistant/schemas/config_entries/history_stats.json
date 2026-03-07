@@ -1,0 +1,72 @@
+{
+  "domain": "history_stats",
+  "storage_key": "core.config_entries",
+  "storage_type": "config_entry",
+  "name": "History Stats",
+  "integration_type": "helper",
+  "documentation": "https://www.home-assistant.io/integrations/history_stats",
+  "fields": [
+    {
+      "field": "name",
+      "required": true,
+      "type": "unknown",
+      "raw": "TextSelector()",
+      "default": "unnamed statistics"
+    },
+    {
+      "field": "entity_id",
+      "required": true,
+      "type": "unknown",
+      "raw": "EntitySelector()"
+    },
+    {
+      "field": "type",
+      "required": true,
+      "type": "unknown",
+      "raw": "SelectSelector( SelectSelectorConfig( options=CONF_TYPE_KEYS, mode=SelectSelectorMode.DROPDOWN, translation_key=CONF_TYPE, ) )",
+      "default": "time"
+    },
+    {
+      "field": "state",
+      "required": true,
+      "type": "unknown",
+      "raw": "StateSelector( StateSelectorConfig( multiple=True, entity_id=entity_id, ) )"
+    },
+    {
+      "field": "start",
+      "required": false,
+      "type": "unknown",
+      "raw": "TemplateSelector()"
+    },
+    {
+      "field": "end",
+      "required": false,
+      "type": "unknown",
+      "raw": "TemplateSelector()"
+    },
+    {
+      "field": "duration",
+      "required": false,
+      "type": "unknown",
+      "raw": "DurationSelector( DurationSelectorConfig(enable_day=True, allow_negative=False), )"
+    },
+    {
+      "field": "state_class",
+      "required": false,
+      "type": "unknown",
+      "raw": "SelectSelector( SelectSelectorConfig( options=state_class_options, translation_key=CONF_STATE_CLASS, mode=SelectSelectorMode.DROPDOWN, ), )"
+    },
+    {
+      "field": "section_advanced_settings",
+      "required": false,
+      "type": "unknown",
+      "raw": "section( vol.Schema( {"
+    },
+    {
+      "field": "min_state_duration",
+      "required": false,
+      "type": "unknown",
+      "raw": "DurationSelector( DurationSelectorConfig( enable_day=True, allow_negative=False ) )"
+    }
+  ]
+}

@@ -1,0 +1,76 @@
+{
+  "domain": "filter",
+  "storage_key": "core.config_entries",
+  "storage_type": "config_entry",
+  "name": "Filter",
+  "integration_type": "helper",
+  "documentation": "https://www.home-assistant.io/integrations/filter",
+  "fields": [
+    {
+      "field": "name",
+      "required": true,
+      "type": "unknown",
+      "raw": "TextSelector()",
+      "default": "Filtered sensor"
+    },
+    {
+      "field": "entity_id",
+      "required": true,
+      "type": "unknown",
+      "raw": "EntitySelector( EntitySelectorConfig(domain=[SENSOR_DOMAIN]) )"
+    },
+    {
+      "field": "filter",
+      "required": true,
+      "type": "unknown",
+      "raw": "SelectSelector( SelectSelectorConfig( options=FILTERS, mode=SelectSelectorMode.DROPDOWN, translation_key=CONF_FILTER_NAME, ) )"
+    },
+    {
+      "field": "precision",
+      "required": false,
+      "type": "unknown",
+      "raw": "NumberSelector( NumberSelectorConfig(min=0, step=1, mode=NumberSelectorMode.BOX) )",
+      "default": 2
+    },
+    {
+      "field": "window_size",
+      "required": false,
+      "type": "unknown",
+      "raw": "NumberSelector( NumberSelectorConfig(min=0, step=1, mode=NumberSelectorMode.BOX) )",
+      "default": 1
+    },
+    {
+      "field": "radius",
+      "required": false,
+      "type": "unknown",
+      "raw": "NumberSelector( NumberSelectorConfig(min=0, step=\"any\", mode=NumberSelectorMode.BOX) )",
+      "default": 2.0
+    },
+    {
+      "field": "time_constant",
+      "required": false,
+      "type": "unknown",
+      "raw": "NumberSelector( NumberSelectorConfig(min=0, step=1, mode=NumberSelectorMode.BOX) )",
+      "default": 10
+    },
+    {
+      "field": "lower_bound",
+      "required": false,
+      "type": "unknown",
+      "raw": "NumberSelector( NumberSelectorConfig(min=0, step=\"any\", mode=NumberSelectorMode.BOX) )"
+    },
+    {
+      "field": "upper_bound",
+      "required": false,
+      "type": "unknown",
+      "raw": "NumberSelector( NumberSelectorConfig(min=0, step=\"any\", mode=NumberSelectorMode.BOX) )"
+    },
+    {
+      "field": "type",
+      "required": false,
+      "type": "unknown",
+      "raw": "SelectSelector( SelectSelectorConfig( options=[TIME_SMA_LAST], mode=SelectSelectorMode.DROPDOWN, translation_key=CONF_TIME_SMA_TYPE, ) )",
+      "default": "TIME_SMA_LAST"
+    }
+  ]
+}

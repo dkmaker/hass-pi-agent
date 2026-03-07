@@ -1,0 +1,35 @@
+{
+  "domain": "timer",
+  "storage_key": "timer",
+  "storage_type": "collection",
+  "storage_version": 1,
+  "storage_minor_version": 1,
+  "fields": [
+    {
+      "field": "name",
+      "required": true,
+      "type": "string"
+    },
+    {
+      "field": "icon",
+      "required": false,
+      "type": "string"
+    },
+    {
+      "field": "duration",
+      "required": false,
+      "type": "string",
+      "format": "time_period",
+      "default": 0
+    },
+    {
+      "field": "restore",
+      "required": false,
+      "type": "boolean",
+      "default": false
+    }
+  ],
+  "name": "Timer",
+  "integration_type": "helper",
+  "documentation": "https://www.home-assistant.io/integrations/timer"
+}

@@ -1,0 +1,21 @@
+name: "Pi Agent for Home Assistant"
+version: "0.0.1"
+slug: "pi_agent"
+description: "Test add-on — verify access and identity"
+arch:
+  - amd64
+  - aarch64
+startup: application
+boot: manual
+homeassistant_api: true
+hassio_api: true
+hassio_role: admin
+auth_api: true
+map:
+  - homeassistant_config:rw
+  - all_addon_configs:rw
+  - ssl:rw
+  - share:rw
+  - media:rw
+  - backup:rw
+init: false
