@@ -3,6 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "description": "Pi extension for Home Assistant maintenance and management",
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.5.0"
+  },
   "pi": {
     "extensions": ["./index.ts"]
   }

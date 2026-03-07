@@ -1,123 +1,214 @@
-# Next Steps — Extension Review & Cleanup
+# Next Steps — WebSocket Migration & New Tools
 
 ## Context
 
-We completed a major rewrite of the Home Assistant Pi extension. We now have 5 tools, a registry system, two storage backends, and a schema extractor. Before adding more features, we need to review, clean up, and consolidate.
+The extension cleanup is complete (shared `lib/api.ts`, `StringEnum`, proper error handling, dead code removed). The `ha-devices` tool was built on the new shared WebSocket client (`lib/ws.ts`). A full audit of HA's WebSocket API (see `PLAN_WS.md`) revealed that most of our storage-file operations have proper WS equivalents that work **live without restarts**.
 
-**Read the Pi extension docs first**: `/home/cp/.nvm/versions/node/v24.14.0/lib/node_modules/@mariozechner/pi-coding-agent/docs/extensions.md` and examples at `/home/cp/.nvm/versions/node/v24.14.0/lib/node_modules/@mariozechner/pi-coding-agent/examples/extensions/` to understand best practices, API surface, and patterns before refactoring.
+This plan migrates existing tools to WebSocket and adds new tools unlocked by it.
 
-## What exists today
-
-### Extension files (`.pi/extensions/home-assistant/`)
+## Current Architecture
 
 ```
-index.ts                          (14 lines)  — registers all 5 tools
 lib/
-  config.ts                       (79 lines)  — env vars, paths, .env loader
-  storage.ts                      (50 lines)  — read/write .storage files with backup
-  backup.ts                       (88 lines)  — timestamped backup with rotation
-  config-check.ts                 (73 lines)  — ⚠️ DEAD CODE — checkConfig + restartHA, no longer imported
-  registry.ts                    (336 lines)  — positive-list type registry, schema loading, validation
+  api.ts          — REST helpers: requireToken(), apiGet(), apiPost(), callService()
+  ws.ts           — WebSocket client: wsCommand(), wsClose(), wsConnected()
+  config.ts       — env vars, paths, .env loader
+  storage.ts      — read/write .storage files with backup
+  backup.ts       — timestamped backup with rotation
+  registry.ts     — type registry, schema loading, validation
   backends/
-    collection.ts                (123 lines)  — .storage/<domain> items[] backend
-    config-entry.ts              (238 lines)  — core.config_entries backend + entity registry cleanup
+    collection.ts — .storage/<domain> items[] CRUD ← TO BE REPLACED BY WS
+    config-entry.ts — core.config_entries CRUD ← PARTIALLY REPLACEABLE
+
 tools/
-  ha-helpers.ts                  (272 lines)  — helper CRUD (list-types, list, get, add, update, remove, backups, restore)
-  ha-template.ts                  (88 lines)  — render/validate Jinja2 templates
-  ha-entities.ts                 (365 lines)  — entity discovery with device/area context
-  ha-restart.ts                  (175 lines)  — restart, reload-all, reload-core, reload-templates, reload-domain, validate
-  ha-services.ts                 (280 lines)  — list, get, call services
-docs/
-  storage-schemas.md                          — ⚠️ STALE — marked for deletion, replaced by schema JSON files
-schemas/
-  collections/    (14 files)                  — collection storage schemas
-  config_entries/ (17 files)                  — config entry schemas (template has sub_types)
-  registries/      (6 files)                  — core registry schemas (not used by tools yet)
+  ha-helpers.ts   — helper management (delegates to backends)
+  ha-devices.ts   — device management (WS-based) ✅
+  ha-entities.ts  — entity discovery (REST + storage reads)
+  ha-services.ts  — service list/get/call (REST)
+  ha-restart.ts   — restart/reload (REST service calls)
+  ha-template.ts  — template render/validate (REST)
 ```
 
-### Other project files
+## Phase 1: Migrate `ha-helpers` Collection Backend to WS
+
+**Goal:** Eliminate restart requirement for the 9 collection helper types.
+**Impact:** HIGH — biggest user-facing improvement.
+
+### What changes
+
+The 9 collection helpers (input_boolean, input_number, input_text, input_select, input_datetime, input_button, counter, timer, schedule) all have WS CRUD commands:
 
 ```
-tools/extract-schemas.py         — Python schema extractor from ha-core source
-PLAN.md                          — Completed plan with all investigation results
-NEXT.md                          — This file
-.pi/skills/ha-dev/               — Dev skill with bash scripts (ha-api, ha-supervisor, vm-ctl, deploy-addon)
+{domain}/list                          → list all items
+{domain}/create   + fields             → create item (immediate)
+{domain}/update   + {domain}_id + fields → update item (immediate)
+{domain}/delete   + {domain}_id        → delete item (immediate)
 ```
 
-## Issues to fix
+### Plan
 
-### 1. Dead code: `lib/config-check.ts`
-`checkConfig()` and `restartHA()` were moved into `ha-restart.ts` tool but the old shared lib still exists. **Nobody imports it.** Delete it.
+1. **Create `lib/backends/collection-ws.ts`** — new backend using `wsCommand()`:
+   - `listItems(type)` → `wsCommand("{domain}/list")`
+   - `addItem(type, fields)` → `wsCommand("{domain}/create", fields)`
+   - `updateItem(type, id, fields)` → `wsCommand("{domain}/update", { {domain}_id: id, ...fields })`
+   - `removeItem(type, id)` → `wsCommand("{domain}/delete", { {domain}_id: id })`
+   - No backup needed (HA manages its own storage)
+   - No restart needed (changes are live)
 
-### 2. Duplicated code: `requireToken()` and `apiGet()`
-These are copy-pasted across 4 tool files:
-- `ha-entities.ts` — `requireToken()` + `apiGet()`
-- `ha-services.ts` — `requireToken()` + `apiGet()`
-- `ha-restart.ts` — `requireToken()` + `callService()`
-- `ha-template.ts` — `requireToken()`
+2. **Update `ha-helpers.ts`** — use WS backend for collection types:
+   - Route collection types → `collection-ws.ts`
+   - Route config entry types → `config-entry.ts` (unchanged for now)
+   - Remove "⚠️ Restart HA" messages for collection types
+   - Keep backup/restore actions as emergency recovery (reads storage files)
 
-**Action**: Extract a shared `lib/api.ts` with `requireToken()`, `apiGet()`, `apiPost()`, and `callService()`. All tools import from there.
+3. **Keep `lib/backends/collection.ts`** — retain as fallback / backup-restore path. Don't delete yet.
 
-### 3. Stale docs: `docs/storage-schemas.md`
-Was marked for deletion in the original NEXT.md. Replaced by the JSON schema files. **Delete it.**
+4. **Research config entry flows** — investigate `config_entries/flow` WS commands to see if config entry helpers can also go live. This is Phase 1b if feasible.
 
-### 4. `ws` dependency unused
-`package.json` has `ws` and `@types/ws` as dependencies but no tool imports websocket. Check if still needed or remove.
+### Validation
 
-### 5. Tool descriptions review
-Review all 5 tool descriptions for clarity, accuracy, and consistency. The descriptions are what the AI reads to decide when/how to use a tool. They should be:
-- Concise but complete
-- List all actions and parameters clearly
-- Not expose internal implementation details (no "collection" vs "config_entry")
-- Consistent in style across all tools
+- Verify field names match between our schemas and WS create/update expectations
+- Check if WS `{domain}/list` returns the same shape as storage items
+- Test error responses (duplicate ID, missing required fields, not found)
 
-Current descriptions to review:
-- `ha_helpers` — good but long, template sub-type info could be clearer
-- `ha_template` — good, concise
-- `ha_entities` — good but mentions "device and area context" which may over-promise on simple installs
-- `ha_restart` — good, clear guidance on when to use restart vs reload
-- `ha_services` — good, concise
+## Phase 2: Migrate `ha-entities` to WS
 
-### 6. Skills are dev-only tooling — NOT part of the extension
-The `ha-dev` skill (`ha-api`, `ha-supervisor`, `vm-ctl`, `deploy-addon`) is **developer tooling** for building and testing the extension on the local dev VM. It is NOT part of the shipped extension and will NOT be included in the final add-on. The skill scripts talk to the VM directly; the extension tools talk to HA via its internal APIs (designed to run inside the add-on container).
+**Goal:** Live entity registry data + add update/remove capabilities.
+**Impact:** MEDIUM — adds mutation capabilities, removes storage dependency.
 
-**No action needed** — the skill stays as-is for development. No overlap to resolve.
+### What changes
 
-## Refactoring plan
+| Current | WS Replacement |
+|---------|---------------|
+| `apiGet("/api/states")` | Keep REST (or `get_states` WS — equivalent) |
+| `readStorage("core.entity_registry")` | `wsCommand("config/entity_registry/list")` |
+| `readStorage("core.device_registry")` | `wsCommand("config/device_registry/list")` |
+| `readStorage("core.area_registry")` | `wsCommand("config/area_registry/list")` |
+| (not available) | `wsCommand("config/entity_registry/update", ...)` |
+| (not available) | `wsCommand("config/entity_registry/remove", ...)` |
 
-### Step 1: Read Pi extension docs
-Read the extension documentation and examples to check we're following best practices for tool registration, parameter schemas, error handling, and description formatting.
+### New actions for `ha-entities`
 
-### Step 2: Extract shared API module
-Create `lib/api.ts`:
-```typescript
-export function requireToken(): void
-export async function apiGet<T>(path: string): Promise<T>
-export async function apiPost<T>(path: string, data?: unknown): Promise<T>
-export async function callService(domain: string, service: string, data?: Record<string, unknown>): Promise<{ ok: boolean; result?: unknown }>
+- **update** — rename entity, change entity_id, set area/labels, disable/enable, change icon
+- **remove** — delete orphaned/unwanted entities from the registry
+
+### Plan
+
+1. Replace storage reads with WS calls in registry loaders
+2. Add `update` and `remove` actions with appropriate parameters
+3. Keep REST for `/api/states` (simpler for one-shot reads than WS subscription)
+
+## Phase 3: New Registry Tools
+
+**Goal:** Full management of areas, floors, and labels.
+**Impact:** MEDIUM — completes the organizational layer.
+**Effort:** Small — these are all simple CRUD over WS.
+
+### `ha_areas` tool
+
+Manages areas and floors (combined — floors are the parent of areas).
+
+| Action | WS Command |
+|--------|-----------|
+| list | `config/area_registry/list` + `config/floor_registry/list` |
+| get | List + filter, enrich with device/entity counts |
+| create-area | `config/area_registry/create` (name, floor_id, icon, labels, aliases) |
+| update-area | `config/area_registry/update` |
+| delete-area | `config/area_registry/delete` |
+| create-floor | `config/floor_registry/create` (name, level, icon, aliases) |
+| update-floor | `config/floor_registry/update` |
+| delete-floor | `config/floor_registry/delete` |
+| reorder | `config/area_registry/reorder` / `config/floor_registry/reorder` |
+
+### `ha_labels` tool
+
+| Action | WS Command |
+|--------|-----------|
+| list | `config/label_registry/list` |
+| create | `config/label_registry/create` (name, color, icon, description) |
+| update | `config/label_registry/update` |
+| delete | `config/label_registry/delete` |
+
+## Phase 4: Config Entry Helpers via WS
+
+**Goal:** Eliminate restart for config-entry-based helpers (template, derivative, utility_meter, etc.).
+**Impact:** HIGH — completes the "no restart" story.
+**Effort:** Medium-Large — config flows are multi-step.
+
+### Investigation needed
+
+Config entry helpers are created via `config_entries/flow`, which is a multi-step wizard:
+1. `config_entries/flow` with `handler: "domain"` → returns `flow_id` + first step
+2. Submit step data → may return next step or create entry
+
+Need to map out the flow for each helper type:
+- How many steps?
+- What data at each step?
+- Can we complete in a single round-trip?
+- How does options update work (`config_entries/update`)?
+
+### 17 config entry helper types
+
+derivative, filter, generic_hygrostat, generic_thermostat, group, history_stats, integration, min_max, mold_indicator, random, statistics, switch_as_x, template, threshold, tod, trend, utility_meter
+
+## Phase 5: Dashboard Management
+
+**Goal:** View and edit Lovelace dashboards.
+**Impact:** MEDIUM — popular request.
+
+| Action | WS Command |
+|--------|-----------|
+| list | `lovelace/dashboards` (collection WS) |
+| get-config | `lovelace/config` + `url_path` |
+| save-config | `lovelace/config/save` |
+| create | `lovelace/dashboards/create` |
+| delete | `lovelace/dashboards/delete` |
+| resources | `lovelace/resources/list` |
+
+## Phase 6: Future Tools
+
+Lower priority, enabled by WS:
+
+| Tool | WS Commands | Notes |
+|------|-------------|-------|
+| `ha_automations` | automation collection CRUD + trace | Large — automation configs are complex |
+| `ha_search` | `search/related` | Find everything related to a device/entity/area |
+| `ha_system` | `system_log/list`, integration info | Diagnostics and troubleshooting |
+| `ha_history` | `recorder/statistics_during_period` | Query historical data |
+| `ha_backup` | backup WS commands | Create/restore HA backups |
+
+## Migration Strategy
+
+### Storage file access — deprecation path
+
+| Phase | Storage reads | Storage writes | WS |
+|-------|--------------|----------------|-----|
+| Current | Registries + helpers | Helpers (+ restart) | Devices only |
+| Phase 1 | Registries only | Config entry helpers only | Devices + collection helpers |
+| Phase 2 | Schemas only | Config entry helpers only | Devices + helpers + entities + registries |
+| Phase 4 | Schemas only | None (backup/restore only) | Everything |
+
+### What stays on REST
+
+- `ha-template` — one-shot template rendering (WS is subscription-based, overkill)
+- `ha-services` — service listing and calling (REST is clean, no benefit from WS)
+- `ha-restart` — service calls for restart/reload (REST is appropriate)
+- Entity state reads in `ha-entities` and `ha-devices` — `/api/states` is simple and sufficient
+
+### What stays as storage file reads
+
+- Schema JSON files in `schemas/` — these are our extracted schemas, not HA storage
+- Backup/restore in `lib/backup.ts` — emergency recovery, orthogonal to WS
+
+## Execution Order
+
+```
+Phase 1:  ha-helpers collection → WS        (highest impact, eliminates restarts)
+Phase 2:  ha-entities → WS registries        (adds update/remove, live data)
+Phase 3:  ha_areas + ha_labels tools          (new tools, trivial CRUD)
+Phase 4:  ha-helpers config entries → WS      (research config flows first)
+Phase 5:  ha_dashboards tool                  (new tool)
+Phase 6:  ha_automations, ha_search, etc.     (future)
 ```
 
-### Step 3: Delete dead code
-- Delete `lib/config-check.ts`
-- Delete `docs/storage-schemas.md`
-- Remove `ws` + `@types/ws` from package.json if unused
-
-### Step 4: Review and polish tool descriptions
-Make all descriptions follow same pattern. Focus on what the AI needs to know to use the tool correctly.
-
-### Step 5: Review parameter schemas
-Check that all parameter types, descriptions, and optionality are correct. Ensure the AI gets good error messages when it passes wrong params.
-
-### Step 6: Update project docs
-- Update AGENTS.md to reflect new tool architecture
-- Update or remove PLAN.md (completed)
-- Write this NEXT.md with future roadmap
-- Skills are dev-only — no changes needed there
-
-## Future features (after cleanup)
-
-- **Automations/scripts/scenes**: Extend registry to manage YAML-based automations via the tools
-- **Area/floor/label management**: Use registry schemas to manage core registries
-- **Dashboard management**: Lovelace dashboard CRUD
-- **Backup management**: HA backup create/restore via supervisor API
-- **History/statistics**: Query entity history and long-term statistics
+Each phase is independently shippable and testable.
