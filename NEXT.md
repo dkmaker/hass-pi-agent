@@ -71,28 +71,29 @@ Extend the existing `ha_automations` tool (NOT a new tool) with builder actions.
 #### Session
 | Action | Params | Description |
 |--------|--------|-------------|
-| `new` | `config.alias`, `config.description?`, `config.mode?` | Start new automation in builder |
-| `load` | `automation_id` | Load existing automation into builder |
-| `show` | — | Show current builder state as JSON |
-| `yaml` | — | Show current builder state as YAML |
-| `save` | `automation_id?` | Save to HA via REST API (validates + reloads) |
-| `discard` | — | Clear the builder |
+| `new` | `alias` (required), `description` (required), `mode?` | Start new draft. Validates alias is unique against HA. |
+| `load` | `automation_id` | Load existing automation from HA into a draft |
+| `list-drafts` | — | List all in-progress drafts in temp folder |
+| `show` | `alias` | Show draft state as JSON |
+| `yaml` | `alias` | Show draft state as YAML |
+| `save` | `alias`, `automation_id?` | Save draft to HA via REST API (validates + reloads), removes draft |
+| `discard` | `alias` | Delete a draft |
 
 #### Element CRUD (triggers, conditions, actions)
 | Action | Params | Description |
 |--------|--------|-------------|
 | `list-trigger-types` | — | Show available trigger types with fields |
-| `add-trigger` | `config: {trigger: "state", entity_id: "..."}` | Add trigger |
-| `update-trigger` | `index`, `config` | Update trigger at index |
-| `remove-trigger` | `index` | Remove trigger at index |
+| `add-trigger` | `alias`, `config: {trigger: "state", entity_id: "..."}` | Add trigger to draft |
+| `update-trigger` | `alias`, `index`, `config` | Update trigger at index |
+| `remove-trigger` | `alias`, `index` | Remove trigger at index |
 | `list-condition-types` | — | Show available condition types with fields |
-| `add-condition` | `config: {condition: "state", ...}` | Add condition |
-| `update-condition` | `index`, `config` | Update condition at index |
-| `remove-condition` | `index` | Remove condition at index |
+| `add-condition` | `alias`, `config: {condition: "state", ...}` | Add condition to draft |
+| `update-condition` | `alias`, `index`, `config` | Update condition at index |
+| `remove-condition` | `alias`, `index` | Remove condition at index |
 | `list-action-types` | — | Show action types + building blocks |
-| `add-action` | `config: {action: "light.turn_on", ...}` | Add action |
-| `update-action` | `index`, `config` | Update action at index |
-| `remove-action` | `index` | Remove action at index |
+| `add-action` | `alias`, `config: {action: "light.turn_on", ...}` | Add action to draft |
+| `update-action` | `alias`, `index`, `config` | Update action at index |
+| `remove-action` | `alias`, `index` | Remove action at index |
 
 #### Dynamic Schema Lookup
 | Action | Params | Description |
@@ -101,11 +102,17 @@ Extend the existing `ha_automations` tool (NOT a new tool) with builder actions.
 
 ### Temp storage
 ```
-/tmp/ha-automation-builder/current.json
+/tmp/ha-automation-builder/
+  my_morning_routine.json
+  evening_lights.json
+  ...
 ```
-- Created on `new` or `load`
-- Read/written on every builder action
-- Cleared on `save` or `discard`
+- One file per automation, named from the alias (slugified)
+- Created on `new` (requires `alias` + `description`)
+- On `new`, validates alias doesn't conflict with existing automations in HA (WS lookup, no upload)
+- Read/written on every builder action (specify which automation by alias/filename)
+- Cleared on `save` (uploaded to HA) or `discard`
+- `list-drafts` action to show all in-progress automations
 - JSON format (matches REST API input)
 
 ### Validation

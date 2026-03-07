@@ -46,9 +46,14 @@ A **temp file** stores the automation being built/edited. The tool operates on t
 ### Temp Storage
 ```
 /tmp/ha-automation-builder/
-  current.json          # The work-in-progress automation config
-  current.yaml          # YAML mirror for preview/manual editing
+  my_morning_routine.json    # Draft 1
+  evening_lights.json        # Draft 2
+  ...
 ```
+- Multiple drafts supported simultaneously, keyed by slugified alias
+- `new` requires both `alias` and `description` — no unnamed automations
+- `new` validates alias uniqueness against existing HA automations (no upload, just check)
+- All element CRUD actions take `alias` to identify which draft to modify
 
 ### Tool Actions
 
