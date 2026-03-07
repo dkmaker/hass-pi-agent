@@ -10,7 +10,6 @@ import { Type } from "@sinclair/typebox";
 import { StringEnum } from "@mariozechner/pi-ai";
 import { wsCommand } from "../lib/ws.js";
 import { apiGet } from "../lib/api.js";
-import { readStorage } from "../lib/storage.js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -67,47 +66,41 @@ interface HAState {
   attributes: Record<string, unknown>;
 }
 
-// ── Registry loaders ─────────────────────────────────────────
+// ── Registry loaders (WebSocket) ─────────────────────────────
 
-function loadConfigEntries(): Map<string, ConfigEntry> {
+async function loadConfigEntries(): Promise<Map<string, ConfigEntry>> {
   const map = new Map<string, ConfigEntry>();
   try {
-    const storage = readStorage<{ entries: ConfigEntry[] }>("core.config_entries");
-    if (storage) {
-      for (const e of storage.data.entries) {
-        map.set(e.entry_id, e);
-      }
+    const entries = await wsCommand<ConfigEntry[]>("config_entries/get");
+    for (const e of entries) {
+      map.set(e.entry_id, e);
     }
   } catch { /* not available */ }
   return map;
 }
 
-function loadEntityRegistry(): Map<string, EntityRegistryEntry[]> {
+async function loadEntityRegistry(): Promise<Map<string, EntityRegistryEntry[]>> {
   // Map device_id → entities
   const map = new Map<string, EntityRegistryEntry[]>();
   try {
-    const storage = readStorage<{ entities: EntityRegistryEntry[] }>("core.entity_registry");
-    if (storage) {
-      for (const e of storage.data.entities) {
-        if (e.device_id) {
-          const list = map.get(e.device_id) ?? [];
-          list.push(e);
-          map.set(e.device_id, list);
-        }
+    const entries = await wsCommand<EntityRegistryEntry[]>("config/entity_registry/list");
+    for (const e of entries) {
+      if (e.device_id) {
+        const list = map.get(e.device_id) ?? [];
+        list.push(e);
+        map.set(e.device_id, list);
       }
     }
   } catch { /* not available */ }
   return map;
 }
 
-function loadAreaRegistry(): Map<string, AreaRegistryEntry> {
+async function loadAreaRegistry(): Promise<Map<string, AreaRegistryEntry>> {
   const map = new Map<string, AreaRegistryEntry>();
   try {
-    const storage = readStorage<{ areas: AreaRegistryEntry[] }>("core.area_registry");
-    if (storage) {
-      for (const a of storage.data.areas) {
-        map.set(a.id, a);
-      }
+    const areas = await wsCommand<AreaRegistryEntry[]>("config/area_registry/list");
+    for (const a of areas) {
+      map.set(a.area_id ?? a.id, a);
     }
   } catch { /* not available */ }
   return map;
@@ -220,9 +213,11 @@ async function executeAction(params: Record<string, unknown>): Promise<string> {
 // ── List ─────────────────────────────────────────────────────
 
 async function handleList(params: Record<string, unknown>): Promise<string> {
-  const devices = await wsCommand<WSDevice[]>("config/device_registry/list");
-  const configEntries = loadConfigEntries();
-  const areaReg = loadAreaRegistry();
+  const [devices, configEntries, areaReg] = await Promise.all([
+    wsCommand<WSDevice[]>("config/device_registry/list"),
+    loadConfigEntries(),
+    loadAreaRegistry(),
+  ]);
 
   const includeDisabled = (params.include_disabled as boolean) ?? false;
   const limit = (params.limit as number) ?? 50;
@@ -257,7 +252,7 @@ async function handleList(params: Record<string, unknown>): Promise<string> {
     filtered = filtered.filter((d) => {
       if (!d.area_id) return false;
       const area = areaReg.get(d.area_id);
-      return area?.name.toLowerCase().includes(areaFilter) ?? false;
+      return area?.name?.toLowerCase().includes(areaFilter) ?? false;
     });
   }
 
@@ -342,9 +337,11 @@ async function handleGet(deviceId?: string): Promise<string> {
   const device = devices.find((d) => d.id === deviceId);
   if (!device) throw new Error(`Device '${deviceId}' not found`);
 
-  const configEntries = loadConfigEntries();
-  const areaReg = loadAreaRegistry();
-  const entityByDevice = loadEntityRegistry();
+  const [configEntries, areaReg, entityByDevice] = await Promise.all([
+    loadConfigEntries(),
+    loadAreaRegistry(),
+    loadEntityRegistry(),
+  ]);
 
   // Build device detail
   const integrations = getIntegrations(device, configEntries);
@@ -464,9 +461,11 @@ async function handleUpdate(params: Record<string, unknown>): Promise<string> {
 // ── Tree ─────────────────────────────────────────────────────
 
 async function handleTree(params: Record<string, unknown>): Promise<string> {
-  const devices = await wsCommand<WSDevice[]>("config/device_registry/list");
-  const configEntries = loadConfigEntries();
-  const areaReg = loadAreaRegistry();
+  const [devices, configEntries, areaReg] = await Promise.all([
+    wsCommand<WSDevice[]>("config/device_registry/list"),
+    loadConfigEntries(),
+    loadAreaRegistry(),
+  ]);
 
   const includeDisabled = (params.include_disabled as boolean) ?? false;
   const integration = (params.integration as string)?.toLowerCase();

@@ -22,7 +22,7 @@ import {
   validateFields,
   formatSchema,
 } from "../lib/registry.js";
-import * as collectionBackend from "../lib/backends/collection.js";
+import * as collectionWsBackend from "../lib/backends/collection-ws.js";
 import * as configEntryBackend from "../lib/backends/config-entry.js";
 import { listBackups, restoreBackup } from "../lib/backup.js";
 
@@ -42,13 +42,14 @@ Actions:
 - list-types: Show all supported helper types with field schemas
 - list: List all helpers, optionally filtered by type
 - get: Get a specific helper by type and id
-- add: Add a new helper (backs up before write, requires HA restart)
-- update: Update an existing helper (backs up before write, requires HA restart)
-- remove: Remove a helper by type and id (backs up before write, requires HA restart)
+- add: Add a new helper (collection types are live, config entry types require HA restart)
+- update: Update an existing helper (collection types are live, config entry types require HA restart)
+- remove: Remove a helper by type and id (collection types are live, config entry types require HA restart)
 - backups: List available backups for rollback
 - restore: Restore a backup file
 
-After any add/update/remove, you MUST restart HA for changes to take effect.`,
+Collection helpers (input_boolean, input_number, input_text, input_select, input_datetime, input_button, counter, timer, schedule) use WebSocket — changes take effect immediately.
+Config entry helpers require HA restart after add/update/remove.`,
 
     parameters: Type.Object({
       action: StringEnum(
@@ -157,12 +158,12 @@ function handleListTypes(): string {
   return lines.join("\n");
 }
 
-function handleList(type?: string): string {
+async function handleList(type?: string): Promise<string> {
   if (type) {
     const t = requireType(type);
     if (typeof t === "string") return t;
     const items = t.storageType === "collection"
-      ? collectionBackend.listItems(t)
+      ? await collectionWsBackend.listItems(t)
       : configEntryBackend.listEntries(t);
     if (items.length === 0) return `No ${type} helpers found.\n\n${formatSchema(type)}`;
     return JSON.stringify(items, null, 2);
@@ -172,7 +173,7 @@ function handleList(type?: string): string {
   const results: Record<string, unknown[]> = {};
   for (const t of listTypes()) {
     const items = t.storageType === "collection"
-      ? collectionBackend.listItems(t)
+      ? await collectionWsBackend.listItems(t)
       : configEntryBackend.listEntries(t);
     if (items.length > 0) results[t.domain] = items;
   }
@@ -181,20 +182,20 @@ function handleList(type?: string): string {
   return JSON.stringify(results, null, 2);
 }
 
-function handleGet(type?: string, id?: string): string {
+async function handleGet(type?: string, id?: string): Promise<string> {
   if (!type || !id) return "Error: 'type' and 'id' are required for get";
   const t = requireType(type);
   if (typeof t === "string") return t;
 
   const item = t.storageType === "collection"
-    ? collectionBackend.getItem(t, id)
+    ? await collectionWsBackend.getItem(t, id)
     : configEntryBackend.getEntry(t, id);
 
   if (!item) return `Helper '${id}' not found in ${type}.\n\n${formatSchema(type)}`;
   return JSON.stringify(item, null, 2);
 }
 
-function handleAdd(type?: string, fields?: Record<string, unknown>): string {
+async function handleAdd(type?: string, fields?: Record<string, unknown>): Promise<string> {
   if (!type) return "Error: 'type' is required for add";
   const t = requireType(type);
   if (typeof t === "string") return t;
@@ -208,15 +209,18 @@ function handleAdd(type?: string, fields?: Record<string, unknown>): string {
     return `Validation errors:\n${validation.errors.map((e) => `  - ${e}`).join("\n")}\n\n${formatSchema(type)}`;
   }
 
-  const result = t.storageType === "collection"
-    ? collectionBackend.addItem(t, fields)
-    : configEntryBackend.addEntry(t, fields);
-
-  if (!result.success) return `Error: ${result.message}`;
-  return `${result.message}\n${result.backupMessage || ""}\n\n⚠️ Run action 'restart' to apply changes in Home Assistant.`;
+  if (t.storageType === "collection") {
+    const result = await collectionWsBackend.addItem(t, fields);
+    if (!result.success) return `Error: ${result.message}`;
+    return `✅ ${result.message} (live — no restart needed)`;
+  } else {
+    const result = configEntryBackend.addEntry(t, fields);
+    if (!result.success) return `Error: ${result.message}`;
+    return `${result.message}\n${result.backupMessage || ""}\n\n⚠️ Restart HA to apply changes.`;
+  }
 }
 
-function handleUpdate(type?: string, id?: string, fields?: Record<string, unknown>): string {
+async function handleUpdate(type?: string, id?: string, fields?: Record<string, unknown>): Promise<string> {
   if (!type || !id) return "Error: 'type' and 'id' are required for update";
   const t = requireType(type);
   if (typeof t === "string") return t;
@@ -228,25 +232,31 @@ function handleUpdate(type?: string, id?: string, fields?: Record<string, unknow
     return `Validation errors:\n${validation.errors.map((e) => `  - ${e}`).join("\n")}\n\n${formatSchema(type)}`;
   }
 
-  const result = t.storageType === "collection"
-    ? collectionBackend.updateItem(t, id, fields)
-    : configEntryBackend.updateEntry(t, id, fields);
-
-  if (!result.success) return `Error: ${result.message}`;
-  return `${result.message}\n${result.backupMessage || ""}\n\n⚠️ Run action 'restart' to apply changes in Home Assistant.`;
+  if (t.storageType === "collection") {
+    const result = await collectionWsBackend.updateItem(t, id, fields);
+    if (!result.success) return `Error: ${result.message}`;
+    return `✅ ${result.message} (live — no restart needed)`;
+  } else {
+    const result = configEntryBackend.updateEntry(t, id, fields);
+    if (!result.success) return `Error: ${result.message}`;
+    return `${result.message}\n${result.backupMessage || ""}\n\n⚠️ Restart HA to apply changes.`;
+  }
 }
 
-function handleRemove(type?: string, id?: string): string {
+async function handleRemove(type?: string, id?: string): Promise<string> {
   if (!type || !id) return "Error: 'type' and 'id' are required for remove";
   const t = requireType(type);
   if (typeof t === "string") return t;
 
-  const result = t.storageType === "collection"
-    ? collectionBackend.removeItem(t, id)
-    : configEntryBackend.removeEntry(t, id);
-
-  if (!result.success) return `Error: ${result.message}`;
-  return `${result.message}\n${result.backupMessage || ""}\n\n⚠️ Run action 'restart' to apply changes in Home Assistant.`;
+  if (t.storageType === "collection") {
+    const result = await collectionWsBackend.removeItem(t, id);
+    if (!result.success) return `Error: ${result.message}`;
+    return `✅ ${result.message} (live — no restart needed)`;
+  } else {
+    const result = configEntryBackend.removeEntry(t, id);
+    if (!result.success) return `Error: ${result.message}`;
+    return `${result.message}\n${result.backupMessage || ""}\n\n⚠️ Restart HA to apply changes.`;
+  }
 }
 
 // ── Utilities ────────────────────────────────────────────────

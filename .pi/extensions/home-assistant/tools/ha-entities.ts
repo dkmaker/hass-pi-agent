@@ -1,15 +1,14 @@
 /**
- * Home Assistant entity discovery and inspection tool.
+ * Home Assistant entity discovery, inspection, and management tool.
  *
- * Read-only — uses REST API for live state + storage files for
- * device/entity registry data. Provides the agent with full
- * visibility into what exists in the HA instance.
+ * Uses REST API for live state + WebSocket API for registry data.
+ * Supports update (rename, move area, disable) and remove actions.
  */
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { StringEnum } from "@mariozechner/pi-ai";
 import { apiGet } from "../lib/api.js";
-import { readStorage } from "../lib/storage.js";
+import { wsCommand } from "../lib/ws.js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -21,72 +20,71 @@ interface HAState {
   last_updated: string;
 }
 
-interface EntityRegistryEntry {
+interface WSEntityRegistryEntry {
   entity_id: string;
   device_id: string | null;
   platform: string;
   original_name: string | null;
   name: string | null;
   disabled_by: string | null;
+  hidden_by: string | null;
   area_id: string | null;
   labels: string[];
+  icon: string | null;
+  unique_id: string;
+  config_entry_id: string | null;
   [key: string]: unknown;
 }
 
-interface DeviceRegistryEntry {
+interface WSDeviceRegistryEntry {
   id: string;
   name: string | null;
+  name_by_user: string | null;
   manufacturer: string | null;
   model: string | null;
   area_id: string | null;
-  identifiers: unknown[];
   [key: string]: unknown;
 }
 
-interface AreaRegistryEntry {
-  id: string;
+interface WSAreaRegistryEntry {
+  area_id: string;
   name: string;
+  floor_id: string | null;
   [key: string]: unknown;
 }
 
-// ── Registry loaders (from storage files) ────────────────────
+// ── Registry loaders (WebSocket) ─────────────────────────────
 
-function loadEntityRegistry(): Map<string, EntityRegistryEntry> {
-  const map = new Map<string, EntityRegistryEntry>();
+async function loadEntityRegistry(): Promise<Map<string, WSEntityRegistryEntry>> {
+  const map = new Map<string, WSEntityRegistryEntry>();
   try {
-    const storage = readStorage<{ entities: EntityRegistryEntry[] }>("core.entity_registry");
-    if (storage) {
-      for (const e of storage.data.entities) {
-        map.set(e.entity_id, e);
-      }
+    const entries = await wsCommand<WSEntityRegistryEntry[]>("config/entity_registry/list");
+    for (const e of entries) {
+      map.set(e.entity_id, e);
     }
-  } catch { /* storage not available */ }
+  } catch { /* WS not available */ }
   return map;
 }
 
-function loadDeviceRegistry(): Map<string, DeviceRegistryEntry> {
-  const map = new Map<string, DeviceRegistryEntry>();
+async function loadDeviceRegistry(): Promise<Map<string, WSDeviceRegistryEntry>> {
+  const map = new Map<string, WSDeviceRegistryEntry>();
   try {
-    const storage = readStorage<{ devices: DeviceRegistryEntry[] }>("core.device_registry");
-    if (storage) {
-      for (const d of storage.data.devices) {
-        map.set(d.id, d);
-      }
+    const devices = await wsCommand<WSDeviceRegistryEntry[]>("config/device_registry/list");
+    for (const d of devices) {
+      map.set(d.id, d);
     }
-  } catch { /* storage not available */ }
+  } catch { /* WS not available */ }
   return map;
 }
 
-function loadAreaRegistry(): Map<string, AreaRegistryEntry> {
-  const map = new Map<string, AreaRegistryEntry>();
+async function loadAreaRegistry(): Promise<Map<string, WSAreaRegistryEntry>> {
+  const map = new Map<string, WSAreaRegistryEntry>();
   try {
-    const storage = readStorage<{ areas: AreaRegistryEntry[] }>("core.area_registry");
-    if (storage) {
-      for (const a of storage.data.areas) {
-        map.set(a.id, a);
-      }
+    const areas = await wsCommand<WSAreaRegistryEntry[]>("config/area_registry/list");
+    for (const a of areas) {
+      map.set(a.area_id, a);
     }
-  } catch { /* storage not available */ }
+  } catch { /* WS not available */ }
   return map;
 }
 
@@ -102,15 +100,17 @@ Actions:
 - list: List entities with state. Filters: domain, device_id, search, state. Hides unavailable by default (reports count). Paginated.
 - get: Full detail for one entity — state, attributes, device, area.
 - domains: Overview of all domains with entity counts.
+- update: Update entity — rename, change entity_id, set area/labels, disable/enable, change icon.
+- remove: Remove an entity from the registry.
 
 Entity listings include device name and area when available.`,
 
     parameters: Type.Object({
-      action: StringEnum(["list", "get", "domains"] as const, {
+      action: StringEnum(["list", "get", "domains", "update", "remove"] as const, {
         description: "Action to perform",
       }),
       entity_id: Type.Optional(
-        Type.String({ description: "Entity ID for 'get' action (e.g., sensor.temperature)" })
+        Type.String({ description: "Entity ID for get/update/remove (e.g., sensor.temperature)" })
       ),
       domain: Type.Optional(
         Type.String({ description: "Filter by domain (e.g., sensor, light, switch)" })
@@ -133,6 +133,28 @@ Entity listings include device name and area when available.`,
       offset: Type.Optional(
         Type.Number({ description: "Pagination offset (default: 0)" })
       ),
+      // Update fields
+      name: Type.Optional(
+        Type.String({ description: "Set entity friendly name (null to clear)" })
+      ),
+      new_entity_id: Type.Optional(
+        Type.String({ description: "Change the entity_id" })
+      ),
+      area_id: Type.Optional(
+        Type.String({ description: "Set area ID (null to unassign)" })
+      ),
+      labels: Type.Optional(
+        Type.Array(Type.String(), { description: "Set entity labels (replaces all)" })
+      ),
+      icon: Type.Optional(
+        Type.String({ description: "Set entity icon (e.g., mdi:thermometer)" })
+      ),
+      disabled_by: Type.Optional(
+        Type.String({ description: "Set to 'user' to disable, null to enable" })
+      ),
+      hidden_by: Type.Optional(
+        Type.String({ description: "Set to 'user' to hide, null to unhide" })
+      ),
     }),
 
     async execute(toolCallId, params, signal, onUpdate, ctx) {
@@ -144,59 +166,45 @@ Entity listings include device name and area when available.`,
 
 // ── Action dispatch ──────────────────────────────────────────
 
-async function executeAction(params: {
-  action: string;
-  entity_id?: string;
-  domain?: string;
-  device_id?: string;
-  search?: string;
-  state?: string;
-  include_unavailable?: boolean;
-  limit?: number;
-  offset?: number;
-}): Promise<string> {
-  switch (params.action) {
+async function executeAction(params: Record<string, unknown>): Promise<string> {
+  switch (params.action as string) {
     case "list":
       return handleList(params);
     case "get":
-      return handleGet(params.entity_id);
+      return handleGet(params.entity_id as string | undefined);
     case "domains":
-      return handleDomains(params.include_unavailable);
+      return handleDomains(params.include_unavailable as boolean | undefined);
+    case "update":
+      return handleUpdate(params);
+    case "remove":
+      return handleRemove(params.entity_id as string | undefined);
     default:
-      throw new Error(`Unknown action '${params.action}'. Valid: list, get, domains`);
+      throw new Error(`Unknown action '${params.action}'. Valid: list, get, domains, update, remove`);
   }
 }
 
 // ── Handlers ─────────────────────────────────────────────────
 
-async function handleList(params: {
-  domain?: string;
-  device_id?: string;
-  search?: string;
-  state?: string;
-  include_unavailable?: boolean;
-  limit?: number;
-  offset?: number;
-}): Promise<string> {
+async function handleList(params: Record<string, unknown>): Promise<string> {
   const allStates = await apiGet<HAState[]>("/api/states");
-  const entityReg = loadEntityRegistry();
-  const deviceReg = loadDeviceRegistry();
-  const areaReg = loadAreaRegistry();
+  const entityReg = await loadEntityRegistry();
+  const deviceReg = await loadDeviceRegistry();
+  const areaReg = await loadAreaRegistry();
 
-  const includeUnavailable = params.include_unavailable ?? false;
-  const limit = params.limit ?? 50;
-  const offset = params.offset ?? 0;
+  const includeUnavailable = (params.include_unavailable as boolean) ?? false;
+  const limit = (params.limit as number) ?? 50;
+  const offset = (params.offset as number) ?? 0;
 
   let filtered = allStates;
   let unavailableCount = 0;
 
   // Domain filter
   if (params.domain) {
-    const d = params.domain.toLowerCase();
+    const d = (params.domain as string).toLowerCase();
     filtered = filtered.filter((s) => s.entity_id.startsWith(d + "."));
   }
 
-  // Device filter — keep only entities belonging to the given device
+  // Device filter
   if (params.device_id) {
     const deviceEntityIds = new Set<string>();
     for (const [entityId, entry] of entityReg) {
@@ -220,13 +228,13 @@ async function handleList(params: {
 
   // State filter
   if (params.state) {
-    const sv = params.state.toLowerCase();
+    const sv = (params.state as string).toLowerCase();
     filtered = filtered.filter((s) => s.state.toLowerCase() === sv);
   }
 
   // Search filter
   if (params.search) {
-    const q = params.search.toLowerCase();
+    const q = (params.search as string).toLowerCase();
     filtered = filtered.filter((s) => {
       const friendlyName = ((s.attributes.friendly_name as string) || "").toLowerCase();
       return s.entity_id.toLowerCase().includes(q) || friendlyName.includes(q);
@@ -246,17 +254,18 @@ async function handleList(params: {
     const regEntry = entityReg.get(s.entity_id);
     const parts: string[] = [];
 
-    // Entity and state
     const nameStr = friendlyName ? ` (${friendlyName})` : "";
     parts.push(`${s.entity_id}: ${s.state}${nameStr}`);
 
-    // Device + area context
     if (regEntry?.device_id) {
       const device = deviceReg.get(regEntry.device_id);
-      if (device?.name) {
-        const areaName = device.area_id ? areaReg.get(device.area_id)?.name : null;
-        const deviceStr = areaName ? `${device.name} @ ${areaName}` : device.name;
-        parts.push(`  device: ${deviceStr}`);
+      if (device) {
+        const deviceName = device.name_by_user || device.name;
+        if (deviceName) {
+          const areaName = device.area_id ? areaReg.get(device.area_id)?.name : null;
+          const deviceStr = areaName ? `${deviceName} @ ${areaName}` : deviceName;
+          parts.push(`  device: ${deviceStr}`);
+        }
       }
     } else if (regEntry?.area_id) {
       const areaName = areaReg.get(regEntry.area_id)?.name;
@@ -266,7 +275,6 @@ async function handleList(params: {
     lines.push(parts.join("\n"));
   }
 
-  // Summary
   const domainStr = params.domain ? `${params.domain} ` : "";
   const filterStr = !includeUnavailable && unavailableCount > 0
     ? ` (${unavailableCount} unavailable/unknown hidden)`
@@ -286,9 +294,9 @@ async function handleGet(entityId?: string): Promise<string> {
   if (!entityId) throw new Error("'entity_id' is required for get");
 
   const state = await apiGet<HAState>(`/api/states/${entityId}`);
-  const entityReg = loadEntityRegistry();
-  const deviceReg = loadDeviceRegistry();
-  const areaReg = loadAreaRegistry();
+  const entityReg = await loadEntityRegistry();
+  const deviceReg = await loadDeviceRegistry();
+  const areaReg = await loadAreaRegistry();
 
   const result: Record<string, unknown> = {
     entity_id: state.entity_id,
@@ -298,11 +306,13 @@ async function handleGet(entityId?: string): Promise<string> {
     last_updated: state.last_updated,
   };
 
-  // Enrich with registry data
   const regEntry = entityReg.get(entityId);
   if (regEntry) {
     result.platform = regEntry.platform;
     result.labels = regEntry.labels;
+    result.icon = regEntry.icon;
+    result.hidden_by = regEntry.hidden_by;
+    result.disabled_by = regEntry.disabled_by;
     if (regEntry.area_id) {
       result.area = areaReg.get(regEntry.area_id)?.name ?? regEntry.area_id;
     }
@@ -311,7 +321,7 @@ async function handleGet(entityId?: string): Promise<string> {
       const device = deviceReg.get(regEntry.device_id);
       result.device = {
         id: regEntry.device_id,
-        name: device?.name ?? null,
+        name: device?.name_by_user || (device?.name ?? null),
         manufacturer: device?.manufacturer ?? null,
         model: device?.model ?? null,
         area: device?.area_id ? areaReg.get(device.area_id)?.name ?? device.area_id : null,
@@ -349,4 +359,70 @@ async function handleDomains(includeUnavailable?: boolean): Promise<string> {
   lines.push(`Total: ${states.length} entities (${totalUnavail} unavailable/unknown)`);
 
   return lines.join("\n");
+}
+
+async function handleUpdate(params: Record<string, unknown>): Promise<string> {
+  const entityId = params.entity_id as string | undefined;
+  if (!entityId) throw new Error("'entity_id' is required for update");
+
+  const updateData: Record<string, unknown> = { entity_id: entityId };
+  let hasUpdates = false;
+
+  if ("name" in params) {
+    updateData.name = params.name ?? null;
+    hasUpdates = true;
+  }
+  if ("new_entity_id" in params) {
+    updateData.new_entity_id = params.new_entity_id;
+    hasUpdates = true;
+  }
+  if ("area_id" in params) {
+    updateData.area_id = params.area_id ?? null;
+    hasUpdates = true;
+  }
+  if ("labels" in params) {
+    updateData.labels = params.labels;
+    hasUpdates = true;
+  }
+  if ("icon" in params) {
+    updateData.icon = params.icon ?? null;
+    hasUpdates = true;
+  }
+  if ("disabled_by" in params) {
+    updateData.disabled_by = params.disabled_by ?? null;
+    hasUpdates = true;
+  }
+  if ("hidden_by" in params) {
+    updateData.hidden_by = params.hidden_by ?? null;
+    hasUpdates = true;
+  }
+
+  if (!hasUpdates) {
+    throw new Error(
+      "No update fields provided. Use: name, new_entity_id, area_id, labels, icon, disabled_by, hidden_by"
+    );
+  }
+
+  const updated = await wsCommand<WSEntityRegistryEntry>(
+    "config/entity_registry/update",
+    updateData
+  );
+
+  const changes: string[] = [];
+  if ("name" in params) changes.push(`name: ${updated.name ?? "(cleared)"}`);
+  if ("new_entity_id" in params) changes.push(`entity_id: ${updated.entity_id}`);
+  if ("area_id" in params) changes.push(`area: ${updated.area_id ?? "(unassigned)"}`);
+  if ("labels" in params) changes.push(`labels: [${updated.labels.join(", ")}]`);
+  if ("icon" in params) changes.push(`icon: ${updated.icon ?? "(cleared)"}`);
+  if ("disabled_by" in params) changes.push(`disabled: ${updated.disabled_by ?? "no"}`);
+  if ("hidden_by" in params) changes.push(`hidden: ${updated.hidden_by ?? "no"}`);
+
+  return `✅ Updated entity '${updated.entity_id}'\n${changes.map((c) => `  ${c}`).join("\n")}`;
+}
+
+async function handleRemove(entityId?: string): Promise<string> {
+  if (!entityId) throw new Error("'entity_id' is required for remove");
+
+  await wsCommand("config/entity_registry/remove", { entity_id: entityId });
+  return `✅ Removed entity '${entityId}' from registry`;
 }
