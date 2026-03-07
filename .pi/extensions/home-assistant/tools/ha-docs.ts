@@ -52,6 +52,12 @@ Index is auto-fetched on first startup and refreshed daily. Content is fetched o
       limit: Type.Optional(Type.Number({
         description: "Max results for list/search (default: 30)",
       })),
+      offset: Type.Optional(Type.Number({
+        description: "Line offset for 'get' action — start reading from this line (0-based, default: 0)",
+      })),
+      max_lines: Type.Optional(Type.Number({
+        description: "Max lines to return for 'get' action (default: 200)",
+      })),
     }),
 
     async execute(toolCallId, params, signal, onUpdate, ctx) {
@@ -59,6 +65,23 @@ Index is auto-fetched on first startup and refreshed daily. Content is fetched o
       return { content: [{ type: "text" as const, text: result }] };
     },
   });
+}
+
+function paginate(content: string, offset: number, maxLines: number): string {
+  const lines = content.split("\n");
+  const total = lines.length;
+  const start = Math.min(offset, total);
+  const end = Math.min(start + maxLines, total);
+  const page = lines.slice(start, end).join("\n");
+  const remaining = total - end;
+
+  if (start === 0 && remaining <= 0) return page; // Fits in one page
+
+  let footer = `\n\n---\n*Lines ${start + 1}–${end} of ${total}.*`;
+  if (remaining > 0) {
+    footer += ` Use \`offset: ${end}\` to continue reading (${remaining} lines remaining).`;
+  }
+  return page + footer;
 }
 
 async function executeAction(params: {
@@ -71,6 +94,8 @@ async function executeAction(params: {
   iot_class?: string;
   integration_type?: string;
   limit?: number;
+  offset?: number;
+  max_lines?: number;
 }): Promise<string> {
   switch (params.action) {
     case "list": {
@@ -160,12 +185,14 @@ async function executeAction(params: {
         }
 
         const content = await readIntegrationDoc(params.domain);
-        return header + content;
+        const full = header + content;
+        return paginate(full, params.offset ?? 0, params.max_lines ?? 200);
       }
 
       if (params.doc) {
         const { readDoc } = await import("../lib/docs/content.js");
-        return await readDoc(params.doc);
+        const content = await readDoc(params.doc);
+        return paginate(content, params.offset ?? 0, params.max_lines ?? 200);
       }
 
       throw new Error("Provide 'domain' for integration docs or 'doc' for general docs.");
