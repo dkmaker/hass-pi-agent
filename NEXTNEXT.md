@@ -1,141 +1,97 @@
-# Future Features (Phase 2)
+# NEXT: Custom Component — `pi_agent` Service Registration
 
-Advanced features requiring deeper implementation. Pick after Phase 1 (NEXT.md) is complete.
+## Goal
 
----
+Allow the Pi Agent add-on to register a native HA service (`pi_agent.ask`) that can be called from automations, scripts, and the UI to start a Pi process with a question.
 
-## Feature: Integration Documentation Lookup
+## Approach
 
-### Problem
-When configuring integrations, the agent needs to know what config options, entities, services, and triggers each integration provides. This info lives in the HA docs repo on GitHub but isn't available locally in a structured way.
+**Self-deploying custom component** — the add-on bundles a small Python integration and drops it into `/homeassistant/custom_components/pi_agent/` on startup.
 
-### Concept
-A tool that wraps the HA integrations documentation index on GitHub, fetches specific integration docs on demand, and injects them as context.
+## How It Works
 
-### Implementation Ideas
-- `ha_docs` tool with actions:
-  - `list` — list all integrations from the GitHub index (cached locally)
-  - `get` — fetch a specific integration's documentation markdown from GitHub, return as context
-  - `search` — search integration docs by keyword
-- Source: `https://raw.githubusercontent.com/home-assistant/home-assistant.io/current/source/_integrations/`
-- Each integration has a markdown file: `<domain>.markdown`
-- Cache fetched docs locally (e.g., `/tmp/ha-docs-cache/`) with TTL
-- The index could be built from the GitHub API listing or from a manifest file
-- Alternative: use the already-mirrored `docs/homeassistant/` if it covers integrations sufficiently
+1. Add-on config gets a new option: `install_integration: true` (default)
+2. On startup, `run.sh` checks the option and copies the bundled component to `/homeassistant/custom_components/pi_agent/`
+3. Version-stamps the deployment (only overwrites when add-on ships a newer version)
+4. First install triggers an HA restart to load the integration
+5. The custom component registers a `pi_agent.ask` service
+6. When the service is called, it communicates with the add-on (REST API endpoint inside the add-on container)
+7. The add-on spawns `pi` with the provided question
 
-### Value
-- Agent can look up "what services does the `media_player` integration provide?" on demand
-- No need to pre-load all docs — fetch only what's needed for the current task
-- Keeps context window small — only the relevant integration's docs are loaded
+## Files to Create
 
----
+### In the add-on image (`addon/component/pi_agent/`)
 
-## Feature: Entity & Configuration Relationship Graph Engine
+Bundled into the Docker image, copied to HA config at runtime.
 
-### Problem
-Home Assistant has no built-in way to see the full picture of how everything connects. Entities are referenced across automations, scripts, scenes, dashboards, helpers, groups, templates, and YAML includes — but there's no unified index. Renaming an entity, deleting a helper, or reorganizing areas risks breaking things silently because you can't see all the places something is used.
+- `__init__.py` — ~50 lines, registers `pi_agent.ask` service, calls add-on's HTTP endpoint
+- `manifest.json` — integration metadata (name, domain, version, dependencies)
+- `services.yaml` — service schema for UI (question field, optional context fields)
+- `VERSION` — version stamp for update detection
 
-### Concept
-A dedicated indexing engine that parses **all** configuration sources and builds a complete relationship graph:
+### Add-on changes
 
-1. **YAML Parser** — Parse `configuration.yaml` and recursively follow all `!include`, `!include_dir_merge_named`, `!include_dir_list`, `!include_dir_merge_list`, and `!include_dir_named` directives to discover every YAML file that contributes to the config.
+- `addon/config.yaml` — add `install_integration` option
+- `addon/run.sh` — add startup logic to deploy/update the component
+- Add-on needs a small HTTP listener (or use stdin/file queue) to receive service calls and spawn `pi`
 
-2. **Storage Parser** — Read all `.storage/` files to extract:
-   - All entity registrations (`core.entity_registry`)
-   - All device registrations (`core.device_registry`)
-   - All area/floor/label assignments (`core.area_registry`, `core.floor_registry`, `core.label_registry`, `core.category_registry`)
-   - All helpers (input_boolean, input_number, counter, timer, schedule, template sensors, utility meters, etc.)
-   - All automations (`automations.json` or `.storage/core.config_entries` for UI-created ones)
-   - All scripts, scenes
-   - All dashboard configs (`.storage/lovelace*`)
-   - All person, zone, tag definitions
+## Communication: Service → Add-on
 
-3. **Reference Extractor** — Scan all discovered configs for entity_id references:
-   - Direct references: `entity_id: sensor.temperature`
-   - Template references: `{{ states('sensor.temperature') }}`, `{{ state_attr(...) }}`, `{{ is_state(...) }}`
-   - Service call targets: `target: { entity_id: ... }`
-   - Trigger/condition entity references
-   - Group members, template sensor source entities
-   - Dashboard card entity references
-   - Label usage on entities, devices, areas
-   - Area assignments on entities and devices
+Options (pick one during implementation):
 
-4. **Graph Builder** — Produce a structured index:
-   - **Node types**: entity, device, area, floor, label, automation, script, scene, dashboard, helper, yaml_file
-   - **Edge types**: `references`, `triggers_on`, `controls`, `member_of`, `labeled_with`, `located_in`, `defined_in`, `included_by`
-   - Bidirectional lookups: "what uses entity X?" and "what does automation Y reference?"
+| Method | Pros | Cons |
+|--------|------|------|
+| **REST API in add-on** | Clean, standard, async-friendly | Need a small HTTP server in the add-on |
+| **File-based queue** | Dead simple, no server needed | Polling, latency, messy |
+| **stdin/stdout via Supervisor API** | No extra server | Complex, fragile |
 
-### Tool Design: `ha_graph`
+**Recommendation:** Small HTTP server in the add-on (e.g., Python `aiohttp` or shell-based `socat`/`netcat` listener). The custom component calls it via `aiohttp.ClientSession`.
 
-| Action | Description |
-|--------|-------------|
-| `build` | Full index rebuild — parse all YAML + .storage, build graph, cache result |
-| `status` | Show last build time, node/edge counts, any parse errors |
-| `query` | Query the graph — find all references to an entity, label, area, etc. |
-| `impact` | Impact analysis — "if I rename/delete X, what breaks?" |
-| `orphans` | Find orphaned entities (registered but referenced nowhere) |
-| `unused-labels` | Find labels that are defined but not applied to anything |
-| `unused-areas` | Find areas with no devices or entities assigned |
-| `duplicates` | Find entities that appear to be duplicates (similar names/devices) |
-| `summary` | High-level overview — counts by type, most-referenced entities, busiest automations |
-| `export` | Export graph as JSON (for visualization or external tools) |
+## Service Schema
 
-### Query Examples
-```
-ha_graph query entity_id=sensor.temperature
-→ Referenced by:
-    automation.heating_control (trigger, condition, action)
-    script.morning_routine (action)
-    lovelace.dashboard_home (entities card, history-graph card)
-    group.climate_sensors (member)
-    template sensor.average_temp (source)
-
-ha_graph impact entity_id=sensor.temperature action=rename
-→ 12 references across 5 files would need updating:
-    automations.yaml: lines 42, 87, 103
-    scripts.yaml: line 15
-    .storage/lovelace.dashboard_home: 2 card references
-    .storage/core.config_entries: 1 template sensor
-    groups.yaml: 1 member reference
-
-ha_graph orphans
-→ 23 entities registered but never referenced:
-    sensor.old_weather_temp (last_changed: 2024-01-15)
-    binary_sensor.unused_motion (disabled, no references)
-    ...
+```yaml
+# services.yaml
+ask:
+  name: Ask Pi Agent
+  description: Send a question to the Pi coding agent
+  fields:
+    question:
+      name: Question
+      description: The question or task for the Pi agent
+      required: true
+      selector:
+        text:
+          multiline: true
 ```
 
-### Implementation Plan
+## Deployment Logic (pseudo)
 
-**Phase 1: Core Engine** (`lib/graph/`)
-- `parser.ts` — YAML recursive include resolver (follows all `!include*` directives)
-- `storage-scanner.ts` — `.storage/` file reader, extracts all registered objects
-- `reference-extractor.ts` — Regex + template parser to find entity_id references in any config blob
-- `graph.ts` — In-memory graph structure with nodes, edges, bidirectional index
-- `cache.ts` — Serialize/deserialize built graph to `/tmp/` or `.storage/` for fast reload
+```bash
+COMPONENT_SRC="/opt/pi_agent_component"  # bundled in Docker image
+COMPONENT_DST="/homeassistant/custom_components/pi_agent"
 
-**Phase 2: Tool** (`tools/ha-graph.ts`)
-- Tool registration with all actions above
-- Query language: simple key=value filters, optionally with depth for transitive references
-- Formatted output: grouped by reference type, with file locations
+if bashio::config.true 'install_integration'; then
+  BUNDLED_VERSION=$(cat "$COMPONENT_SRC/VERSION")
+  INSTALLED_VERSION=$(cat "$COMPONENT_DST/VERSION" 2>/dev/null || echo "none")
 
-**Phase 3: Integration**
-- Auto-suggest `ha_graph impact` before any rename/delete operation in other tools
-- `ha_entities regenerate-ids` could use the graph to show full impact beyond just automations/scripts/scenes
-- `ha_graph build` could run on a schedule or be triggered after config changes
+  if [ "$BUNDLED_VERSION" != "$INSTALLED_VERSION" ]; then
+    mkdir -p "$COMPONENT_DST"
+    cp -r "$COMPONENT_SRC"/* "$COMPONENT_DST"/
+    bashio::log.info "Deployed pi_agent integration v${BUNDLED_VERSION}"
+    # Trigger HA restart if first install
+    if [ "$INSTALLED_VERSION" = "none" ]; then
+      ha core restart
+    fi
+  fi
+fi
+```
 
-### Technical Notes
-- YAML `!include` parsing needs a custom loader — `js-yaml` supports custom types
-- Template reference extraction needs regex for `states(`, `state_attr(`, `is_state(`, `is_state_attr(`, plus Jinja2 variable references
-- `.storage/` files are JSON — straightforward to parse
-- Dashboard configs can be YAML (file mode) or `.storage/lovelace*` (UI mode) — handle both
-- The graph should be rebuildable in <5 seconds for a typical install (hundreds of entities, dozens of automations)
-- Entity IDs in templates may use variables — best-effort extraction, flag uncertain references
-- Consider using the HA REST API as a secondary source for runtime state (entity list, area assignments) to cross-validate against file-based parsing
+## Uninstall
 
-### Value
-- **Rename safety**: Know exactly what breaks before changing an entity_id
-- **Cleanup**: Find orphaned entities, unused labels/areas, dead automations
-- **Understanding**: New users (or agents) can see the full topology of an HA install at a glance
-- **Refactoring**: Confidently reorganize areas, labels, and entity naming conventions
-- **This doesn't exist in HA** — the closest is the "related" panel in entity settings, which only shows device/area/integration, not config-level references
+If `install_integration` is toggled off, the add-on could optionally remove the directory and note that a restart is needed. Or just leave it — the component is harmless without the add-on running.
+
+## Prior Art
+
+- HACS bootstraps itself via a similar self-deploy pattern
+- Several community add-ons deploy custom components this way
+- The add-on already has verified R/W access to `/homeassistant`

@@ -14,16 +14,57 @@ This project is the development workspace for **Pi Agent for Home Assistant**, a
 │   ├── Dockerfile              # Alpine base image
 │   └── run.sh                  # Startup script
 ├── .env                        # API token + VM config + Pi extension overrides (gitignored)
-├── ha-core/                    # Shallow clone of github.com/home-assistant/core (gitignored)
+├── ha-core/                    # Git submodule — github.com/home-assistant/core
 │   └── homeassistant/
 │       └── components/         # ALL HA component source — schemas, storage, services
+├── ha-frontend/                # Git submodule — github.com/home-assistant/frontend
+│   └── src/
+│       ├── data/               # TypeScript interfaces (automation, script, trigger, condition)
+│       └── panels/config/      # Editor components with defaultConfig()
+├── tools/
+│   ├── extract-schemas.py      # Extract storage schemas from ha-core/
+│   └── extract-automation-schemas.py  # Extract automation element schemas from ha-frontend/
 ├── .pi/
 │   ├── extensions/
 │   │   └── home-assistant/     # Pi extension: custom tools for HA management
 │   │       ├── index.ts        # Extension entry point
-│   │       ├── lib/            # Shared libraries (config, backup, storage, config-check)
-│   │       ├── tools/          # Tool implementations (ha-helpers, etc.)
-│   │       └── docs/           # Storage schemas reference
+│   │       ├── lib/            # Shared libraries
+│   │       │   ├── api.ts      # REST API helpers (GET/POST/DELETE)
+│   │       │   ├── ws.ts       # WebSocket client (auto-connect, auth, commands)
+│   │       │   ├── config.ts   # Config/env loading (.env, HA_URL, HA_TOKEN)
+│   │       │   ├── types.ts    # Shared types (HAState, AutomationConfig, DraftConfig, etc.)
+│   │       │   ├── format.ts   # Formatting utils (timeSince, slugify, getActionType)
+│   │       │   ├── yaml.ts     # YAML serializer/parser for automation configs
+│   │       │   ├── schema.ts   # Automation schema loader + cache
+│   │       │   ├── validation.ts # Automation config validation against schemas
+│   │       │   ├── backup.ts   # Storage file backup utilities
+│   │       │   ├── storage.ts  # .storage file read/write
+│   │       │   ├── registry.ts # Registry helpers
+│   │       │   └── backends/   # Helper backends (collection, collection-ws, config-entry)
+│   │       ├── tools/          # Tool implementations
+│   │       │   ├── ha-automations.ts           # Automation tool — registration + dispatch
+│   │       │   ├── ha-automations/             # Automation sub-modules
+│   │       │   │   ├── crud.ts                 # list, get, create, update, delete, trigger
+│   │       │   │   ├── traces.ts               # traces, trace detail
+│   │       │   │   ├── builder.ts              # new, load, show, yaml, save, discard
+│   │       │   │   ├── elements.ts             # add/update/remove trigger/condition/action
+│   │       │   │   ├── draft.ts                # Draft file management (load/save/delete)
+│   │       │   │   ├── service-schema.ts       # get-service-schema from HA
+│   │       │   │   └── import.ts               # import-yaml
+│   │       │   ├── ha-helpers.ts   # Helper CRUD (input_boolean, counter, etc.)
+│   │       │   ├── ha-entities.ts  # Entity discovery + update/remove
+│   │       │   ├── ha-devices.ts   # Device management
+│   │       │   ├── ha-areas.ts     # Areas + floors CRUD
+│   │       │   ├── ha-labels.ts    # Labels CRUD
+│   │       │   ├── ha-services.ts  # Service listing + calling
+│   │       │   ├── ha-template.ts  # Jinja2 template rendering
+│   │       │   └── ha-restart.ts   # Restart/reload HA
+│   │       ├── schemas/            # Auto-generated schema files
+│   │       │   ├── automation-elements.json  # From ha-frontend/ (triggers, conditions, actions)
+│   │       │   ├── collections/    # 14 collection storage schemas (from ha-core/)
+│   │       │   ├── config_entries/ # 17 config entry schemas (from ha-core/)
+│   │       │   └── registries/     # 6 registry schemas (from ha-core/)
+
 │   └── skills/
 │       └── ha-dev/             # Unified skill: API, VM, deploy, docs
 │           ├── SKILL.md        # Slim router — read this first
@@ -164,12 +205,20 @@ All scripts source config from `.env` in the repo root. Run any script with `hel
 
 ## Schema Extraction
 
-Storage schemas are auto-extracted from the HA core source into the Pi extension for use by the generic tools. To regenerate after a HA version update:
+Schemas are auto-extracted from HA source code into the Pi extension. Two extractors, two sources:
 
 ```bash
-cd ha-core && git pull                          # Update HA source
-cd .. && python3 tools/extract-schemas.py       # Re-extract all schemas
+# Update submodules
+git submodule update --remote --merge
+
+# Extract storage schemas from backend (ha-core/)
+python3 tools/extract-schemas.py
+
+# Extract automation element schemas from frontend (ha-frontend/)
+python3 tools/extract-automation-schemas.py
 ```
+
+### Storage Schemas (from `ha-core/`)
 
 Output: `.pi/extensions/home-assistant/schemas/` (37 schema files in 3 categories)
 
@@ -179,29 +228,45 @@ Output: `.pi/extensions/home-assistant/schemas/` (37 schema files in 3 categorie
 | Config entries | `schemas/config_entries/` | 17 | Config-flow helpers stored in `core.config_entries` — template, derivative, utility_meter, etc. |
 | Registries | `schemas/registries/` | 6 | Core registries — areas, devices, entities, floors, labels, categories |
 
-## HA Core Source Reference
+### Automation Element Schemas (from `ha-frontend/`)
 
-A shallow clone of the [Home Assistant core repo](https://github.com/home-assistant/core) is available at `ha-core/` (gitignored). Use it to look up schemas, storage formats, service definitions, entity platforms, and any other implementation details.
+Output: `.pi/extensions/home-assistant/schemas/automation-elements.json`
+
+Extracted from the frontend TypeScript source — interfaces in `data/automation.ts` + `data/script.ts` define field types, `defaultConfig()` in each editor component provides defaults.
+
+| Category | Count | What |
+|----------|-------|------|
+| Triggers | 16 | state, numeric_state, time, sun, zone, event, template, webhook, etc. |
+| Conditions | 10 | state, numeric_state, time, sun, zone, template, trigger, and/or/not |
+| Actions | 14 | service, delay, choose, if, repeat, parallel, sequence, stop, etc. |
+| Repeat variants | 4 | count, while, until, for_each |
+
+## HA Source Repos (Git Submodules)
+
+Both the HA core and frontend repos are git submodules — they track upstream and are fetched automatically with `git clone --recursive` or `git submodule update --init`.
+
+| Submodule | Repo | Purpose |
+|-----------|------|---------|
+| `ha-core/` | [home-assistant/core](https://github.com/home-assistant/core) | Backend source — schemas, storage, services, entity platforms |
+| `ha-frontend/` | [home-assistant/frontend](https://github.com/home-assistant/frontend) | Frontend source — automation editor types, default configs, WS calls |
 
 ```bash
-# Search for storage schemas, field definitions, etc.
+# Initial clone (includes submodules)
+git clone --recursive git@github.com:dkmaker/hass-claude-code.git
+
+# Update submodules to latest upstream
+git submodule update --remote --merge
+
+# Search backend source
 rg "STORAGE_FIELDS" ha-core/homeassistant/components/
 rg "CREATE_FIELDS" ha-core/homeassistant/components/
 
-# Look up a specific component
-cat ha-core/homeassistant/components/input_number/__init__.py
-
-# Find all components that use storage collections
-rg -l "STORAGE_KEY" ha-core/homeassistant/components/
-
-# Search for service definitions
-rg "async_register" ha-core/homeassistant/components/counter/__init__.py
+# Search frontend source (automation types, WS commands, etc.)
+rg "entity_registry" ha-frontend/src/data/entity/
+rg "defaultConfig" ha-frontend/src/panels/config/automation/
 ```
 
-**Do not edit** files in `ha-core/`. To update, pull latest:
-```bash
-cd ha-core && git pull
-```
+**Do not edit** files in `ha-core/` or `ha-frontend/`.
 
 ## Key Technical Details
 
@@ -211,9 +276,32 @@ cd ha-core && git pull
 - Local add-ons get the `local_` prefix in their Supervisor slug (e.g., `local_pi_agent`)
 - `ha store reload` (not `ha addons reload`) is needed to pick up new/changed local add-ons
 
+## Extension Code Organization
+
+The Pi extension follows single-responsibility file structure for AI-friendly development:
+
+### Principles
+- **< 300 lines per file** — each file has one clear responsibility
+- **Shared types in `lib/types.ts`** — no duplicating interfaces across tools
+- **Shared utilities in `lib/`** — format, yaml, validation, schema are reusable
+- **Complex tools get sub-directories** — `ha-automations/` has 7 sub-modules
+- **Thin tool files** — tool registration + dispatch only, logic lives in sub-modules
+
+### Adding a new tool
+1. Create `tools/ha-<name>.ts` — registration, parameters, dispatch
+2. If complex (>300 lines), create `tools/ha-<name>/` sub-directory with focused modules
+3. Put shared types in `lib/types.ts`, shared utilities in `lib/`
+4. Register in `index.ts`
+
+### Adding a new schema extractor
+1. Create `tools/extract-<name>.py` following the pattern of existing extractors
+2. Output to `schemas/` directory
+3. Document in this file under Schema Extraction
+
 ## Conventions
 
 - Use "Home Assistant" in full — never "HA" or "HASS" in user-facing text
 - The `docs/` directory is auto-generated — don't edit docs directly, edit the update scripts
 - API token in `.env` is for the local dev instance only
 - Always test add-on changes on the isolated VM before pushing to the repo
+- **Do not edit** files in `ha-core/` or `ha-frontend/` — they are reference-only submodules

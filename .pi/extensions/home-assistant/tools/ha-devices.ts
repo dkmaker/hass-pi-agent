@@ -10,6 +10,7 @@ import { Type } from "@sinclair/typebox";
 import { StringEnum } from "@mariozechner/pi-ai";
 import { wsCommand } from "../lib/ws.js";
 import { apiGet } from "../lib/api.js";
+import type { HAState } from "../lib/types.js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -58,12 +59,6 @@ interface AreaRegistryEntry {
   name: string;
   floor_id: string | null;
   [key: string]: unknown;
-}
-
-interface HAState {
-  entity_id: string;
-  state: string;
-  attributes: Record<string, unknown>;
 }
 
 // ── Registry loaders (WebSocket) ─────────────────────────────

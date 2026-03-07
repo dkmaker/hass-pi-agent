@@ -1,0 +1,908 @@
+{
+  "_generated": "Auto-generated from ha-frontend source. Do not edit manually.",
+  "_source": "tools/extract-automation-schemas.py",
+  "_frontend_path": "ha-frontend",
+  "base_fields": {
+    "trigger": {
+      "alias": {
+        "type": "string",
+        "required": false,
+        "description": "Optional display name"
+      },
+      "id": {
+        "type": "string",
+        "required": false,
+        "description": "Trigger ID for trigger conditions"
+      },
+      "variables": {
+        "type": "Record<string, unknown>",
+        "required": false,
+        "description": "Variables to set when trigger fires"
+      },
+      "enabled": {
+        "type": "boolean",
+        "required": false,
+        "description": "Enable/disable this trigger"
+      }
+    },
+    "condition": {
+      "alias": {
+        "type": "string",
+        "required": false,
+        "description": "Optional display name"
+      },
+      "enabled": {
+        "type": "boolean",
+        "required": false,
+        "description": "Enable/disable this condition"
+      }
+    },
+    "action": {
+      "alias": {
+        "type": "string",
+        "required": false,
+        "description": "Optional display name"
+      },
+      "continue_on_error": {
+        "type": "boolean",
+        "required": false,
+        "description": "Continue automation if this action errors"
+      },
+      "enabled": {
+        "type": "boolean",
+        "required": false,
+        "description": "Enable/disable this action"
+      }
+    }
+  },
+  "triggers": {
+    "state": {
+      "description": "Fires when an entity's state or attribute changes",
+      "fields": {
+        "entity_id": {
+          "type": "string|string[]",
+          "required": true
+        },
+        "attribute": {
+          "type": "string",
+          "required": false
+        },
+        "from": {
+          "type": "string|string[]",
+          "required": false
+        },
+        "to": {
+          "type": "string|string[]",
+          "required": false
+        },
+        "for": {
+          "type": "duration",
+          "required": false
+        }
+      },
+      "default": {
+        "trigger": "state",
+        "entity_id": []
+      }
+    },
+    "numeric_state": {
+      "description": "Fires when an entity's numeric value crosses a threshold",
+      "fields": {
+        "entity_id": {
+          "type": "string|string[]",
+          "required": true
+        },
+        "attribute": {
+          "type": "string",
+          "required": false
+        },
+        "above": {
+          "type": "number",
+          "required": false
+        },
+        "below": {
+          "type": "number",
+          "required": false
+        },
+        "value_template": {
+          "type": "string",
+          "required": false
+        },
+        "for": {
+          "type": "duration",
+          "required": false
+        }
+      },
+      "default": {
+        "trigger": "numeric_state",
+        "entity_id": []
+      }
+    },
+    "time": {
+      "description": "Fires at a specific time of day",
+      "fields": {
+        "at": {
+          "type": "string|{ entity_id: string; offset?: string }",
+          "required": true
+        },
+        "weekday": {
+          "type": "string|string[]",
+          "required": false
+        }
+      },
+      "default": {
+        "trigger": "time",
+        "at": ""
+      }
+    },
+    "time_pattern": {
+      "description": "Fires on a recurring time pattern",
+      "fields": {
+        "hours": {
+          "type": "number|string",
+          "required": false
+        },
+        "minutes": {
+          "type": "number|string",
+          "required": false
+        },
+        "seconds": {
+          "type": "number|string",
+          "required": false
+        }
+      },
+      "default": {
+        "trigger": "time_pattern"
+      }
+    },
+    "sun": {
+      "description": "Fires at sunrise or sunset with optional offset",
+      "fields": {
+        "offset": {
+          "type": "number",
+          "required": true
+        },
+        "event": {
+          "type": "enum(sunrise,sunset)",
+          "required": true
+        }
+      },
+      "default": {
+        "trigger": "sun",
+        "event": "sunrise",
+        "offset": 0
+      }
+    },
+    "zone": {
+      "description": "Fires when a person/device enters or leaves a zone",
+      "fields": {
+        "entity_id": {
+          "type": "string",
+          "required": true
+        },
+        "zone": {
+          "type": "string",
+          "required": true
+        },
+        "event": {
+          "type": "enum(enter,leave)",
+          "required": true
+        }
+      },
+      "default": {
+        "trigger": "zone",
+        "entity_id": "",
+        "zone": "",
+        "event": "enter"
+      }
+    },
+    "homeassistant": {
+      "description": "Fires when Home Assistant starts or shuts down",
+      "fields": {
+        "event": {
+          "type": "enum(start,shutdown)",
+          "required": true
+        }
+      },
+      "default": {
+        "trigger": "homeassistant",
+        "event": "start"
+      }
+    },
+    "event": {
+      "description": "Fires when a specific event is fired on the event bus",
+      "fields": {
+        "event_type": {
+          "type": "string",
+          "required": true
+        },
+        "event_data": {
+          "type": "any",
+          "required": false
+        },
+        "context": {
+          "type": "ContextConstraint",
+          "required": false
+        }
+      },
+      "default": {
+        "trigger": "event",
+        "event_type": ""
+      }
+    },
+    "template": {
+      "description": "Fires when a Jinja2 template evaluates to true",
+      "fields": {
+        "value_template": {
+          "type": "string",
+          "required": true
+        },
+        "for": {
+          "type": "duration",
+          "required": false
+        }
+      },
+      "default": {
+        "trigger": "template",
+        "value_template": ""
+      }
+    },
+    "webhook": {
+      "description": "Fires when an HTTP webhook is received",
+      "fields": {
+        "webhook_id": {
+          "type": "string",
+          "required": true
+        },
+        "allowed_methods": {
+          "type": "string[]",
+          "required": false
+        },
+        "local_only": {
+          "type": "boolean",
+          "required": false
+        }
+      },
+      "default": {
+        "trigger": "webhook",
+        "allowed_methods": [],
+        "local_only": true,
+        "webhook_id": null
+      }
+    },
+    "tag": {
+      "description": "Fires when an NFC tag is scanned",
+      "fields": {
+        "tag_id": {
+          "type": "string",
+          "required": true
+        },
+        "device_id": {
+          "type": "string",
+          "required": false
+        }
+      },
+      "default": {
+        "trigger": "tag",
+        "tag_id": ""
+      }
+    },
+    "calendar": {
+      "description": "Fires when a calendar event starts or ends",
+      "fields": {
+        "event": {
+          "type": "enum(start,end)",
+          "required": true
+        },
+        "entity_id": {
+          "type": "string",
+          "required": true
+        },
+        "offset": {
+          "type": "string",
+          "required": true
+        }
+      },
+      "default": {
+        "trigger": "calendar",
+        "entity_id": "",
+        "event": "start",
+        "offset": "0"
+      }
+    },
+    "conversation": {
+      "description": "Fires when a voice/text command matches",
+      "fields": {
+        "command": {
+          "type": "string|string[]",
+          "required": true
+        }
+      },
+      "default": {
+        "trigger": "conversation",
+        "command": ""
+      }
+    },
+    "persistent_notification": {
+      "description": "Fires when a persistent notification is created/removed",
+      "fields": {
+        "notification_id": {
+          "type": "string",
+          "required": false
+        },
+        "update_type": {
+          "type": "string[]",
+          "required": false
+        }
+      },
+      "default": {
+        "trigger": "persistent_notification",
+        "update_type": [],
+        "notification_id": null
+      }
+    },
+    "geo_location": {
+      "description": "Fires when a geo-location source enters/leaves a zone",
+      "fields": {
+        "source": {
+          "type": "string",
+          "required": true
+        },
+        "zone": {
+          "type": "string",
+          "required": true
+        },
+        "event": {
+          "type": "enum(enter,leave)",
+          "required": true
+        }
+      },
+      "default": {
+        "trigger": "geo_location",
+        "source": "",
+        "zone": "",
+        "event": "enter"
+      }
+    },
+    "mqtt": {
+      "description": "Fires when an MQTT message is received on a topic",
+      "fields": {
+        "topic": {
+          "type": "string",
+          "required": true
+        },
+        "payload": {
+          "type": "string",
+          "required": false
+        }
+      }
+    }
+  },
+  "conditions": {
+    "state": {
+      "description": "Tests if an entity is in a specific state",
+      "fields": {
+        "entity_id": {
+          "type": "string",
+          "required": true
+        },
+        "attribute": {
+          "type": "string",
+          "required": false
+        },
+        "state": {
+          "type": "string|number|string[]",
+          "required": true
+        },
+        "for": {
+          "type": "duration",
+          "required": false
+        },
+        "match": {
+          "type": "enum(all,any)",
+          "required": false
+        }
+      },
+      "default": {
+        "condition": "state",
+        "entity_id": "",
+        "state": []
+      }
+    },
+    "numeric_state": {
+      "description": "Tests if an entity's numeric value is above/below a threshold",
+      "fields": {
+        "entity_id": {
+          "type": "string",
+          "required": true
+        },
+        "attribute": {
+          "type": "string",
+          "required": false
+        },
+        "above": {
+          "type": "string|number",
+          "required": false
+        },
+        "below": {
+          "type": "string|number",
+          "required": false
+        },
+        "value_template": {
+          "type": "string",
+          "required": false
+        }
+      },
+      "default": {
+        "condition": "numeric_state",
+        "entity_id": ""
+      }
+    },
+    "sun": {
+      "description": "Tests if it's before/after sunrise or sunset",
+      "fields": {
+        "after_offset": {
+          "type": "number",
+          "required": false
+        },
+        "before_offset": {
+          "type": "number",
+          "required": false
+        },
+        "after": {
+          "type": "enum(sunrise,sunset)",
+          "required": false
+        },
+        "before": {
+          "type": "enum(sunrise,sunset)",
+          "required": false
+        }
+      },
+      "default": {
+        "condition": "sun"
+      }
+    },
+    "zone": {
+      "description": "Tests if a person/device is in a zone",
+      "fields": {
+        "entity_id": {
+          "type": "string",
+          "required": true
+        },
+        "zone": {
+          "type": "string",
+          "required": true
+        }
+      },
+      "default": {
+        "condition": "zone",
+        "entity_id": "",
+        "zone": ""
+      }
+    },
+    "time": {
+      "description": "Tests if the current time is within a range",
+      "fields": {
+        "after": {
+          "type": "string",
+          "required": false
+        },
+        "before": {
+          "type": "string",
+          "required": false
+        },
+        "weekday": {
+          "type": "string|string[]",
+          "required": false
+        }
+      },
+      "default": {
+        "condition": "time"
+      }
+    },
+    "template": {
+      "description": "Tests if a Jinja2 template evaluates to true",
+      "fields": {
+        "value_template": {
+          "type": "string",
+          "required": true
+        }
+      },
+      "default": {
+        "condition": "template",
+        "value_template": ""
+      }
+    },
+    "trigger": {
+      "description": "Tests which trigger fired (by trigger ID)",
+      "fields": {
+        "id": {
+          "type": "string",
+          "required": true
+        }
+      },
+      "default": {
+        "condition": "trigger",
+        "id": ""
+      }
+    },
+    "and": {
+      "description": "All sub-conditions must be true",
+      "fields": {
+        "conditions": {
+          "type": "Condition[]",
+          "required": true
+        }
+      },
+      "default": {
+        "condition": "and",
+        "conditions": []
+      }
+    },
+    "or": {
+      "description": "Any sub-condition must be true",
+      "fields": {
+        "conditions": {
+          "type": "Condition[]",
+          "required": true
+        }
+      },
+      "default": {
+        "condition": "or",
+        "conditions": []
+      }
+    },
+    "not": {
+      "description": "All sub-conditions must be false",
+      "fields": {
+        "conditions": {
+          "type": "Condition[]",
+          "required": true
+        }
+      },
+      "default": {
+        "condition": "not",
+        "conditions": []
+      }
+    }
+  },
+  "actions": {
+    "service": {
+      "description": "Call a Home Assistant service/action (e.g., light.turn_on)",
+      "fields": {
+        "service_template": {
+          "type": "string",
+          "required": false
+        },
+        "entity_id": {
+          "type": "string",
+          "required": false
+        },
+        "target": {
+          "type": "object",
+          "required": false
+        },
+        "data": {
+          "type": "object",
+          "required": false
+        },
+        "response_variable": {
+          "type": "string",
+          "required": false
+        },
+        "metadata": {
+          "type": "object",
+          "required": false
+        }
+      },
+      "default": {
+        "action": "",
+        "data": {}
+      }
+    },
+    "delay": {
+      "description": "Pause execution for a specified duration",
+      "fields": {
+        "delay": {
+          "type": "number|object|string",
+          "required": true
+        }
+      },
+      "default": {
+        "delay": ""
+      }
+    },
+    "wait_template": {
+      "description": "Wait until a Jinja2 template evaluates to true",
+      "fields": {
+        "wait_template": {
+          "type": "string",
+          "required": true
+        },
+        "timeout": {
+          "type": "number",
+          "required": false
+        },
+        "continue_on_timeout": {
+          "type": "boolean",
+          "required": false
+        }
+      },
+      "default": {
+        "wait_template": "",
+        "continue_on_timeout": true
+      }
+    },
+    "wait_for_trigger": {
+      "description": "Wait for a trigger to fire before continuing",
+      "fields": {
+        "wait_for_trigger": {
+          "type": "Trigger[]",
+          "required": true
+        },
+        "timeout": {
+          "type": "number|object|string",
+          "required": false
+        },
+        "continue_on_timeout": {
+          "type": "boolean",
+          "required": false
+        }
+      },
+      "default": {
+        "wait_for_trigger": []
+      }
+    },
+    "event": {
+      "description": "Fire a custom event on the event bus",
+      "fields": {
+        "event": {
+          "type": "string",
+          "required": true
+        },
+        "event_data": {
+          "type": "object",
+          "required": false
+        },
+        "event_data_template": {
+          "type": "object",
+          "required": false
+        }
+      },
+      "default": {
+        "event": "",
+        "event_data": {}
+      }
+    },
+    "choose": {
+      "description": "Select an action branch based on conditions (like switch/case)",
+      "fields": {
+        "choose": {
+          "type": "Option[]",
+          "required": true
+        },
+        "default": {
+          "type": "Action[]",
+          "required": false
+        }
+      },
+      "default": {
+        "choose": [
+          {
+            "conditions": [],
+            "sequence": []
+          }
+        ]
+      }
+    },
+    "if": {
+      "description": "Simple conditional: if/then/else",
+      "fields": {
+        "if": {
+          "type": "string|Condition[]",
+          "required": true
+        },
+        "then": {
+          "type": "Action[]",
+          "required": true
+        },
+        "else": {
+          "type": "Action[]",
+          "required": false
+        }
+      },
+      "default": {
+        "if": [],
+        "then": []
+      }
+    },
+    "repeat": {
+      "description": "Loop actions: count, while, until, or for_each",
+      "fields": {
+        "repeat": {
+          "type": "RepeatConfig",
+          "required": true
+        }
+      },
+      "default": {
+        "repeat": {
+          "count": 2,
+          "sequence": []
+        }
+      }
+    },
+    "sequence": {
+      "description": "Run actions in order (grouping)",
+      "fields": {
+        "sequence": {
+          "type": "Action[]",
+          "required": true
+        },
+        "metadata": {
+          "type": "{}",
+          "required": false
+        }
+      },
+      "default": {
+        "sequence": []
+      }
+    },
+    "parallel": {
+      "description": "Run actions simultaneously",
+      "fields": {
+        "parallel": {
+          "type": "Action[]",
+          "required": true
+        }
+      },
+      "default": {
+        "parallel": []
+      }
+    },
+    "stop": {
+      "description": "Stop the automation or script",
+      "fields": {
+        "stop": {
+          "type": "string",
+          "required": true
+        },
+        "response_variable": {
+          "type": "string",
+          "required": false
+        },
+        "error": {
+          "type": "boolean",
+          "required": false
+        }
+      },
+      "default": {
+        "stop": ""
+      }
+    },
+    "variables": {
+      "description": "Set variables for subsequent actions",
+      "fields": {
+        "variables": {
+          "type": "object",
+          "required": true
+        }
+      }
+    },
+    "set_conversation_response": {
+      "description": "Set the response text for a conversation trigger",
+      "fields": {
+        "set_conversation_response": {
+          "type": "string",
+          "required": true
+        }
+      },
+      "default": {
+        "set_conversation_response": ""
+      }
+    },
+    "device": {
+      "description": "Device-specific action (integration-dependent fields)",
+      "fields": {
+        "type": {
+          "type": "string",
+          "required": true
+        },
+        "device_id": {
+          "type": "string",
+          "required": true
+        },
+        "domain": {
+          "type": "string",
+          "required": true
+        },
+        "entity_id": {
+          "type": "string",
+          "required": true
+        }
+      }
+    }
+  },
+  "repeat_variants": {
+    "count": {
+      "fields": {
+        "sequence": {
+          "type": "Action[]",
+          "required": true
+        },
+        "count": {
+          "type": "number|string",
+          "required": true
+        }
+      }
+    },
+    "while": {
+      "fields": {
+        "sequence": {
+          "type": "Action[]",
+          "required": true
+        },
+        "while": {
+          "type": "Condition[]",
+          "required": true
+        }
+      }
+    },
+    "until": {
+      "fields": {
+        "sequence": {
+          "type": "Action[]",
+          "required": true
+        },
+        "until": {
+          "type": "Condition[]",
+          "required": true
+        }
+      }
+    },
+    "for_each": {
+      "fields": {
+        "sequence": {
+          "type": "Action[]",
+          "required": true
+        },
+        "for_each": {
+          "type": "string|any[]",
+          "required": true
+        }
+      }
+    }
+  },
+  "automation_modes": {
+    "single": "Only one instance runs at a time. New triggers ignored while running.",
+    "restart": "Running instance is stopped and restarted on new trigger.",
+    "queued": "Runs queue up. Use 'max' to limit queue depth (default 10).",
+    "parallel": "Multiple instances run simultaneously. Use 'max' to limit (default 10)."
+  },
+  "duration_format": {
+    "description": "Duration can be: string 'HH:MM:SS', number (seconds), or object {days, hours, minutes, seconds, milliseconds}",
+    "examples": [
+      "00:05:00",
+      300,
+      {
+        "minutes": 5
+      }
+    ]
+  },
+  "target_format": {
+    "description": "Target for service calls: {entity_id, device_id, area_id, floor_id, label_id} \u2014 each can be string or string[]",
+    "examples": [
+      {
+        "entity_id": "light.kitchen"
+      },
+      {
+        "area_id": "living_room"
+      },
+      {
+        "entity_id": [
+          "light.a",
+          "light.b"
+        ]
+      }
+    ]
+  }
+}
