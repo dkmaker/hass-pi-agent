@@ -1,214 +1,169 @@
-# Next Steps — WebSocket Migration & New Tools
+# Next Steps — Automation Builder
 
 ## Context
 
-The extension cleanup is complete (shared `lib/api.ts`, `StringEnum`, proper error handling, dead code removed). The `ha-devices` tool was built on the new shared WebSocket client (`lib/ws.ts`). A full audit of HA's WebSocket API (see `PLAN_WS.md`) revealed that most of our storage-file operations have proper WS equivalents that work **live without restarts**.
+Phases 1-3 of the WebSocket migration are complete. All 9 tools are working:
+- `ha_helpers` — collection helpers via WS (live, no restart), config entries via storage
+- `ha_entities` — WS registries + update/remove
+- `ha_devices` — full WS
+- `ha_areas` — full WS CRUD for areas + floors
+- `ha_labels` — full WS CRUD
+- `ha_automations` — REST+WS CRUD, trigger, traces
+- `ha_services` — REST service listing + calling
+- `ha_template` — REST template rendering
+- `ha_restart` — REST restart/reload
 
-This plan migrates existing tools to WebSocket and adds new tools unlocked by it.
+The `ha_automations` tool can create/update/delete automations, but **building complex automations is hard** — the agent has to construct the entire JSON config in one shot. The HA frontend solves this with an interactive step-by-step editor. We need the same.
 
-## Current Architecture
+## Goal
 
+**Interactive automation builder** — a stateful tool that builds automations step-by-step, just like the HA frontend editor. The automation is stored in a temp file on disk between tool calls.
+
+## Phase 1: Extract Automation Element Schemas
+
+**Source:** `ha-frontend/src/` — TypeScript interfaces + superstruct schemas + default configs
+
+### Deliverable: `schemas/automation-elements.json`
+
+Extract from the frontend source into a single JSON catalog:
+
+```json
+{
+  "triggers": {
+    "state": {
+      "description": "Entity state changes",
+      "fields": {
+        "entity_id": {"type": "string|string[]", "required": true},
+        "attribute": {"type": "string"},
+        "from": {"type": "string|string[]|null"},
+        "to": {"type": "string|string[]|null"},
+        "for": {"type": "duration"}
+      },
+      "default": {"trigger": "state", "entity_id": []}
+    },
+    ...18 trigger types
+  },
+  "conditions": {
+    ...9 condition types
+  },
+  "actions": {
+    ...14 action types
+  }
+}
 ```
-lib/
-  api.ts          — REST helpers: requireToken(), apiGet(), apiPost(), callService()
-  ws.ts           — WebSocket client: wsCommand(), wsClose(), wsConnected()
-  config.ts       — env vars, paths, .env loader
-  storage.ts      — read/write .storage files with backup
-  backup.ts       — timestamped backup with rotation
-  registry.ts     — type registry, schema loading, validation
-  backends/
-    collection.ts — .storage/<domain> items[] CRUD ← TO BE REPLACED BY WS
-    config-entry.ts — core.config_entries CRUD ← PARTIALLY REPLACEABLE
 
-tools/
-  ha-helpers.ts   — helper management (delegates to backends)
-  ha-devices.ts   — device management (WS-based) ✅
-  ha-entities.ts  — entity discovery (REST + storage reads)
-  ha-services.ts  — service list/get/call (REST)
-  ha-restart.ts   — restart/reload (REST service calls)
-  ha-template.ts  — template render/validate (REST)
+### What to extract per type:
+1. **Fields** — name, type, required, default (from TS interfaces + superstruct)
+2. **Default config** — from `static get defaultConfig()` in each editor component
+3. **Available options** — for enum fields (e.g., sun event: sunrise/sunset)
+
+### Method:
+- Parse the TS source files programmatically or manually build the JSON
+- The frontend has ~40 editor components (18 triggers + 9 conditions + 14 actions) — each is self-contained
+- Cross-reference with `docs/automation-schema.md` (already written)
+
+## Phase 2: Expand `ha_automations` Tool with Builder Actions
+
+Extend the existing `ha_automations` tool (NOT a new tool) with builder actions.
+
+### New actions:
+
+#### Session
+| Action | Params | Description |
+|--------|--------|-------------|
+| `new` | `config.alias`, `config.description?`, `config.mode?` | Start new automation in builder |
+| `load` | `automation_id` | Load existing automation into builder |
+| `show` | — | Show current builder state as JSON |
+| `yaml` | — | Show current builder state as YAML |
+| `save` | `automation_id?` | Save to HA via REST API (validates + reloads) |
+| `discard` | — | Clear the builder |
+
+#### Element CRUD (triggers, conditions, actions)
+| Action | Params | Description |
+|--------|--------|-------------|
+| `list-trigger-types` | — | Show available trigger types with fields |
+| `add-trigger` | `config: {trigger: "state", entity_id: "..."}` | Add trigger |
+| `update-trigger` | `index`, `config` | Update trigger at index |
+| `remove-trigger` | `index` | Remove trigger at index |
+| `list-condition-types` | — | Show available condition types with fields |
+| `add-condition` | `config: {condition: "state", ...}` | Add condition |
+| `update-condition` | `index`, `config` | Update condition at index |
+| `remove-condition` | `index` | Remove condition at index |
+| `list-action-types` | — | Show action types + building blocks |
+| `add-action` | `config: {action: "light.turn_on", ...}` | Add action |
+| `update-action` | `index`, `config` | Update action at index |
+| `remove-action` | `index` | Remove action at index |
+
+#### Dynamic Schema Lookup
+| Action | Params | Description |
+|--------|--------|-------------|
+| `get-service-schema` | `service: "light.turn_on"` | Get service fields from HA (for building service call actions) |
+
+### Temp storage
 ```
-
-## Phase 1: Migrate `ha-helpers` Collection Backend to WS
-
-**Goal:** Eliminate restart requirement for the 9 collection helper types.
-**Impact:** HIGH — biggest user-facing improvement.
-
-### What changes
-
-The 9 collection helpers (input_boolean, input_number, input_text, input_select, input_datetime, input_button, counter, timer, schedule) all have WS CRUD commands:
-
+/tmp/ha-automation-builder/current.json
 ```
-{domain}/list                          → list all items
-{domain}/create   + fields             → create item (immediate)
-{domain}/update   + {domain}_id + fields → update item (immediate)
-{domain}/delete   + {domain}_id        → delete item (immediate)
-```
-
-### Plan
-
-1. **Create `lib/backends/collection-ws.ts`** — new backend using `wsCommand()`:
-   - `listItems(type)` → `wsCommand("{domain}/list")`
-   - `addItem(type, fields)` → `wsCommand("{domain}/create", fields)`
-   - `updateItem(type, id, fields)` → `wsCommand("{domain}/update", { {domain}_id: id, ...fields })`
-   - `removeItem(type, id)` → `wsCommand("{domain}/delete", { {domain}_id: id })`
-   - No backup needed (HA manages its own storage)
-   - No restart needed (changes are live)
-
-2. **Update `ha-helpers.ts`** — use WS backend for collection types:
-   - Route collection types → `collection-ws.ts`
-   - Route config entry types → `config-entry.ts` (unchanged for now)
-   - Remove "⚠️ Restart HA" messages for collection types
-   - Keep backup/restore actions as emergency recovery (reads storage files)
-
-3. **Keep `lib/backends/collection.ts`** — retain as fallback / backup-restore path. Don't delete yet.
-
-4. **Research config entry flows** — investigate `config_entries/flow` WS commands to see if config entry helpers can also go live. This is Phase 1b if feasible.
+- Created on `new` or `load`
+- Read/written on every builder action
+- Cleared on `save` or `discard`
+- JSON format (matches REST API input)
 
 ### Validation
+- On `add-*` / `update-*`: validate against the schema catalog (field names, types, required)
+- On `save`: HA validates server-side (the POST endpoint calls `async_validate_config_item`)
+- Report errors clearly with what fields are wrong and what's expected
 
-- Verify field names match between our schemas and WS create/update expectations
-- Check if WS `{domain}/list` returns the same shape as storage items
-- Test error responses (duplicate ID, missing required fields, not found)
+## Phase 3: YAML Round-Trip
 
-## Phase 2: Migrate `ha-entities` to WS
+Add YAML support for internet documentation compatibility:
 
-**Goal:** Live entity registry data + add update/remove capabilities.
-**Impact:** MEDIUM — adds mutation capabilities, removes storage dependency.
+| Action | Description |
+|--------|-------------|
+| `yaml` | Export builder state as YAML |
+| `import-yaml` | Import YAML string into builder (replaces current state) |
+| `edit-yaml` | Write builder state to temp `.yaml` file for manual editing, read back |
 
-### What changes
+This handles the "all internet docs are YAML" use case — the agent can grab YAML examples and import them, or export to YAML for comparison.
 
-| Current | WS Replacement |
-|---------|---------------|
-| `apiGet("/api/states")` | Keep REST (or `get_states` WS — equivalent) |
-| `readStorage("core.entity_registry")` | `wsCommand("config/entity_registry/list")` |
-| `readStorage("core.device_registry")` | `wsCommand("config/device_registry/list")` |
-| `readStorage("core.area_registry")` | `wsCommand("config/area_registry/list")` |
-| (not available) | `wsCommand("config/entity_registry/update", ...)` |
-| (not available) | `wsCommand("config/entity_registry/remove", ...)` |
+## Phase 4: Smart Suggestions
 
-### New actions for `ha-entities`
+Enhance the builder with context-aware suggestions:
 
-- **update** — rename entity, change entity_id, set area/labels, disable/enable, change icon
-- **remove** — delete orphaned/unwanted entities from the registry
+- When adding a service call action, use `get_services` to list available services and their fields
+- When a trigger/condition needs an `entity_id`, use entity registry to suggest valid entities
+- When a condition references a trigger `id`, validate it exists in the current trigger list
+- For `choose`/`if` blocks, validate that nested conditions and actions are valid
 
-### Plan
-
-1. Replace storage reads with WS calls in registry loaders
-2. Add `update` and `remove` actions with appropriate parameters
-3. Keep REST for `/api/states` (simpler for one-shot reads than WS subscription)
-
-## Phase 3: New Registry Tools
-
-**Goal:** Full management of areas, floors, and labels.
-**Impact:** MEDIUM — completes the organizational layer.
-**Effort:** Small — these are all simple CRUD over WS.
-
-### `ha_areas` tool
-
-Manages areas and floors (combined — floors are the parent of areas).
-
-| Action | WS Command |
-|--------|-----------|
-| list | `config/area_registry/list` + `config/floor_registry/list` |
-| get | List + filter, enrich with device/entity counts |
-| create-area | `config/area_registry/create` (name, floor_id, icon, labels, aliases) |
-| update-area | `config/area_registry/update` |
-| delete-area | `config/area_registry/delete` |
-| create-floor | `config/floor_registry/create` (name, level, icon, aliases) |
-| update-floor | `config/floor_registry/update` |
-| delete-floor | `config/floor_registry/delete` |
-| reorder | `config/area_registry/reorder` / `config/floor_registry/reorder` |
-
-### `ha_labels` tool
-
-| Action | WS Command |
-|--------|-----------|
-| list | `config/label_registry/list` |
-| create | `config/label_registry/create` (name, color, icon, description) |
-| update | `config/label_registry/update` |
-| delete | `config/label_registry/delete` |
-
-## Phase 4: Config Entry Helpers via WS
-
-**Goal:** Eliminate restart for config-entry-based helpers (template, derivative, utility_meter, etc.).
-**Impact:** HIGH — completes the "no restart" story.
-**Effort:** Medium-Large — config flows are multi-step.
-
-### Investigation needed
-
-Config entry helpers are created via `config_entries/flow`, which is a multi-step wizard:
-1. `config_entries/flow` with `handler: "domain"` → returns `flow_id` + first step
-2. Submit step data → may return next step or create entry
-
-Need to map out the flow for each helper type:
-- How many steps?
-- What data at each step?
-- Can we complete in a single round-trip?
-- How does options update work (`config_entries/update`)?
-
-### 17 config entry helper types
-
-derivative, filter, generic_hygrostat, generic_thermostat, group, history_stats, integration, min_max, mold_indicator, random, statistics, switch_as_x, template, threshold, tod, trend, utility_meter
-
-## Phase 5: Dashboard Management
-
-**Goal:** View and edit Lovelace dashboards.
-**Impact:** MEDIUM — popular request.
-
-| Action | WS Command |
-|--------|-----------|
-| list | `lovelace/dashboards` (collection WS) |
-| get-config | `lovelace/config` + `url_path` |
-| save-config | `lovelace/config/save` |
-| create | `lovelace/dashboards/create` |
-| delete | `lovelace/dashboards/delete` |
-| resources | `lovelace/resources/list` |
-
-## Phase 6: Future Tools
-
-Lower priority, enabled by WS:
-
-| Tool | WS Commands | Notes |
-|------|-------------|-------|
-| `ha_automations` | automation collection CRUD + trace | Large — automation configs are complex |
-| `ha_search` | `search/related` | Find everything related to a device/entity/area |
-| `ha_system` | `system_log/list`, integration info | Diagnostics and troubleshooting |
-| `ha_history` | `recorder/statistics_during_period` | Query historical data |
-| `ha_backup` | backup WS commands | Create/restore HA backups |
-
-## Migration Strategy
-
-### Storage file access — deprecation path
-
-| Phase | Storage reads | Storage writes | WS |
-|-------|--------------|----------------|-----|
-| Current | Registries + helpers | Helpers (+ restart) | Devices only |
-| Phase 1 | Registries only | Config entry helpers only | Devices + collection helpers |
-| Phase 2 | Schemas only | Config entry helpers only | Devices + helpers + entities + registries |
-| Phase 4 | Schemas only | None (backup/restore only) | Everything |
-
-### What stays on REST
-
-- `ha-template` — one-shot template rendering (WS is subscription-based, overkill)
-- `ha-services` — service listing and calling (REST is clean, no benefit from WS)
-- `ha-restart` — service calls for restart/reload (REST is appropriate)
-- Entity state reads in `ha-entities` and `ha-devices` — `/api/states` is simple and sufficient
-
-### What stays as storage file reads
-
-- Schema JSON files in `schemas/` — these are our extracted schemas, not HA storage
-- Backup/restore in `lib/backup.ts` — emergency recovery, orthogonal to WS
-
-## Execution Order
+## Implementation Order
 
 ```
-Phase 1:  ha-helpers collection → WS        (highest impact, eliminates restarts)
-Phase 2:  ha-entities → WS registries        (adds update/remove, live data)
-Phase 3:  ha_areas + ha_labels tools          (new tools, trivial CRUD)
-Phase 4:  ha-helpers config entries → WS      (research config flows first)
-Phase 5:  ha_dashboards tool                  (new tool)
-Phase 6:  ha_automations, ha_search, etc.     (future)
+1. Extract automation-elements.json from frontend source
+2. Add builder session actions (new/load/show/save/discard)
+3. Add element CRUD (add/update/remove trigger/condition/action)  
+4. Add list-*-types actions (show available types from schema)
+5. Add get-service-schema (dynamic lookup from HA)
+6. Add YAML round-trip
+7. Smart suggestions
 ```
 
-Each phase is independently shippable and testable.
+Steps 1-5 are the MVP. Steps 6-7 are nice-to-have.
+
+## Files to Change
+
+```
+.pi/extensions/home-assistant/
+  schemas/
+    automation-elements.json    # NEW — extracted from frontend
+  tools/
+    ha-automations.ts           # EXPAND — add builder actions
+  docs/
+    automation-schema.md        # EXISTS — reference doc (keep as-is)
+```
+
+## Key Design Decisions
+
+1. **One tool, not two** — extend `ha_automations` rather than creating a separate builder tool
+2. **Temp file, not memory** — survives across tool calls, can be inspected
+3. **JSON canonical, YAML for display** — matches what the REST API accepts
+4. **Static + dynamic schemas** — static catalog for trigger/condition/action types, dynamic `get_services` for service call fields
+5. **Server-side validation on save** — we validate basics locally, HA validates everything on POST
