@@ -13,6 +13,7 @@ import { registerAddonsTool } from "./tools/ha-addons.js";
 import { registerDocsTool } from "./tools/ha-docs.js";
 import { registerBackupsTool } from "./tools/ha-backups.js";
 import { registerSystemTool } from "./tools/ha-system.js";
+import { registerGraphTool } from "./tools/ha-graph.js";
 import { wsClose } from "./lib/ws.js";
 
 export default function (pi: ExtensionAPI) {
@@ -30,6 +31,7 @@ export default function (pi: ExtensionAPI) {
   registerDocsTool(pi);
   registerBackupsTool(pi);
   registerSystemTool(pi);
+  registerGraphTool(pi);
 
   // Clean up WebSocket connection on shutdown
   pi.on("session_shutdown", async () => {
