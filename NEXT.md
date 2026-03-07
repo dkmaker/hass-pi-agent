@@ -17,7 +17,7 @@ Build a working Docker add-on that installs pi, exposes it via ttyd/tmux in the 
 │  │                                             │ │
 │  │  s6-overlay services:                       │ │
 │  │  ├─ init-pi       (oneshot) set up env,     │ │
-│  │  │                 symlink /data, install pi │ │
+│  │  │                 write auth.json from cfg  │ │
 │  │  ├─ init-extension (oneshot) copy extension, │ │
 │  │  │                 build docs index          │ │
 │  │  └─ ttyd          (longrun) ttyd → tmux → pi│ │
@@ -26,10 +26,13 @@ Build a working Docker add-on that installs pi, exposes it via ttyd/tmux in the 
 │  │  ├─ /homeassistant  (HA config, rw)         │ │
 │  │  ├─ /data           (persistent, survives   │ │
 │  │  │                   rebuilds)              │ │
-│  │  │  ├─ .pi/agent/auth.json (credentials)    │ │
-│  │  │  ├─ .pi/agent/settings.json              │ │
-│  │  │  ├─ .pi/agent/sessions/                  │ │
-│  │  │  └─ ha-docs/ (docs index cache)          │ │
+│  │  │  └─ pi-agent/    (PI_CODING_AGENT_DIR)   │ │
+│  │  │     ├─ auth.json (credentials)           │ │
+│  │  │     ├─ settings.json                     │ │
+│  │  │     ├─ sessions/                         │ │
+│  │  │     ├─ extensions/                       │ │
+│  │  │     ├─ skills/                           │ │
+│  │  │     └─ agents/                           │ │
 │  │  ├─ /share, /ssl, /media, /backup           │ │
 │  │  └─ /addon_configs                          │ │
 │  └─────────────────────────────────────────────┘ │
@@ -42,20 +45,21 @@ Build a working Docker add-on that installs pi, exposes it via ttyd/tmux in the 
 
 Pi stores credentials in `~/.pi/agent/auth.json` (API keys, OAuth tokens). The container runs as root, so `~` = `/root`. On container rebuild, `/root` is wiped — but `/data/` persists.
 
-**Solution**: Symlink `~/.pi/` → `/data/.pi/` at startup (init-pi service).
+**Solution**: Set `PI_CODING_AGENT_DIR=/data/pi-agent` environment variable.
+
+Pi supports the `PI_CODING_AGENT_DIR` env var (source: `config.js` → `getAgentDir()`). This overrides the default `~/.pi/agent/` path entirely — no symlinks needed.
 
 ```
-/root/.pi → /data/.pi    (symlink)
-/data/.pi/agent/
+PI_CODING_AGENT_DIR=/data/pi-agent
+/data/pi-agent/
   ├── auth.json           (API keys — persisted)
   ├── settings.json       (model prefs — persisted)
-  ├── sessions/           (conversation history — persisted)
-  ├── extensions/         (user-installed extensions — persisted)
-  ├── skills/             (user-installed skills — persisted)
-  └── agents/             (custom agents — persisted)
+  └── sessions/           (conversation history — persisted)
 ```
 
-This means `pi` sees `/data/.pi/agent/auth.json` as `~/.pi/agent/auth.json` transparently. First run creates the directory structure. Subsequent rebuilds find existing credentials.
+No user-level extensions, skills, agents, or rules are stored here. The only extension is the HA extension, shipped as a **project-level** extension at `/homeassistant/.pi/extensions/home-assistant/` (on the HA config volume).
+
+First run creates the directory structure. Subsequent rebuilds find existing credentials.
 
 ### 2. HA Extension Loading
 
@@ -68,28 +72,64 @@ The `.env` file is NOT needed in the container — defaults are correct:
 - `HA_URL` → `http://supervisor/core` ✓
 - `HA_TOKEN` → `SUPERVISOR_TOKEN` from s6 env ✓
 
-### 3. Docs Index at Startup
+### 3. Python in the Container
+
+Python 3 is included in the Docker image (`apk add python3`). Pi uses python for various tasks and users may need it for custom scripts or integrations.
+
+### 4. Docs Index at Startup
 
 The `ha_docs` tool fetches integration docs from GitHub on first use and caches locally. In the container, the cache should go to `/data/ha-docs/` (persisted). The extension's `config.ts` already handles this — when `HA_URL` contains "supervisor", `DOCS_DATA_DIR` defaults to `/data/ha-docs`.
 
-### 4. Web UI via Ingress
+### 5. Web UI via Ingress
 
 Same proven pattern as the Claude Code addon:
 - **ttyd** serves a web terminal on the ingress port
 - **tmux** provides session persistence (reconnect = same session)
 - Pi runs inside tmux as the shell command
 
-### 5. Add-on Configuration (config.yaml options)
+### 6. Add-on Configuration (config.yaml options)
 
 | Option | Type | Default | Purpose |
 |--------|------|---------|---------|
 | `default_provider` | select | `anthropic` | Default AI provider |
 | `default_model` | str | `""` | Default model (empty = provider default) |
-| `api_key` | password | `""` | API key (written to auth.json) |
+| `api_keys` | list[str] | `[]` | API keys as `PROVIDER=key` pairs (see below) |
+| `environment` | list[str] | `[]` | Extra env vars as `KEY=VALUE` |
 | `yolo_mode` | bool | `false` | Auto-approve all tool calls |
 | `additional_packages` | list[str] | `[]` | Extra Alpine packages to install |
 
-### 6. SUPERVISOR_TOKEN Injection
+#### API Keys
+
+Pi resolves API keys in priority order:
+1. **Runtime** (CLI `--api-key`) — in-memory only
+2. **auth.json** (`/data/pi-agent/auth.json`) — persisted, set via `/login` in pi or from config
+3. **Environment variables** — set via `api_keys` config option
+4. **Fallback resolver** (models.json custom providers)
+
+The `api_keys` config option accepts `PROVIDER=key` pairs that get written to `auth.json` on startup. Supported providers and their env var names (from pi-ai source):
+
+| Provider | Config key | Env var (also works) |
+|----------|-----------|----------------------|
+| `anthropic` | `anthropic=sk-ant-...` | `ANTHROPIC_API_KEY` |
+| `openai` | `openai=sk-...` | `OPENAI_API_KEY` |
+| `google` | `google=AI...` | `GEMINI_API_KEY` |
+| `openrouter` | `openrouter=sk-or-...` | `OPENROUTER_API_KEY` |
+| `groq` | `groq=gsk_...` | `GROQ_API_KEY` |
+| `xai` | `xai=xai-...` | `XAI_API_KEY` |
+| `mistral` | `mistral=...` | `MISTRAL_API_KEY` |
+| `cerebras` | `cerebras=...` | `CEREBRAS_API_KEY` |
+| `huggingface` | `huggingface=hf_...` | `HF_TOKEN` |
+| `minimax` | `minimax=...` | `MINIMAX_API_KEY` |
+| `zai` | `zai=...` | `ZAI_API_KEY` |
+| `azure-openai-responses` | `azure-openai-responses=...` | `AZURE_OPENAI_API_KEY` |
+| `github-copilot` | `github-copilot=...` | `GITHUB_TOKEN` |
+| `kimi-coding` | `kimi-coding=...` | `KIMI_API_KEY` |
+
+Users can also use OAuth via `/login` command in pi (credentials persist in auth.json across restarts).
+
+The `environment` option allows setting any additional env var (e.g., `AZURE_OPENAI_BASE_URL=https://...`, `GOOGLE_CLOUD_PROJECT=my-project`, `AWS_PROFILE=bedrock`).
+
+### 7. SUPERVISOR_TOKEN Injection
 
 The token is NOT in env by default when `init: false`. But with s6-overlay (the HA base image default), it IS available at `/run/s6/container_environment/SUPERVISOR_TOKEN`. The init scripts use `with-contenv` to source it.
 
@@ -145,9 +185,9 @@ addon/
 ARG BUILD_FROM
 FROM $BUILD_FROM
 
-# System packages
+# System packages (python3 for pi tools + user scripts)
 RUN apk add --no-cache \
-    bash curl git nodejs npm \
+    bash curl git nodejs npm python3 \
     ripgrep tmux ttyd \
     libgcc libstdc++
 
@@ -172,28 +212,63 @@ RUN chmod a+x /usr/bin/pi-entrypoint.sh && \
 ```bash
 #!/command/with-contenv bashio
 
-# Persistent pi home
-mkdir -p /data/.pi/agent
-ln -sf /data/.pi /root/.pi
+PI_DIR=/data/pi-agent
 
-# Write API key from config if provided
-api_key=$(bashio::config 'api_key')
+# Persistent pi agent dir
+mkdir -p "${PI_DIR}/sessions"
+
+# Set PI_CODING_AGENT_DIR for all services
+printf '%s' "${PI_DIR}" > /var/run/s6/container_environment/PI_CODING_AGENT_DIR
+
+# Write api_keys from config into auth.json
+# Config format: list of "provider=key" strings
+# Merges with existing auth.json (preserves OAuth tokens from /login)
+if bashio::config.has_value 'api_keys'; then
+    # Start with existing auth.json or empty object
+    if [[ -f "${PI_DIR}/auth.json" ]]; then
+        auth_json=$(cat "${PI_DIR}/auth.json")
+    else
+        auth_json='{}'
+    fi
+
+    for entry in $(bashio::config 'api_keys'); do
+        provider="${entry%%=*}"
+        key="${entry#*=}"
+        if [[ -n "$provider" && -n "$key" ]]; then
+            auth_json=$(echo "$auth_json" | jq --arg p "$provider" --arg k "$key" \
+              '.[$p] = {"type": "api_key", "key": $k}')
+        fi
+    done
+
+    echo "$auth_json" | jq . > "${PI_DIR}/auth.json"
+    chmod 600 "${PI_DIR}/auth.json"
+fi
+
+# Write/update settings.json from config
 provider=$(bashio::config 'default_provider')
-if bashio::var.has_value "${api_key}"; then
-    # Write to auth.json
-    jq -n --arg key "$api_key" --arg provider "$provider" \
-      '{($provider): {"type": "api_key", "key": $key}}' > /data/.pi/agent/auth.json
-    chmod 600 /data/.pi/agent/auth.json
-fi
-
-# Write settings.json from config
 model=$(bashio::config 'default_model')
-if [[ -n "$model" && "$model" != '""' ]]; then
-    jq -n --arg p "$provider" --arg m "$model" \
-      '{defaultProvider: $p, defaultModel: $m}' > /data/.pi/agent/settings.json
+settings='{}'
+if [[ -f "${PI_DIR}/settings.json" ]]; then
+    settings=$(cat "${PI_DIR}/settings.json")
+fi
+settings=$(echo "$settings" | jq --arg p "$provider" '.defaultProvider = $p')
+if bashio::config.has_value 'default_model'; then
+    settings=$(echo "$settings" | jq --arg m "$model" '.defaultModel = $m')
+fi
+echo "$settings" | jq . > "${PI_DIR}/settings.json"
+
+# Write environment vars from config to s6 env dir
+if bashio::config.has_value 'environment'; then
+    for entry in $(bashio::config 'environment'); do
+        key="${entry%%=*}"
+        value="${entry#*=}"
+        if [[ -n "$key" ]]; then
+            printf '%s' "$value" > "/var/run/s6/container_environment/${key}"
+        fi
+    done
 fi
 
-# Expose SUPERVISOR_TOKEN for extension
+# Expose SUPERVISOR_TOKEN + HA defaults for the extension
 printf '%s' "${SUPERVISOR_TOKEN}" > /var/run/s6/container_environment/HA_TOKEN
 printf '%s' "http://supervisor/core" > /var/run/s6/container_environment/HA_URL
 printf '%s' "/homeassistant" > /var/run/s6/container_environment/HA_CONFIG_PATH
@@ -272,13 +347,17 @@ map:
 options:
   default_provider: "anthropic"
   default_model: ""
-  api_key: ""
+  api_keys: []
+  environment: []
   yolo_mode: false
   additional_packages: []
 schema:
-  default_provider: "list(anthropic|openai|google|openrouter)"
+  default_provider: "list(anthropic|openai|google|openrouter|groq|xai|mistral|cerebras|huggingface|github-copilot|amazon-bedrock|google-vertex|azure-openai-responses)"
   default_model: "str?"
-  api_key: "password?"
+  api_keys:
+    - "password"
+  environment:
+    - "str"
   yolo_mode: bool
   additional_packages:
     - str
@@ -336,3 +415,4 @@ Located at `/tmp/hass-claude-code/addon/`. Key patterns borrowed:
 
 Key difference: Claude Code installs via binary (`curl | bash`), pi installs via npm.
 Key improvement: Pi's auth.json stores credentials natively — no need for env var hacks.
+Key improvement: `PI_CODING_AGENT_DIR` env var avoids symlink hacks for persistent storage.
