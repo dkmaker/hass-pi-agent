@@ -99,7 +99,7 @@ export function registerEntitiesTools(pi: ExtensionAPI): void {
     description: `Discover and inspect Home Assistant entities with device and area context.
 
 Actions:
-- list: List entities with state. Filters: domain, search, state. Hides unavailable by default (reports count). Paginated.
+- list: List entities with state. Filters: domain, device_id, search, state. Hides unavailable by default (reports count). Paginated.
 - get: Full detail for one entity — state, attributes, device, area.
 - domains: Overview of all domains with entity counts.
 
@@ -114,6 +114,9 @@ Entity listings include device name and area when available.`,
       ),
       domain: Type.Optional(
         Type.String({ description: "Filter by domain (e.g., sensor, light, switch)" })
+      ),
+      device_id: Type.Optional(
+        Type.String({ description: "Filter by device ID — show only entities belonging to this device" })
       ),
       search: Type.Optional(
         Type.String({ description: "Search entity_id and friendly_name" })
@@ -145,6 +148,7 @@ async function executeAction(params: {
   action: string;
   entity_id?: string;
   domain?: string;
+  device_id?: string;
   search?: string;
   state?: string;
   include_unavailable?: boolean;
@@ -167,6 +171,7 @@ async function executeAction(params: {
 
 async function handleList(params: {
   domain?: string;
+  device_id?: string;
   search?: string;
   state?: string;
   include_unavailable?: boolean;
@@ -189,6 +194,17 @@ async function handleList(params: {
   if (params.domain) {
     const d = params.domain.toLowerCase();
     filtered = filtered.filter((s) => s.entity_id.startsWith(d + "."));
+  }
+
+  // Device filter — keep only entities belonging to the given device
+  if (params.device_id) {
+    const deviceEntityIds = new Set<string>();
+    for (const [entityId, entry] of entityReg) {
+      if (entry.device_id === params.device_id) {
+        deviceEntityIds.add(entityId);
+      }
+    }
+    filtered = filtered.filter((s) => deviceEntityIds.has(s.entity_id));
   }
 
   // Count and optionally filter unavailable
