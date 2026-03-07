@@ -1,3 +1,4 @@
 .env
 .search_cache/
 node_modules/
+.pi/extensions/home-assistant/data/

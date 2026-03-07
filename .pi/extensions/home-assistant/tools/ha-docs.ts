@@ -20,7 +20,9 @@ Actions:
 - get: Get full documentation for a specific integration or doc page. Fetches from GitHub and caches locally.
 - search: Search integration index by keyword (title, description, domain).
 - update: Refresh the docs index from GitHub (fetches latest integration metadata).
-- status: Show index info — version, source, integration/doc counts.`,
+- status: Show index info — version, source, integration/doc counts.
+
+Index is auto-fetched on first startup and refreshed daily. Content is fetched on demand from GitHub and cached persistently.`,
 
     parameters: Type.Object({
       action: StringEnum(
@@ -251,6 +253,7 @@ async function executeAction(
 
     case "status": {
       const { loadIndex } = await import("../lib/docs/cache.js");
+      const { DOCS_DATA_DIR, DOCS_UPDATE_HOUR } = await import("../lib/config.js");
       try {
         const index = await loadIndex();
         const iCount = Object.keys(index.integrations).length;
@@ -263,9 +266,11 @@ async function executeAction(
           `Updated: ${index.updated}`,
           `Integrations: ${iCount}`,
           `Docs: ${dCount}`,
+          `Data dir: ${DOCS_DATA_DIR}`,
+          `Auto-update: daily at ${DOCS_UPDATE_HOUR}:00`,
         ].join("\n");
       } catch {
-        return "❌ No docs index loaded. Run 'update' to fetch from GitHub.";
+        return `❌ No docs index loaded yet. Index will be fetched automatically on first startup.\nData dir: ${DOCS_DATA_DIR}\nAuto-update: daily at ${DOCS_UPDATE_HOUR}:00`;
       }
     }
 

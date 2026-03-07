@@ -1,73 +1,64 @@
 /**
  * Docs index cache — manages loading and saving the docs index.
  *
- * Priority:
- * 1. Runtime cache (written by `update` action)
- * 2. Shipped index (committed to repo, in schemas/)
+ * Storage location is configured via DOCS_DATA_DIR (config.ts):
+ *   Add-on: /data/ha-docs/
+ *   Local dev: .pi/extensions/home-assistant/data/ha-docs/
  *
- * The shipped index is loaded once and held in memory.
- * Runtime updates replace it in memory and write to disk.
+ * Index is loaded once and held in memory.
  */
+import { join } from "node:path";
+import { DOCS_DATA_DIR } from "../config.js";
 import type { DocsIndex } from "./builder.js";
-
-const RUNTIME_INDEX_PATH = "/tmp/ha-docs-cache/index.json";
 
 let cachedIndex: DocsIndex | null = null;
 
-/**
- * Find the shipped index path relative to this module.
- */
-function getShippedIndexPath(): string {
-  const { join, dirname } = require("node:path");
-  // lib/docs/cache.ts → ../../schemas/ha-docs-index.json
-  return join(dirname(dirname(__dirname)), "schemas", "ha-docs-index.json");
+function indexPath(): string {
+  return join(DOCS_DATA_DIR, "index.json");
 }
 
 /**
- * Load the docs index. Checks runtime cache first, then shipped.
+ * Load the docs index from persistent storage.
  */
 export async function loadIndex(): Promise<DocsIndex> {
   if (cachedIndex) return cachedIndex;
 
   const { readFile } = await import("node:fs/promises");
 
-  // Try runtime cache first
   try {
-    const data = await readFile(RUNTIME_INDEX_PATH, "utf-8");
+    const data = await readFile(indexPath(), "utf-8");
     cachedIndex = JSON.parse(data) as DocsIndex;
     return cachedIndex;
   } catch {
-    // Not found, fall through
+    throw new Error(
+      "No docs index found. Waiting for initial load — the index is fetched automatically on first startup."
+    );
   }
-
-  // Try shipped index
-  try {
-    // Use import.meta.url to resolve relative to this file
-    const { fileURLToPath } = await import("node:url");
-    const { join, dirname } = await import("node:path");
-    const thisDir = dirname(fileURLToPath(import.meta.url));
-    const shippedPath = join(thisDir, "..", "..", "schemas", "ha-docs-index.json");
-    const data = await readFile(shippedPath, "utf-8");
-    cachedIndex = JSON.parse(data) as DocsIndex;
-    return cachedIndex;
-  } catch {
-    // No index at all
-  }
-
-  throw new Error(
-    "No docs index found. Run 'update' action to fetch from GitHub, or rebuild with the build script."
-  );
 }
 
 /**
- * Save a new index to the runtime cache and update in-memory cache.
+ * Check if an index exists on disk.
+ */
+export async function indexExists(): Promise<boolean> {
+  const { access } = await import("node:fs/promises");
+  try {
+    await access(indexPath());
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Save index to persistent storage and update in-memory cache.
  */
 export async function saveIndex(index: DocsIndex): Promise<void> {
   const { writeFile, mkdir } = await import("node:fs/promises");
   const { dirname } = await import("node:path");
 
-  await mkdir(dirname(RUNTIME_INDEX_PATH), { recursive: true });
-  await writeFile(RUNTIME_INDEX_PATH, JSON.stringify(index, null, 2), "utf-8");
+  const p = indexPath();
+  await mkdir(dirname(p), { recursive: true });
+  await writeFile(p, JSON.stringify(index, null, 2), "utf-8");
   cachedIndex = index;
 }
 

@@ -18,7 +18,7 @@ import { saveIndexTo } from "../lib/docs/cache.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const EXTENSION_ROOT = join(__dirname, "..");
-const OUTPUT_PATH = join(EXTENSION_ROOT, "schemas", "ha-docs-index.json");
+const OUTPUT_PATH = join(EXTENSION_ROOT, "data", "ha-docs", "index.json");
 
 // Default local mirror path (relative to repo root)
 const REPO_ROOT = join(EXTENSION_ROOT, "..", "..", "..");

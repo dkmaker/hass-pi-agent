@@ -6,8 +6,11 @@
  * 2. GitHub raw content (fetched on demand, cached locally)
  */
 
+import { join } from "node:path";
+import { DOCS_DATA_DIR } from "../config.js";
+
 const GITHUB_RAW = "https://raw.githubusercontent.com/home-assistant/home-assistant.io/current";
-const CACHE_DIR = "/tmp/ha-docs-cache";
+const CONTENT_DIR = join(DOCS_DATA_DIR, "content");
 
 /**
  * Clean markdown content: strip frontmatter and simplify Jekyll/Liquid tags.
@@ -60,7 +63,7 @@ export function cleanMarkdown(raw: string): string {
  */
 async function ensureCacheDir(): Promise<void> {
   const { mkdir } = await import("node:fs/promises");
-  await mkdir(CACHE_DIR, { recursive: true });
+  await mkdir(CONTENT_DIR, { recursive: true });
 }
 
 /**
@@ -68,9 +71,8 @@ async function ensureCacheDir(): Promise<void> {
  */
 async function getCached(key: string): Promise<string | null> {
   const { readFile } = await import("node:fs/promises");
-  const { join } = await import("node:path");
   try {
-    return await readFile(join(CACHE_DIR, `${key}.md`), "utf-8");
+    return await readFile(join(CONTENT_DIR, `${key}.md`), "utf-8");
   } catch {
     return null;
   }
@@ -81,8 +83,8 @@ async function getCached(key: string): Promise<string | null> {
  */
 async function setCache(key: string, content: string): Promise<void> {
   const { writeFile, mkdir } = await import("node:fs/promises");
-  const { join, dirname } = await import("node:path");
-  const path = join(CACHE_DIR, `${key}.md`);
+  const { dirname } = await import("node:path");
+  const path = join(CONTENT_DIR, `${key}.md`);
   await mkdir(dirname(path), { recursive: true });
   await writeFile(path, content, "utf-8");
 }
@@ -150,5 +152,5 @@ export async function fetchDoc(docPath: string): Promise<string> {
  */
 export async function clearCache(): Promise<void> {
   const { rm } = await import("node:fs/promises");
-  await rm(CACHE_DIR, { recursive: true, force: true });
+  await rm(CONTENT_DIR, { recursive: true, force: true });
 }

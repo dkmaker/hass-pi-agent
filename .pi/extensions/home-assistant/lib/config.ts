@@ -12,8 +12,12 @@
  * All paths, URLs, tokens, and tunables live here.
  * Nothing else in the codebase should hardcode these values.
  */
-import { join } from "node:path";
+import { join, dirname } from "node:path";
 import { readFileSync, existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // ── .env loader (local dev) ─────────────────────────────────
 // Loads key=value pairs from .env. Does NOT override existing
@@ -77,3 +81,16 @@ export const HA_URL = env("HA_URL", "http://supervisor/core");
 
 /** Auth token for the HA REST API. Default: SUPERVISOR_TOKEN (add-on container). */
 export const HA_TOKEN = env("HA_TOKEN", env("SUPERVISOR_TOKEN", ""));
+
+// ── Docs ─────────────────────────────────────────────────────
+
+/** Persistent data directory for docs index + content cache.
+ *  Add-on container: /data/ha-docs
+ *  Local dev (HA_URL not supervisor): .pi/extensions/home-assistant/data/ha-docs */
+export const DOCS_DATA_DIR = env(
+  "HA_DOCS_DATA_DIR",
+  HA_URL.includes("supervisor") ? "/data/ha-docs" : join(__dirname, "..", "data", "ha-docs")
+);
+
+/** Hour to auto-update docs (0-23). Default: 2 (2 AM). */
+export const DOCS_UPDATE_HOUR = envInt("HA_DOCS_UPDATE_HOUR", 2);
