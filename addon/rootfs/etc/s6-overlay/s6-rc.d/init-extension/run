@@ -1,0 +1,15 @@
+#!/command/with-contenv bashio
+# shellcheck shell=bash
+# ==============================================================================
+# Pi Agent Add-on: Copy HA extension to config directory
+# ==============================================================================
+
+bashio::log.info 'Installing Home Assistant extension...'
+
+EXT_DEST="/homeassistant/.pi/extensions/home-assistant"
+
+# Always overwrite with the version baked into the image
+mkdir -p "${EXT_DEST}"
+cp -r /opt/ha-extension/* "${EXT_DEST}/"
+
+bashio::log.info 'Home Assistant extension installed.'

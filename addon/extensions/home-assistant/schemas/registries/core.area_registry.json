@@ -1,0 +1,72 @@
+{
+  "domain": "area_registry",
+  "storage_key": "core.area_registry",
+  "storage_type": "registry",
+  "storage_version": 1,
+  "storage_minor_version": 9,
+  "data_key": "areas",
+  "entry_class": "AreaEntry",
+  "fields": [
+    {
+      "field": "aliases",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "required": true
+    },
+    {
+      "field": "floor_id",
+      "type": [
+        "string",
+        "null"
+      ],
+      "required": true
+    },
+    {
+      "field": "humidity_entity_id",
+      "type": [
+        "string",
+        "null"
+      ],
+      "required": true
+    },
+    {
+      "field": "icon",
+      "type": [
+        "string",
+        "null"
+      ],
+      "required": true
+    },
+    {
+      "field": "id",
+      "type": "string",
+      "required": true
+    },
+    {
+      "field": "labels",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "required": false
+    },
+    {
+      "field": "picture",
+      "type": [
+        "string",
+        "null"
+      ],
+      "required": true
+    },
+    {
+      "field": "temperature_entity_id",
+      "type": [
+        "string",
+        "null"
+      ],
+      "required": true
+    }
+  ]
+}

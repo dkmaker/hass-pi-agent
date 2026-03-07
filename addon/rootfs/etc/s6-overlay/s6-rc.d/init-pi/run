@@ -1,0 +1,68 @@
+#!/command/with-contenv bashio
+# shellcheck shell=bash
+# ==============================================================================
+# Pi Agent Add-on: Environment setup
+# Sets up PI_CODING_AGENT_DIR and environment variables
+# ==============================================================================
+
+bashio::log.info 'Setting up Pi Agent environment...'
+
+# --- Persistent storage ---
+PI_DIR=/data/pi-agent
+mkdir -p "${PI_DIR}/sessions"
+
+# --- Docs cache ---
+mkdir -p /data/ha-docs
+
+# --- Write s6 env vars (available to all services via with-contenv) ---
+printf '%s' "${PI_DIR}" > /var/run/s6/container_environment/PI_CODING_AGENT_DIR
+printf '%s' "${SUPERVISOR_TOKEN}" > /var/run/s6/container_environment/HA_TOKEN
+printf '%s' "http://supervisor/core" > /var/run/s6/container_environment/HA_URL
+printf '%s' "/homeassistant" > /var/run/s6/container_environment/HA_CONFIG_PATH
+printf '%s' "/data/ha-docs" > /var/run/s6/container_environment/HA_DOCS_DATA_DIR
+
+# --- Write profile.d for interactive shells (tmux/ttyd) ---
+{
+    echo "export PI_CODING_AGENT_DIR=\"${PI_DIR}\""
+    echo "export SUPERVISOR_TOKEN=\"${SUPERVISOR_TOKEN}\""
+    echo "export HA_TOKEN=\"${SUPERVISOR_TOKEN}\""
+    echo "export HA_URL=\"http://supervisor/core\""
+    echo "export HA_CONFIG_PATH=\"/homeassistant\""
+    echo "export HA_DOCS_DATA_DIR=\"/data/ha-docs\""
+} > /etc/profile.d/pi-agent.sh
+
+# --- Default provider ---
+default_provider=$(bashio::config 'default_provider')
+if bashio::var.has_value "${default_provider}"; then
+    printf '%s' "${default_provider}" > /var/run/s6/container_environment/PI_DEFAULT_PROVIDER
+    echo "export PI_DEFAULT_PROVIDER=\"${default_provider}\"" >> /etc/profile.d/pi-agent.sh
+fi
+
+# --- Default model ---
+default_model=$(bashio::config 'default_model')
+if bashio::var.has_value "${default_model}"; then
+    printf '%s' "${default_model}" > /var/run/s6/container_environment/PI_DEFAULT_MODEL
+    echo "export PI_DEFAULT_MODEL=\"${default_model}\"" >> /etc/profile.d/pi-agent.sh
+fi
+
+# --- User-defined environment variables (API keys, provider config, etc.) ---
+if bashio::config.has_value 'environment'; then
+    for entry in $(bashio::config 'environment'); do
+        key="${entry%%=*}"
+        value="${entry#*=}"
+        if [[ -n "${key}" ]]; then
+            printf '%s' "${value}" > "/var/run/s6/container_environment/${key}"
+            echo "export ${key}=\"${value}\"" >> /etc/profile.d/pi-agent.sh
+        fi
+    done
+fi
+
+# --- Persistent bash history ---
+touch /data/.bash_history
+ln -sf /data/.bash_history /root/.bash_history
+
+# --- Convenient symlinks ---
+ln -sf /homeassistant /root/homeassistant
+ln -sf /share /root/share
+
+bashio::log.info 'Pi Agent environment ready.'

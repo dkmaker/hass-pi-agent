@@ -1,0 +1,41 @@
+{
+  "domain": "group",
+  "storage_key": "core.config_entries",
+  "storage_type": "config_entry",
+  "name": "Group",
+  "integration_type": "helper",
+  "documentation": "https://www.home-assistant.io/integrations/group",
+  "sub_type_key": "group_type",
+  "fields": [
+    {
+      "field": "entities",
+      "required": true,
+      "type": "unknown",
+      "raw": "entity_selector"
+    },
+    {
+      "field": "hide_members",
+      "required": true,
+      "type": "boolean",
+      "default": false
+    },
+    {
+      "field": "all",
+      "required": true,
+      "type": "boolean",
+      "default": false
+    },
+    {
+      "field": "type",
+      "required": true,
+      "type": "string",
+      "format": "select"
+    },
+    {
+      "field": "ignore_non_numeric",
+      "required": false,
+      "type": "boolean",
+      "default": false
+    }
+  ]
+}

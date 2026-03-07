@@ -7,7 +7,7 @@
       "description": "Build a working Docker add-on that installs pi, exposes it via ttyd/tmux in the HA web UI (ingress), persists credentials across restarts, and loads the HA extension with all custom tools.",
       "body": "## Architecture\n\n- s6-overlay services: init-pi (oneshot), init-extension (oneshot), ttyd (longrun)\n- `PI_CODING_AGENT_DIR=/data/pi-agent` for persistent auth.json, settings.json, sessions\n- Extension baked into image at `/opt/ha-extension/`, copied to `/homeassistant/.pi/extensions/home-assistant/` at startup\n- ttyd → tmux → pi for web terminal via HA ingress\n- Python3 included in image\n\n## Key Design Decisions\n\n- `PI_CODING_AGENT_DIR` env var (not symlinks) for persistent storage — pi reads `PI_CODING_AGENT_DIR` in `config.js → getAgentDir()`\n- `api_keys` config: list of `provider=key` pairs merged into auth.json (preserves OAuth from `/login`)\n- `environment` config: arbitrary KEY=VALUE env vars (for AZURE_OPENAI_BASE_URL, AWS_PROFILE, etc.)\n- `init: true` for s6-overlay (auto SUPERVISOR_TOKEN injection via `with-contenv`)\n- Extension defaults are correct in container — no .env needed: HA_CONFIG_PATH=/homeassistant, HA_URL=http://supervisor/core, HA_TOKEN=SUPERVISOR_TOKEN\n- HA ingress handles auth (no ttyd auth needed)\n- Docs cache at `/data/ha-docs/` (extension config.ts auto-detects supervisor URL)\n\n## File Structure\n\n```\naddon/\n├── config.yaml                    # Add-on manifest (ingress, options, schema)\n├── build.yaml                     # Base image per arch (ghcr.io/hassio-addons/base:20.0.1)\n├── Dockerfile                     # Alpine + nodejs + npm + python3 + ripgrep + tmux + ttyd + pi\n├── extensions/home-assistant/     # HA extension source (copied from .pi/extensions/home-assistant/)\n├── rootfs/\n│   ├── usr/bin/\n│   │   └── pi-entrypoint.sh       # Launched by tmux — sources env, cd /homeassistant, exec pi\n│   └── etc/s6-overlay/s6-rc.d/\n│       ├── init-pi/               # Oneshot: PI_CODING_AGENT_DIR, auth.json, settings.json, env vars, SUPERVISOR_TOKEN\n│       ├── init-extension/        # Oneshot: copy extension to /homeassistant/.pi/extensions/\n│       ├── ttyd/                  # Longrun: ttyd → tmux → pi-entrypoint.sh\n│       └── user/contents.d/      # init-pi, init-extension, ttyd\n```\n\n## config.yaml Options\n\n| Option | Type | Default | Purpose |\n|--------|------|---------|---------|\n| `default_provider` | select | `anthropic` | Default AI provider (anthropic/openai/google/openrouter/groq/xai/mistral/cerebras/huggingface/github-copilot/amazon-bedrock/google-vertex/azure-openai-responses) |\n| `default_model` | str | `\"\"` | Default model (empty = provider default) |\n| `api_keys` | list[password] | `[]` | API keys as `provider=key` pairs, merged into auth.json |\n| `environment` | list[str] | `[]` | Extra env vars as `KEY=VALUE` |\n| `yolo_mode` | bool | `false` | Auto-approve all tool calls |\n| `additional_packages` | list[str] | `[]` | Extra Alpine packages to install |\n\n## Supported Providers (from pi-ai source: env-api-keys.js)\n\nanthropic (ANTHROPIC_API_KEY), openai (OPENAI_API_KEY), google (GEMINI_API_KEY), openrouter (OPENROUTER_API_KEY), groq (GROQ_API_KEY), xai (XAI_API_KEY), mistral (MISTRAL_API_KEY), cerebras (CEREBRAS_API_KEY), huggingface (HF_TOKEN), minimax (MINIMAX_API_KEY), zai (ZAI_API_KEY), azure-openai-responses (AZURE_OPENAI_API_KEY), github-copilot (GITHUB_TOKEN), kimi-coding (KIMI_API_KEY). Also amazon-bedrock (AWS env vars) and google-vertex (ADC).\n\n## init-pi Script Key Logic\n\n```bash\nPI_DIR=/data/pi-agent\nmkdir -p \"${PI_DIR}/sessions\"\nprintf '%s' \"${PI_DIR}\" > /var/run/s6/container_environment/PI_CODING_AGENT_DIR\n\n# Merge api_keys config into existing auth.json (preserves OAuth)\n# Format: provider=key → {\"provider\": {\"type\": \"api_key\", \"key\": \"...\"}}\n\n# Merge settings.json (defaultProvider, defaultModel) without overwriting other fields\n# Write environment vars to s6 env dir\n# Export SUPERVISOR_TOKEN as HA_TOKEN, set HA_URL and HA_CONFIG_PATH\n```\n\n## Reference\n\n- Claude Code addon at `/tmp/hass-claude-code/addon/` as pattern reference for s6 services, ttyd, ingress",
       "priority": 1,
-      "status": "open",
+      "status": "in-progress",
       "relevantFiles": [
         {
           "file": "addon/config.yaml",
@@ -33,43 +33,43 @@
       "todos": [
         {
           "text": "Create Dockerfile (Alpine + nodejs + npm + python3 + ripgrep + tmux + ttyd + pi)",
-          "done": false
+          "done": true
         },
         {
           "text": "Create build.yaml (base image per arch)",
-          "done": false
+          "done": true
         },
         {
           "text": "Create config.yaml (ingress, options: default_provider, default_model, api_keys, environment, yolo_mode, additional_packages)",
-          "done": false
+          "done": true
         },
         {
           "text": "Create init-pi s6 service (PI_CODING_AGENT_DIR, auth.json from api_keys, settings.json, env vars, SUPERVISOR_TOKEN)",
-          "done": false
+          "done": true
         },
         {
           "text": "Create init-extension s6 service (copy extension to /homeassistant/.pi/extensions/)",
-          "done": false
+          "done": true
         },
         {
           "text": "Create ttyd s6 longrun service (ttyd → tmux → pi-entrypoint.sh)",
-          "done": false
+          "done": true
         },
         {
           "text": "Create pi-entrypoint.sh (source env, cd /homeassistant, exec pi)",
-          "done": false
+          "done": true
         },
         {
           "text": "Create s6 service dependency chain and user/contents.d files",
-          "done": false
+          "done": true
         },
         {
           "text": "Copy HA extension source into addon/extensions/home-assistant/",
-          "done": false
+          "done": true
         },
         {
           "text": "Deploy to dev VM and test build",
-          "done": false
+          "done": true
         },
         {
           "text": "Verify ingress works (sidebar → web terminal → pi)",
@@ -98,7 +98,7 @@
         "SUPERVISOR_TOKEN available to extension"
       ],
       "createdAt": "2026-03-07T22:41:17.037Z",
-      "updatedAt": "2026-03-07T22:43:00.485Z"
+      "updatedAt": "2026-03-07T23:20:22.807Z"
     },
     {
       "id": "s3wk08rg",

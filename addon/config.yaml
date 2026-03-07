@@ -1,12 +1,18 @@
+---
 name: "Pi Agent for Home Assistant"
-version: "0.0.1"
+version: "0.1.8"
 slug: "pi_agent"
-description: "Test add-on — verify access and identity"
+description: "AI coding agent with full Home Assistant access — manage automations, entities, dashboards, and more via natural language."
+startup: services
+ingress: true
+ingress_port: 0
+ingress_stream: true
+init: false
+panel_icon: mdi:robot
+panel_title: Pi Agent
 arch:
-  - amd64
   - aarch64
-startup: application
-boot: manual
+  - amd64
 homeassistant_api: true
 hassio_api: true
 hassio_role: admin
@@ -18,4 +24,15 @@ map:
   - share:rw
   - media:rw
   - backup:rw
-init: false
+options:
+  default_provider: "anthropic"
+  default_model: ""
+  environment: []
+  additional_packages: []
+schema:
+  default_provider: "list(anthropic|openai|google|openrouter|groq|xai|mistral|cerebras|huggingface|github-copilot|amazon-bedrock|google-vertex|azure-openai-responses)"
+  default_model: "str?"
+  environment:
+    - "str"
+  additional_packages:
+    - "str"

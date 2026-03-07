@@ -1,0 +1,80 @@
+{
+  "domain": "zone",
+  "storage_key": "zone",
+  "storage_type": "collection",
+  "storage_version": 1,
+  "storage_minor_version": 1,
+  "create_fields": [
+    {
+      "field": "name",
+      "required": true,
+      "type": "string"
+    },
+    {
+      "field": "latitude",
+      "required": true,
+      "type": "number",
+      "format": "latitude"
+    },
+    {
+      "field": "longitude",
+      "required": true,
+      "type": "number",
+      "format": "longitude"
+    },
+    {
+      "field": "radius",
+      "required": false,
+      "type": "number",
+      "default": 100
+    },
+    {
+      "field": "passive",
+      "required": false,
+      "type": "boolean",
+      "default": false
+    },
+    {
+      "field": "icon",
+      "required": false,
+      "type": "string"
+    }
+  ],
+  "update_fields": [
+    {
+      "field": "name",
+      "required": false,
+      "type": "string"
+    },
+    {
+      "field": "latitude",
+      "required": false,
+      "type": "number",
+      "format": "latitude"
+    },
+    {
+      "field": "longitude",
+      "required": false,
+      "type": "number",
+      "format": "longitude"
+    },
+    {
+      "field": "radius",
+      "required": false,
+      "type": "number"
+    },
+    {
+      "field": "passive",
+      "required": false,
+      "type": "boolean"
+    },
+    {
+      "field": "icon",
+      "required": false,
+      "type": "string"
+    }
+  ],
+  "name": "Zone",
+  "integration_type": "system",
+  "documentation": "https://www.home-assistant.io/integrations/zone"
+}

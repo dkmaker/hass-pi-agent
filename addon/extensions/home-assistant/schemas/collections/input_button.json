@@ -1,0 +1,23 @@
+{
+  "domain": "input_button",
+  "storage_key": "input_button",
+  "storage_type": "collection",
+  "storage_version": 1,
+  "storage_minor_version": 1,
+  "fields": [
+    {
+      "field": "name",
+      "required": true,
+      "type": "string",
+      "min_length": 1
+    },
+    {
+      "field": "icon",
+      "required": false,
+      "type": "string"
+    }
+  ],
+  "name": "Input Button",
+  "integration_type": "helper",
+  "documentation": "https://www.home-assistant.io/integrations/input_button"
+}

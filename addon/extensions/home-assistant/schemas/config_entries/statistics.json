@@ -1,0 +1,62 @@
+{
+  "domain": "statistics",
+  "storage_key": "core.config_entries",
+  "storage_type": "config_entry",
+  "name": "Statistics",
+  "integration_type": "helper",
+  "documentation": "https://www.home-assistant.io/integrations/statistics",
+  "fields": [
+    {
+      "field": "state_characteristic",
+      "required": true,
+      "type": "unknown",
+      "raw": "SelectSelector( SelectSelectorConfig( options=list(options), translation_key=CONF_STATE_CHARACTERISTIC, sort=True, mode=SelectSelectorMode.DROPDOWN, ) )"
+    },
+    {
+      "field": "name",
+      "required": true,
+      "type": "unknown",
+      "raw": "TextSelector()",
+      "default": "DEFAULT_NAME"
+    },
+    {
+      "field": "entity_id",
+      "required": true,
+      "type": "unknown",
+      "raw": "EntitySelector( EntitySelectorConfig(domain=[BINARY_SENSOR_DOMAIN, SENSOR_DOMAIN]) )"
+    },
+    {
+      "field": "samples_max_buffer_size",
+      "required": false,
+      "type": "unknown",
+      "raw": "NumberSelector( NumberSelectorConfig(min=0, step=1, mode=NumberSelectorMode.BOX) )"
+    },
+    {
+      "field": "max_age",
+      "required": false,
+      "type": "unknown",
+      "raw": "DurationSelector( DurationSelectorConfig(enable_day=False, allow_negative=False) )"
+    },
+    {
+      "field": "keep_last_sample",
+      "required": false,
+      "type": "unknown",
+      "raw": "BooleanSelector()",
+      "default": false
+    },
+    {
+      "field": "percentile",
+      "required": false,
+      "type": "unknown",
+      "raw": "NumberSelector( NumberSelectorConfig(min=1, max=99, step=1, mode=NumberSelectorMode.BOX) )",
+      "default": 50
+    },
+    {
+      "field": "precision",
+      "required": false,
+      "type": "unknown",
+      "raw": "NumberSelector( NumberSelectorConfig(min=0, step=1, mode=NumberSelectorMode.BOX) )",
+      "default": "DEFAULT_PRECISION"
+    }
+  ]
+}

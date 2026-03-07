@@ -1,0 +1,19 @@
+#!/command/with-contenv bashio
+# shellcheck shell=bash
+# ==============================================================================
+# Pi Agent Add-on: Install additional packages
+# ==============================================================================
+
+if bashio::config.has_value 'additional_packages'; then
+    bashio::log.info 'Installing additional packages...'
+
+    apk update \
+        || bashio::exit.nok 'Failed updating Alpine package indexes'
+
+    for package in $(bashio::config 'additional_packages'); do
+        apk add --no-cache "$package" \
+            || bashio::exit.nok "Failed installing package: ${package}"
+    done
+
+    bashio::log.info 'Additional packages installed.'
+fi

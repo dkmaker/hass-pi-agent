@@ -1,0 +1,78 @@
+{
+  "domain": "person",
+  "storage_key": "person",
+  "storage_type": "collection",
+  "storage_version": 2,
+  "storage_minor_version": 1,
+  "create_fields": [
+    {
+      "field": "name",
+      "required": true,
+      "type": "string",
+      "min_length": 1
+    },
+    {
+      "field": "user_id",
+      "required": false,
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    {
+      "field": "device_trackers",
+      "required": false,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "format": "entity_id"
+      },
+      "default": "list"
+    },
+    {
+      "field": "picture",
+      "required": false,
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  ],
+  "update_fields": [
+    {
+      "field": "name",
+      "required": false,
+      "type": "string",
+      "min_length": 1
+    },
+    {
+      "field": "user_id",
+      "required": false,
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    {
+      "field": "device_trackers",
+      "required": false,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "format": "entity_id"
+      },
+      "default": "list"
+    },
+    {
+      "field": "picture",
+      "required": false,
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  ],
+  "name": "Person",
+  "integration_type": "system",
+  "documentation": "https://www.home-assistant.io/integrations/person"
+}

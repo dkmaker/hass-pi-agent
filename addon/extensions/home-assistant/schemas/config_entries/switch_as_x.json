@@ -1,0 +1,28 @@
+{
+  "domain": "switch_as_x",
+  "storage_key": "core.config_entries",
+  "storage_type": "config_entry",
+  "name": "Change device type of a switch",
+  "integration_type": "helper",
+  "documentation": "https://www.home-assistant.io/integrations/switch_as_x",
+  "fields": [
+    {
+      "field": "entity_id",
+      "required": true,
+      "type": "string",
+      "format": "entity_id"
+    },
+    {
+      "field": "invert",
+      "required": false,
+      "type": "boolean",
+      "default": false
+    },
+    {
+      "field": "target_domain",
+      "required": true,
+      "type": "string",
+      "format": "select"
+    }
+  ]
+}

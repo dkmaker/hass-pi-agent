@@ -1,0 +1,43 @@
+{
+  "domain": "label_registry",
+  "storage_key": "core.label_registry",
+  "storage_type": "registry",
+  "storage_version": 1,
+  "storage_minor_version": 2,
+  "data_key": "labels",
+  "entry_class": "LabelEntry",
+  "fields": [
+    {
+      "field": "label_id",
+      "type": "string",
+      "required": true
+    },
+    {
+      "field": "description",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null,
+      "required": false
+    },
+    {
+      "field": "color",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null,
+      "required": false
+    },
+    {
+      "field": "icon",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null,
+      "required": false
+    }
+  ]
+}

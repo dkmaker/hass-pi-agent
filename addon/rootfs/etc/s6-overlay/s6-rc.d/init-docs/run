@@ -1,0 +1,22 @@
+#!/command/with-contenv bashio
+# shellcheck shell=bash
+# ==============================================================================
+# Pi Agent Add-on: Fetch/update Home Assistant docs index
+# Runs update-docs.py on startup (incremental — fast after first run)
+# ==============================================================================
+
+DOCS_DIR="${HA_DOCS_DATA_DIR:-/data/ha-docs}"
+
+bashio::log.info "Updating Home Assistant documentation index..."
+
+if python3 /opt/update-docs.py --output "${DOCS_DIR}" 2>&1; then
+    # Log stats from the index
+    if [[ -f "${DOCS_DIR}/index.json" ]]; then
+        integrations=$(python3 -c "import json; d=json.load(open('${DOCS_DIR}/index.json')); print(d.get('integration_count', '?'))")
+        docs=$(python3 -c "import json; d=json.load(open('${DOCS_DIR}/index.json')); print(d.get('doc_count', '?'))")
+        updated=$(python3 -c "import json; d=json.load(open('${DOCS_DIR}/index.json')); print(d.get('updated', '?'))")
+        bashio::log.info "Docs index ready: ${integrations} integrations, ${docs} docs (updated: ${updated})"
+    fi
+else
+    bashio::log.warning "Failed to update docs index — will retry next restart."
+fi

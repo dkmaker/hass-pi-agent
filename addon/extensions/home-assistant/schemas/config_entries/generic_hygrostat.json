@@ -1,0 +1,97 @@
+{
+  "domain": "generic_hygrostat",
+  "storage_key": "core.config_entries",
+  "storage_type": "config_entry",
+  "name": "Generic hygrostat",
+  "integration_type": "helper",
+  "documentation": "https://www.home-assistant.io/integrations/generic_hygrostat",
+  "create_fields": [
+    {
+      "field": "name",
+      "required": true,
+      "type": "string"
+    },
+    {
+      "field": "device_class",
+      "required": true,
+      "type": "string",
+      "format": "select"
+    },
+    {
+      "field": "target_sensor",
+      "required": true,
+      "type": "string",
+      "format": "entity_id"
+    },
+    {
+      "field": "humidifier",
+      "required": true,
+      "type": "string",
+      "format": "entity_id"
+    },
+    {
+      "field": "dry_tolerance",
+      "required": true,
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 100.0,
+      "default": 3
+    },
+    {
+      "field": "wet_tolerance",
+      "required": true,
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 100.0,
+      "default": 3
+    },
+    {
+      "field": "min_cycle_duration",
+      "required": false,
+      "type": "object",
+      "format": "duration"
+    }
+  ],
+  "update_fields": [
+    {
+      "field": "device_class",
+      "required": true,
+      "type": "string",
+      "format": "select"
+    },
+    {
+      "field": "target_sensor",
+      "required": true,
+      "type": "string",
+      "format": "entity_id"
+    },
+    {
+      "field": "humidifier",
+      "required": true,
+      "type": "string",
+      "format": "entity_id"
+    },
+    {
+      "field": "dry_tolerance",
+      "required": true,
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 100.0,
+      "default": 3
+    },
+    {
+      "field": "wet_tolerance",
+      "required": true,
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 100.0,
+      "default": 3
+    },
+    {
+      "field": "min_cycle_duration",
+      "required": false,
+      "type": "object",
+      "format": "duration"
+    }
+  ]
+}
