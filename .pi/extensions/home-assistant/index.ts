@@ -10,6 +10,7 @@ import { registerLabelsTool } from "./tools/ha-labels.js";
 import { registerAutomationsTool } from "./tools/ha-automations.js";
 import { registerDashboardsTool } from "./tools/ha-dashboards.js";
 import { registerAddonsTool } from "./tools/ha-addons.js";
+import { registerDocsTool } from "./tools/ha-docs.js";
 import { registerBackupsTool } from "./tools/ha-backups.js";
 import { registerSystemTool } from "./tools/ha-system.js";
 import { wsClose } from "./lib/ws.js";
@@ -26,6 +27,7 @@ export default function (pi: ExtensionAPI) {
   registerAutomationsTool(pi);
   registerDashboardsTool(pi);
   registerAddonsTool(pi);
+  registerDocsTool(pi);
   registerBackupsTool(pi);
   registerSystemTool(pi);
 
