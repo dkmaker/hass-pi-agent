@@ -309,15 +309,13 @@ async function handleGet(entityId?: string): Promise<string> {
 
     if (regEntry.device_id) {
       const device = deviceReg.get(regEntry.device_id);
-      if (device) {
-        result.device = {
-          id: device.id,
-          name: device.name,
-          manufacturer: device.manufacturer,
-          model: device.model,
-          area: device.area_id ? areaReg.get(device.area_id)?.name ?? device.area_id : null,
-        };
-      }
+      result.device = {
+        id: regEntry.device_id,
+        name: device?.name ?? null,
+        manufacturer: device?.manufacturer ?? null,
+        model: device?.model ?? null,
+        area: device?.area_id ? areaReg.get(device.area_id)?.name ?? device.area_id : null,
+      };
     }
   }
 
