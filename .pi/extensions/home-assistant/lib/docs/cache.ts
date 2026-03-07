@@ -1,15 +1,41 @@
 /**
- * Docs index cache — manages loading and saving the docs index.
+ * Docs index reader — loads the pre-built index from disk.
  *
- * Storage location is configured via DOCS_DATA_DIR (config.ts):
- *   Add-on: /data/ha-docs/
- *   Local dev: .pi/extensions/home-assistant/data/ha-docs/
- *
- * Index is loaded once and held in memory.
+ * Index is created and maintained by update-docs.py.
+ * This module reads it and caches in memory.
  */
 import { join } from "node:path";
 import { DOCS_DATA_DIR } from "../config.js";
-import type { DocsIndex } from "./builder.js";
+
+export interface IntegrationMeta {
+  title: string;
+  description: string;
+  category: string[];
+  platforms: string[];
+  iot_class: string | null;
+  integration_type: string | null;
+  config_flow: boolean;
+  quality_scale: string | null;
+  codeowners: string[];
+  featured: boolean;
+}
+
+export interface DocMeta {
+  title: string;
+  description: string;
+  path: string;
+}
+
+export interface DocsIndex {
+  version: string;
+  updated: string;
+  source: string;
+  commit: string;
+  integration_count: number;
+  doc_count: number;
+  integrations: Record<string, IntegrationMeta>;
+  docs: Record<string, DocMeta>;
+}
 
 let cachedIndex: DocsIndex | null = null;
 
@@ -18,7 +44,7 @@ function indexPath(): string {
 }
 
 /**
- * Load the docs index from persistent storage.
+ * Load the docs index from disk. Cached in memory after first load.
  */
 export async function loadIndex(): Promise<DocsIndex> {
   if (cachedIndex) return cachedIndex;
@@ -31,46 +57,9 @@ export async function loadIndex(): Promise<DocsIndex> {
     return cachedIndex;
   } catch {
     throw new Error(
-      "No docs index found. Waiting for initial load — the index is fetched automatically on first startup."
+      "No docs index found. Run update-docs.py to fetch from GitHub."
     );
   }
-}
-
-/**
- * Check if an index exists on disk.
- */
-export async function indexExists(): Promise<boolean> {
-  const { access } = await import("node:fs/promises");
-  try {
-    await access(indexPath());
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Save index to persistent storage and update in-memory cache.
- */
-export async function saveIndex(index: DocsIndex): Promise<void> {
-  const { writeFile, mkdir } = await import("node:fs/promises");
-  const { dirname } = await import("node:path");
-
-  const p = indexPath();
-  await mkdir(dirname(p), { recursive: true });
-  await writeFile(p, JSON.stringify(index, null, 2), "utf-8");
-  cachedIndex = index;
-}
-
-/**
- * Save index to a specific path (for build script).
- */
-export async function saveIndexTo(index: DocsIndex, path: string): Promise<void> {
-  const { writeFile, mkdir } = await import("node:fs/promises");
-  const { dirname: dn } = await import("node:path");
-
-  await mkdir(dn(path), { recursive: true });
-  await writeFile(path, JSON.stringify(index, null, 2), "utf-8");
 }
 
 /**

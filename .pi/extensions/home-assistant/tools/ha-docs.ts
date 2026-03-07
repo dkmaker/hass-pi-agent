@@ -1,13 +1,12 @@
 /**
  * Home Assistant documentation lookup tool.
  *
- * Provides on-demand access to HA integration and general documentation.
- * Ships with a pre-built index; content is fetched from GitHub on demand and cached.
+ * Pure local reader — all data is pre-fetched by update-docs.py.
+ * No GitHub calls at runtime.
  */
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { StringEnum } from "@mariozechner/pi-ai";
-import type { IntegrationMeta } from "../lib/docs/builder.js";
 
 export function registerDocsTool(pi: ExtensionAPI): void {
   pi.registerTool({
@@ -56,28 +55,23 @@ Index is auto-fetched on first startup and refreshed daily. Content is fetched o
     }),
 
     async execute(toolCallId, params, signal, onUpdate, ctx) {
-      const result = await executeAction(params, (msg) => {
-        onUpdate?.({ type: "text", text: msg + "\n" });
-      });
+      const result = await executeAction(params);
       return { content: [{ type: "text" as const, text: result }] };
     },
   });
 }
 
-async function executeAction(
-  params: {
-    action: string;
-    domain?: string;
-    doc?: string;
-    search?: string;
-    category?: string;
-    platform?: string;
-    iot_class?: string;
-    integration_type?: string;
-    limit?: number;
-  },
-  onProgress?: (msg: string) => void
-): Promise<string> {
+async function executeAction(params: {
+  action: string;
+  domain?: string;
+  doc?: string;
+  search?: string;
+  category?: string;
+  platform?: string;
+  iot_class?: string;
+  integration_type?: string;
+  limit?: number;
+}): Promise<string> {
   switch (params.action) {
     case "list": {
       const { loadIndex } = await import("../lib/docs/cache.js");
@@ -86,7 +80,6 @@ async function executeAction(
 
       let entries = Object.entries(index.integrations);
 
-      // Apply filters
       if (params.category) {
         const cat = params.category.toLowerCase();
         entries = entries.filter(([, m]) =>
@@ -143,9 +136,8 @@ async function executeAction(
     case "get": {
       if (params.domain) {
         const { loadIndex } = await import("../lib/docs/cache.js");
-        const { fetchIntegrationDoc } = await import("../lib/docs/content.js");
+        const { readIntegrationDoc } = await import("../lib/docs/content.js");
 
-        // Get metadata from index if available
         let header = "";
         try {
           const index = await loadIndex();
@@ -167,14 +159,13 @@ async function executeAction(
           // No index, just show content
         }
 
-        const content = await fetchIntegrationDoc(params.domain);
+        const content = await readIntegrationDoc(params.domain);
         return header + content;
       }
 
       if (params.doc) {
-        const { fetchDoc } = await import("../lib/docs/content.js");
-        const content = await fetchDoc(params.doc);
-        return content;
+        const { readDoc } = await import("../lib/docs/content.js");
+        return await readDoc(params.doc);
       }
 
       throw new Error("Provide 'domain' for integration docs or 'doc' for general docs.");
@@ -187,7 +178,6 @@ async function executeAction(
       const s = params.search.toLowerCase();
       const limit = params.limit ?? 30;
 
-      // Search integrations
       const integrationResults = Object.entries(index.integrations)
         .filter(([domain, m]) =>
           domain.includes(s) ||
@@ -197,13 +187,11 @@ async function executeAction(
           m.platforms.some((p) => p.includes(s))
         )
         .sort((a, b) => {
-          // Exact domain match first, then title match, then rest
           const aExact = a[0] === s ? 0 : a[0].includes(s) ? 1 : 2;
           const bExact = b[0] === s ? 0 : b[0].includes(s) ? 1 : 2;
           return aExact - bExact || a[1].title.localeCompare(b[1].title);
         });
 
-      // Search docs
       const docResults = Object.entries(index.docs)
         .filter(([path, d]) =>
           path.includes(s) ||
@@ -236,24 +224,13 @@ async function executeAction(
     }
 
     case "update": {
-      const { buildFromGitHub } = await import("../lib/docs/builder.js");
-      const { saveIndex, clearIndexCache } = await import("../lib/docs/cache.js");
-      const { clearCache } = await import("../lib/docs/content.js");
-
-      onProgress?.("Starting docs index update from GitHub...");
-      const index = await buildFromGitHub(onProgress);
-      await saveIndex(index);
-      await clearCache();
-      clearIndexCache();
-
-      const iCount = Object.keys(index.integrations).length;
-      const dCount = Object.keys(index.docs).length;
-      return `✅ Docs index updated from GitHub.\n\nIntegrations: ${iCount}\nDocs: ${dCount}\nUpdated: ${index.updated}`;
+      const { DOCS_DATA_DIR } = await import("../lib/config.js");
+      return `Run update-docs.py to update the docs index.\nData dir: ${DOCS_DATA_DIR}`;
     }
 
     case "status": {
       const { loadIndex } = await import("../lib/docs/cache.js");
-      const { DOCS_DATA_DIR, DOCS_UPDATE_HOUR } = await import("../lib/config.js");
+      const { DOCS_DATA_DIR } = await import("../lib/config.js");
       try {
         const index = await loadIndex();
         const iCount = Object.keys(index.integrations).length;
@@ -264,13 +241,13 @@ async function executeAction(
           `Source: ${index.source}`,
           `Version: ${index.version}`,
           `Updated: ${index.updated}`,
+          `Commit: ${index.commit ?? "unknown"}`,
           `Integrations: ${iCount}`,
           `Docs: ${dCount}`,
           `Data dir: ${DOCS_DATA_DIR}`,
-          `Auto-update: daily at ${DOCS_UPDATE_HOUR}:00`,
         ].join("\n");
       } catch {
-        return `❌ No docs index loaded yet. Index will be fetched automatically on first startup.\nData dir: ${DOCS_DATA_DIR}\nAuto-update: daily at ${DOCS_UPDATE_HOUR}:00`;
+        return `❌ No docs index found. Run update-docs.py to fetch from GitHub.\nData dir: ${DOCS_DATA_DIR}`;
       }
     }
 

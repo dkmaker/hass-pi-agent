@@ -14,7 +14,6 @@ import { registerDocsTool } from "./tools/ha-docs.js";
 import { registerBackupsTool } from "./tools/ha-backups.js";
 import { registerSystemTool } from "./tools/ha-system.js";
 import { wsClose } from "./lib/ws.js";
-import { startScheduler, stopScheduler } from "./lib/docs/scheduler.js";
 
 export default function (pi: ExtensionAPI) {
   registerHelperTool(pi);
@@ -32,12 +31,8 @@ export default function (pi: ExtensionAPI) {
   registerBackupsTool(pi);
   registerSystemTool(pi);
 
-  // Start docs auto-update scheduler
-  startScheduler();
-
-  // Clean up on shutdown
+  // Clean up WebSocket connection on shutdown
   pi.on("session_shutdown", async () => {
-    stopScheduler();
     wsClose();
   });
 }
