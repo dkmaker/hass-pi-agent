@@ -164,13 +164,14 @@ export async function buildFromLocal(
 }
 
 /**
- * Build index by fetching from GitHub API.
- * Uses the GitHub contents API to list files, then fetches each file's raw content.
+ * Build index by fetching from GitHub.
+ * Uses the Git Trees API (no 1000-item limit) for file listing,
+ * then fetches raw content for frontmatter parsing.
  */
 export async function buildFromGitHub(
   onProgress?: (msg: string) => void
 ): Promise<DocsIndex> {
-  const BASE = "https://api.github.com/repos/home-assistant/home-assistant.io/contents";
+  const TREES_BASE = "https://api.github.com/repos/home-assistant/home-assistant.io/git/trees";
   const RAW_BASE = "https://raw.githubusercontent.com/home-assistant/home-assistant.io/current";
 
   const index: DocsIndex = {
@@ -181,13 +182,15 @@ export async function buildFromGitHub(
     docs: {},
   };
 
-  // Fetch directory listing
-  async function listDir(path: string): Promise<Array<{ name: string; type: string; download_url: string }>> {
-    const resp = await fetch(`${BASE}/${path}`, {
+  // List files via Git Trees API (no pagination limit)
+  async function listTree(treePath: string, recursive = false): Promise<Array<{ path: string; type: string }>> {
+    const url = `${TREES_BASE}/current:${treePath}${recursive ? "?recursive=1" : ""}`;
+    const resp = await fetch(url, {
       headers: { Accept: "application/vnd.github.v3+json", "User-Agent": "pi-ha-docs" },
     });
-    if (!resp.ok) throw new Error(`GitHub API ${resp.status}: ${await resp.text()}`);
-    return resp.json() as Promise<Array<{ name: string; type: string; download_url: string }>>;
+    if (!resp.ok) throw new Error(`GitHub Trees API ${resp.status}: ${await resp.text()}`);
+    const data = await resp.json() as { tree: Array<{ path: string; type: string }> };
+    return data.tree;
   }
 
   // Fetch raw content
@@ -199,28 +202,56 @@ export async function buildFromGitHub(
     return resp.text();
   }
 
-  // Fetch integrations - just frontmatter, not full content
-  onProgress?.("Fetching integration list from GitHub...");
-  const integrationFiles = await listDir("source/_integrations");
-  const markdownFiles = integrationFiles.filter((f) => f.name.endsWith(".markdown") && f.type === "file");
-  onProgress?.(`Found ${markdownFiles.length} integrations, fetching metadata...`);
+  // ── Integrations ──────────────────────────────────────────
+  onProgress?.("Fetching integration list from GitHub (Trees API)...");
+  const integrationTree = await listTree("source/_integrations");
+  const integrationFiles = integrationTree.filter((f) => f.type === "blob" && f.path.endsWith(".markdown"));
+  onProgress?.(`Found ${integrationFiles.length} integrations, fetching metadata...`);
 
-  // Batch fetch in groups of 20 to avoid rate limits
-  for (let i = 0; i < markdownFiles.length; i += 20) {
-    const batch = markdownFiles.slice(i, i + 20);
+  // Batch fetch in groups of 20
+  for (let i = 0; i < integrationFiles.length; i += 20) {
+    const batch = integrationFiles.slice(i, i + 20);
     const results = await Promise.all(
       batch.map(async (f) => {
-        const content = await fetchRaw(`source/_integrations/${f.name}`);
-        // Only parse frontmatter, don't store content
+        const content = await fetchRaw(`source/_integrations/${f.path}`);
         const fm = parseFrontmatter(content);
-        const domain = fm.ha_domain ? String(fm.ha_domain) : f.name.replace(".markdown", "");
+        const domain = fm.ha_domain ? String(fm.ha_domain) : f.path.replace(".markdown", "");
         return { domain, meta: toIntegrationMeta(fm) };
       })
     );
     for (const { domain, meta } of results) {
       index.integrations[domain] = meta;
     }
-    onProgress?.(`Processed ${Math.min(i + 20, markdownFiles.length)}/${markdownFiles.length} integrations...`);
+    onProgress?.(`Processed ${Math.min(i + 20, integrationFiles.length)}/${integrationFiles.length} integrations...`);
+  }
+
+  // ── General docs ──────────────────────────────────────────
+  onProgress?.("Fetching docs list from GitHub...");
+  const docsTree = await listTree("source/_docs", true);
+  const docFiles = docsTree.filter((f) => f.type === "blob" && f.path.endsWith(".markdown"));
+  onProgress?.(`Found ${docFiles.length} docs, fetching metadata...`);
+
+  for (let i = 0; i < docFiles.length; i += 20) {
+    const batch = docFiles.slice(i, i + 20);
+    const results = await Promise.all(
+      batch.map(async (f) => {
+        const content = await fetchRaw(`source/_docs/${f.path}`);
+        const fm = parseFrontmatter(content);
+        const slug = f.path.replace(".markdown", "");
+        return {
+          slug,
+          meta: {
+            title: String(fm.title ?? slug),
+            description: String(fm.description ?? ""),
+            path: slug,
+          },
+        };
+      })
+    );
+    for (const { slug, meta } of results) {
+      index.docs[slug] = meta;
+    }
+    onProgress?.(`Processed ${Math.min(i + 20, docFiles.length)}/${docFiles.length} docs...`);
   }
 
   return index;
