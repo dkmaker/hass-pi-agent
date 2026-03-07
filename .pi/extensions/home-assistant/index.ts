@@ -9,6 +9,9 @@ import { registerAreasTool } from "./tools/ha-areas.js";
 import { registerLabelsTool } from "./tools/ha-labels.js";
 import { registerAutomationsTool } from "./tools/ha-automations.js";
 import { registerDashboardsTool } from "./tools/ha-dashboards.js";
+import { registerAddonsTool } from "./tools/ha-addons.js";
+import { registerBackupsTool } from "./tools/ha-backups.js";
+import { registerSystemTool } from "./tools/ha-system.js";
 import { wsClose } from "./lib/ws.js";
 
 export default function (pi: ExtensionAPI) {
@@ -22,6 +25,9 @@ export default function (pi: ExtensionAPI) {
   registerLabelsTool(pi);
   registerAutomationsTool(pi);
   registerDashboardsTool(pi);
+  registerAddonsTool(pi);
+  registerBackupsTool(pi);
+  registerSystemTool(pi);
 
   // Clean up WebSocket connection on shutdown
   pi.on("session_shutdown", async () => {
