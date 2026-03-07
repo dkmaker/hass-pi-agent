@@ -1,0 +1,305 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "id": "ipyt7kdz",
+      "title": "Build Pi Agent Docker Add-on",
+      "description": "Build a working Docker add-on that installs pi, exposes it via ttyd/tmux in the HA web UI (ingress), persists credentials across restarts, and loads the HA extension with all custom tools.",
+      "body": "## Architecture\n\n- s6-overlay services: init-pi (oneshot), init-extension (oneshot), ttyd (longrun)\n- `PI_CODING_AGENT_DIR=/data/pi-agent` for persistent auth.json, settings.json, sessions\n- Extension baked into image at `/opt/ha-extension/`, copied to `/homeassistant/.pi/extensions/home-assistant/` at startup\n- ttyd → tmux → pi for web terminal via HA ingress\n- Python3 included in image\n\n## Key Design Decisions\n\n- `PI_CODING_AGENT_DIR` env var (not symlinks) for persistent storage — pi reads `PI_CODING_AGENT_DIR` in `config.js → getAgentDir()`\n- `api_keys` config: list of `provider=key` pairs merged into auth.json (preserves OAuth from `/login`)\n- `environment` config: arbitrary KEY=VALUE env vars (for AZURE_OPENAI_BASE_URL, AWS_PROFILE, etc.)\n- `init: true` for s6-overlay (auto SUPERVISOR_TOKEN injection via `with-contenv`)\n- Extension defaults are correct in container — no .env needed: HA_CONFIG_PATH=/homeassistant, HA_URL=http://supervisor/core, HA_TOKEN=SUPERVISOR_TOKEN\n- HA ingress handles auth (no ttyd auth needed)\n- Docs cache at `/data/ha-docs/` (extension config.ts auto-detects supervisor URL)\n\n## File Structure\n\n```\naddon/\n├── config.yaml                    # Add-on manifest (ingress, options, schema)\n├── build.yaml                     # Base image per arch (ghcr.io/hassio-addons/base:20.0.1)\n├── Dockerfile                     # Alpine + nodejs + npm + python3 + ripgrep + tmux + ttyd + pi\n├── extensions/home-assistant/     # HA extension source (copied from .pi/extensions/home-assistant/)\n├── rootfs/\n│   ├── usr/bin/\n│   │   └── pi-entrypoint.sh       # Launched by tmux — sources env, cd /homeassistant, exec pi\n│   └── etc/s6-overlay/s6-rc.d/\n│       ├── init-pi/               # Oneshot: PI_CODING_AGENT_DIR, auth.json, settings.json, env vars, SUPERVISOR_TOKEN\n│       ├── init-extension/        # Oneshot: copy extension to /homeassistant/.pi/extensions/\n│       ├── ttyd/                  # Longrun: ttyd → tmux → pi-entrypoint.sh\n│       └── user/contents.d/      # init-pi, init-extension, ttyd\n```\n\n## config.yaml Options\n\n| Option | Type | Default | Purpose |\n|--------|------|---------|---------|\n| `default_provider` | select | `anthropic` | Default AI provider (anthropic/openai/google/openrouter/groq/xai/mistral/cerebras/huggingface/github-copilot/amazon-bedrock/google-vertex/azure-openai-responses) |\n| `default_model` | str | `\"\"` | Default model (empty = provider default) |\n| `api_keys` | list[password] | `[]` | API keys as `provider=key` pairs, merged into auth.json |\n| `environment` | list[str] | `[]` | Extra env vars as `KEY=VALUE` |\n| `yolo_mode` | bool | `false` | Auto-approve all tool calls |\n| `additional_packages` | list[str] | `[]` | Extra Alpine packages to install |\n\n## Supported Providers (from pi-ai source: env-api-keys.js)\n\nanthropic (ANTHROPIC_API_KEY), openai (OPENAI_API_KEY), google (GEMINI_API_KEY), openrouter (OPENROUTER_API_KEY), groq (GROQ_API_KEY), xai (XAI_API_KEY), mistral (MISTRAL_API_KEY), cerebras (CEREBRAS_API_KEY), huggingface (HF_TOKEN), minimax (MINIMAX_API_KEY), zai (ZAI_API_KEY), azure-openai-responses (AZURE_OPENAI_API_KEY), github-copilot (GITHUB_TOKEN), kimi-coding (KIMI_API_KEY). Also amazon-bedrock (AWS env vars) and google-vertex (ADC).\n\n## init-pi Script Key Logic\n\n```bash\nPI_DIR=/data/pi-agent\nmkdir -p \"${PI_DIR}/sessions\"\nprintf '%s' \"${PI_DIR}\" > /var/run/s6/container_environment/PI_CODING_AGENT_DIR\n\n# Merge api_keys config into existing auth.json (preserves OAuth)\n# Format: provider=key → {\"provider\": {\"type\": \"api_key\", \"key\": \"...\"}}\n\n# Merge settings.json (defaultProvider, defaultModel) without overwriting other fields\n# Write environment vars to s6 env dir\n# Export SUPERVISOR_TOKEN as HA_TOKEN, set HA_URL and HA_CONFIG_PATH\n```\n\n## Reference\n\n- Claude Code addon at `/tmp/hass-claude-code/addon/` as pattern reference for s6 services, ttyd, ingress",
+      "priority": 1,
+      "status": "open",
+      "relevantFiles": [
+        {
+          "file": "addon/config.yaml",
+          "reason": "Add-on manifest (to be rewritten)"
+        },
+        {
+          "file": "addon/Dockerfile",
+          "reason": "Dockerfile (to be rewritten)"
+        },
+        {
+          "file": "addon/run.sh",
+          "reason": "Current run script (to be replaced by s6 services)"
+        },
+        {
+          "file": ".pi/extensions/home-assistant/index.ts",
+          "reason": "Extension entry point to be baked into image"
+        },
+        {
+          "file": ".pi/extensions/home-assistant/lib/config.ts",
+          "reason": "Extension config with HA_CONFIG_PATH, HA_URL, PI_CODING_AGENT_DIR defaults"
+        }
+      ],
+      "todos": [
+        {
+          "text": "Create Dockerfile (Alpine + nodejs + npm + python3 + ripgrep + tmux + ttyd + pi)",
+          "done": false
+        },
+        {
+          "text": "Create build.yaml (base image per arch)",
+          "done": false
+        },
+        {
+          "text": "Create config.yaml (ingress, options: default_provider, default_model, api_keys, environment, yolo_mode, additional_packages)",
+          "done": false
+        },
+        {
+          "text": "Create init-pi s6 service (PI_CODING_AGENT_DIR, auth.json from api_keys, settings.json, env vars, SUPERVISOR_TOKEN)",
+          "done": false
+        },
+        {
+          "text": "Create init-extension s6 service (copy extension to /homeassistant/.pi/extensions/)",
+          "done": false
+        },
+        {
+          "text": "Create ttyd s6 longrun service (ttyd → tmux → pi-entrypoint.sh)",
+          "done": false
+        },
+        {
+          "text": "Create pi-entrypoint.sh (source env, cd /homeassistant, exec pi)",
+          "done": false
+        },
+        {
+          "text": "Create s6 service dependency chain and user/contents.d files",
+          "done": false
+        },
+        {
+          "text": "Copy HA extension source into addon/extensions/home-assistant/",
+          "done": false
+        },
+        {
+          "text": "Deploy to dev VM and test build",
+          "done": false
+        },
+        {
+          "text": "Verify ingress works (sidebar → web terminal → pi)",
+          "done": false
+        },
+        {
+          "text": "Verify all ha_* tools work inside container",
+          "done": false
+        },
+        {
+          "text": "Verify credentials persist across rebuilds",
+          "done": false
+        },
+        {
+          "text": "Verify sessions survive container restart",
+          "done": false
+        }
+      ],
+      "successCriteria": [
+        "Add-on builds and starts on dev VM",
+        "Pi accessible via HA sidebar (ingress/ttyd)",
+        "All ha_* tools functional (entities, automations, graph, etc.)",
+        "API keys from config persist in auth.json across rebuilds",
+        "OAuth via /login persists across rebuilds",
+        "Settings.json persisted and merged",
+        "SUPERVISOR_TOKEN available to extension"
+      ],
+      "createdAt": "2026-03-07T22:41:17.037Z",
+      "updatedAt": "2026-03-07T22:43:00.485Z"
+    },
+    {
+      "id": "s3wk08rg",
+      "title": "Custom Component — pi_agent Service Registration",
+      "description": "Allow the Pi Agent add-on to register a native HA service (`pi_agent.ask`) that can be called from automations, scripts, and the UI to start a Pi process with a question.",
+      "body": "## Approach\n\nSelf-deploying custom component — the add-on bundles a small Python integration and drops it into `/homeassistant/custom_components/pi_agent/` on startup.\n\n## How It Works\n\n1. Add-on config option: `install_integration: true` (default)\n2. Startup copies bundled component to `/homeassistant/custom_components/pi_agent/`\n3. Version-stamped deployment (only overwrites when add-on ships newer version)\n4. First install triggers HA restart to load the integration\n5. Component registers `pi_agent.ask` service\n6. Service calls hit HTTP endpoint inside the add-on container\n7. Add-on spawns `pi` with the provided question\n\n## Communication\n\nSmall HTTP server in the add-on (e.g., Python aiohttp or shell-based). The custom component calls it via `aiohttp.ClientSession`.\n\n## Files to Create\n\n### In the add-on image (`addon/component/pi_agent/`)\n\n- `__init__.py` — ~50 lines, registers `pi_agent.ask` service, calls add-on's HTTP endpoint\n- `manifest.json` — integration metadata (name, domain, version, dependencies)\n- `services.yaml` — service schema for UI (question field)\n- `VERSION` — version stamp for update detection\n\n### Service Schema\n\n```yaml\nask:\n  name: Ask Pi Agent\n  description: Send a question to the Pi coding agent\n  fields:\n    question:\n      name: Question\n      description: The question or task for the Pi agent\n      required: true\n      selector:\n        text:\n          multiline: true\n```\n\n## Prior Art\n\n- HACS bootstraps itself via similar self-deploy pattern\n- Several community add-ons deploy custom components this way",
+      "priority": 2,
+      "status": "open",
+      "relevantFiles": [
+        {
+          "file": "addon/config.yaml",
+          "reason": "Add install_integration option"
+        },
+        {
+          "file": "addon/rootfs/",
+          "reason": "Add startup deployment logic"
+        }
+      ],
+      "todos": [
+        {
+          "text": "Create custom component Python files (__init__.py, manifest.json, services.yaml, VERSION)",
+          "done": false
+        },
+        {
+          "text": "Add install_integration config option to add-on",
+          "done": false
+        },
+        {
+          "text": "Add startup deployment logic (version-stamped copy to custom_components)",
+          "done": false
+        },
+        {
+          "text": "Add HTTP listener in add-on to receive service calls",
+          "done": false
+        },
+        {
+          "text": "Spawn pi process from HTTP handler with question",
+          "done": false
+        },
+        {
+          "text": "Test service call from automation",
+          "done": false
+        },
+        {
+          "text": "Handle uninstall (toggle off removes component)",
+          "done": false
+        }
+      ],
+      "successCriteria": [
+        "pi_agent.ask service appears in HA developer tools",
+        "Service can be called from automations and scripts",
+        "Pi processes question and returns result",
+        "Component auto-deploys on add-on startup",
+        "Version-stamped: only updates when newer version shipped"
+      ],
+      "createdAt": "2026-03-07T22:41:33.521Z",
+      "updatedAt": "2026-03-07T22:43:15.003Z"
+    },
+    {
+      "id": "fgksuypn",
+      "title": "ha_history — Entity State History Tool",
+      "description": "Query historical state changes for entities over a time period. REST API: `GET /api/history/period/<timestamp>`. Actions: get (state history), stats (min/max/mean for sensors).",
+      "body": "## API\n\n`GET /api/history/period/<timestamp>?filter_entity_id=<id>&end_time=<ts>&minimal_response`\n\n## Parameters\n\n- entity_id (required), start (relative: 1h/24h/7d), end, minimal (default true)\n\n## Output Formatting\n\nSummarize rather than dump raw data:\n- State changes: count, first/last change, duration in each state\n- Sensors: min/max/mean/current over the period\n- Binary sensors: total on-time, number of triggers, last trigger\n\n## Use Cases\n\n- \"When was the front door last opened?\"\n- \"What was the temperature overnight?\"\n- \"How many times did motion trigger today?\"",
+      "priority": 3,
+      "status": "open",
+      "relevantFiles": [
+        {
+          "file": ".pi/extensions/home-assistant/lib/format.ts",
+          "reason": "Add relative time parsing utility"
+        },
+        {
+          "file": ".pi/extensions/home-assistant/lib/api.ts",
+          "reason": "REST API helpers"
+        }
+      ],
+      "todos": [
+        {
+          "text": "Add relative time parsing utility to lib/format.ts",
+          "done": false
+        },
+        {
+          "text": "Create tools/ha-history.ts with get and stats actions",
+          "done": false
+        },
+        {
+          "text": "Implement smart summarization for state changes vs sensor data",
+          "done": false
+        },
+        {
+          "text": "Test with real entity history on dev VM",
+          "done": false
+        }
+      ],
+      "successCriteria": [],
+      "createdAt": "2026-03-07T22:41:45.347Z",
+      "updatedAt": "2026-03-07T22:43:24.558Z"
+    },
+    {
+      "id": "9dmq8tvn",
+      "title": "ha_logbook — Event Logbook Tool",
+      "description": "Query the HA logbook for human-readable activity entries. REST API: `GET /api/logbook/<timestamp>`. Filter by entity, time range, with limit. Shows timeline of what happened.",
+      "body": "## API\n\n`GET /api/logbook/<timestamp>?entity=<id>&end_time=<ts>`\n\n## Parameters\n\n- entity_id (optional filter), start (relative: 1h/24h/7d), end, limit (default 50)\n\n## Output\n\nSimple timeline format:\n```\n10:32 AM  motion_sensor_hallway  detected motion\n10:33 AM  light.hallway          turned on (by automation: Motion Lights)\n10:48 AM  light.hallway          turned off\n```\n\n## Use Cases\n\n- \"What happened in the house today?\"\n- \"Show all activity for the garage door this week\"\n- \"What triggered automation X?\"\n\nCan share relative time parsing utility with ha_history (lib/format.ts).",
+      "priority": 4,
+      "status": "open",
+      "relevantFiles": [
+        {
+          "file": ".pi/extensions/home-assistant/lib/format.ts",
+          "reason": "Shared relative time parsing"
+        },
+        {
+          "file": ".pi/extensions/home-assistant/lib/api.ts",
+          "reason": "REST API helpers"
+        }
+      ],
+      "todos": [
+        {
+          "text": "Create logbook actions in tools/ha-history.ts (or separate file)",
+          "done": false
+        },
+        {
+          "text": "Implement timeline formatting",
+          "done": false
+        },
+        {
+          "text": "Test with dev VM logbook data",
+          "done": false
+        }
+      ],
+      "successCriteria": [],
+      "createdAt": "2026-03-07T22:41:54.227Z",
+      "updatedAt": "2026-03-07T22:43:32.226Z"
+    },
+    {
+      "id": "p2427xte",
+      "title": "ha_stats — Long-Term Statistics Tool",
+      "description": "Query long-term statistics database for sensor data (hourly/daily/monthly aggregates). WebSocket: `recorder/statistics_during_period`. Actions: get (statistics), list (entities with stats available).",
+      "body": "## API\n\nWebSocket: `recorder/statistics_during_period`\n\n## Parameters\n\n- entity_id (single or list), start/end, period (5minute/hour/day/week/month), stat_types (mean/min/max/sum/state/change)\n\n## Actions\n\n- `get` — Get statistics for entities over a period\n- `list` — List entities that have long-term statistics available\n\n## Use Cases\n\n- \"Average energy usage per day this month?\"\n- \"Hourly temperature trends for the past week\"\n- \"Water usage last month vs this month?\"",
+      "priority": 5,
+      "status": "open",
+      "relevantFiles": [
+        {
+          "file": ".pi/extensions/home-assistant/lib/ws.ts",
+          "reason": "WebSocket client for recorder commands"
+        }
+      ],
+      "todos": [
+        {
+          "text": "Create tools/ha-stats.ts with get and list actions",
+          "done": false
+        },
+        {
+          "text": "Use WebSocket recorder/statistics_during_period",
+          "done": false
+        },
+        {
+          "text": "Format output with period-appropriate summaries",
+          "done": false
+        }
+      ],
+      "successCriteria": [],
+      "createdAt": "2026-03-07T22:42:01.504Z",
+      "updatedAt": "2026-03-07T22:43:42.641Z"
+    },
+    {
+      "id": "wx2vc5lo",
+      "title": "ha_events — Live Event Listener Tool",
+      "description": "Subscribe to the HA event bus via WebSocket, capture events during a window, then query/filter results. Designed for the troubleshooting loop: start listening, do the thing, see what happened.",
+      "body": "## API\n\nWebSocket: `subscribe_events` (optionally filtered by event_type)\n\n## Actions\n\n- `listen` — Start capturing events (event_type filter, duration in seconds, max_count)\n- `stop` — Stop active listener early\n- `get` — Return captured events with filters (entity_id, search)\n- `types` — List event types that fired recently\n\n## Workflow — Troubleshooting Loop\n\n1. `listen event_type=state_changed duration=30` — starts capturing\n2. User performs action (press button, trigger sensor)\n3. Events captured in memory with timestamps\n4. Auto-stops after duration/max_events\n5. `get entity_id=switch.problem_switch` — filter to what matters\n\n## Output\n\nSummarize then detail:\n```\nCaptured 47 events in 30s:\n  38 state_changed, 6 call_service, 3 automation_triggered\n\nFiltered to switch.problem_switch (3 events):\n  10:32:01  state_changed  off → on\n  10:32:01  call_service   switch.turn_on\n  10:32:15  state_changed  on → off\n```\n\n## Implementation Notes\n\n- Background WebSocket subscription buffers events in memory\n- Only one active listener at a time\n- Session data ephemeral — cleared on next `listen`",
+      "priority": 6,
+      "status": "open",
+      "relevantFiles": [
+        {
+          "file": ".pi/extensions/home-assistant/lib/ws.ts",
+          "reason": "WebSocket client for event subscription"
+        }
+      ],
+      "todos": [
+        {
+          "text": "Create tools/ha-events.ts with listen/stop/get/types actions",
+          "done": false
+        },
+        {
+          "text": "Implement WebSocket subscribe_events with background buffer",
+          "done": false
+        },
+        {
+          "text": "Add event type filtering and entity post-filtering",
+          "done": false
+        },
+        {
+          "text": "Implement summary + detail output formatting",
+          "done": false
+        },
+        {
+          "text": "Test troubleshooting loop workflow on dev VM",
+          "done": false
+        }
+      ],
+      "successCriteria": [],
+      "createdAt": "2026-03-07T22:42:14.298Z",
+      "updatedAt": "2026-03-07T22:43:53.512Z"
+    }
+  ]
+}
