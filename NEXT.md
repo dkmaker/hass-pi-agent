@@ -4,7 +4,9 @@ Advanced features requiring deeper implementation. Pick after Phase 1 (NEXT.md) 
 
 ---
 
-## Feature: Integration Documentation Lookup
+## ✅ DONE: Integration Documentation Lookup
+
+Implemented as `ha_docs` tool + `scripts/update-docs.py`. See commits 50b1c52–1c342b4.
 
 ### Problem
 When configuring integrations, the agent needs to know what config options, entities, services, and triggers each integration provides. This info lives in the HA docs repo on GitHub but isn't available locally in a structured way.
