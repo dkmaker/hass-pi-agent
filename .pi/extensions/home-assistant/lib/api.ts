@@ -47,6 +47,18 @@ export async function apiPost<T = unknown>(path: string, data?: unknown): Promis
 }
 
 /**
+ * DELETE request to the HA REST API.
+ */
+export async function apiDelete(path: string): Promise<void> {
+  requireToken();
+  const resp = await fetch(`${HA_URL}${path}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${HA_TOKEN}` },
+  });
+  if (!resp.ok) throw new Error(`HA API ${resp.status}: ${await resp.text()}`);
+}
+
+/**
  * Call a HA service. Handles connection resets gracefully (expected during restart).
  */
 export async function callService(
