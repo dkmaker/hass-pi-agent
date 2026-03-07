@@ -2,3 +2,4 @@
 .search_cache/
 node_modules/
 ha-core/
+ha-frontend/
