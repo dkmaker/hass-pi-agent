@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+#
+# One-shot setup: download HAOS, create isolated network, create VM.
+# Idempotent — skips steps already completed.
+#
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
+source "$REPO_ROOT/.env"
+
+VM_NAME="${HAOS_VM_NAME:-haos-dev}"
+NET_NAME="${HAOS_NET_NAME:-haos-isolated}"
+IMG_DIR="/var/lib/libvirt/images/haos"
+HAOS_VERSION="17.1"
+QCOW2="haos_ova-${HAOS_VERSION}.qcow2"
+
+echo "=== Step 1: Create isolated network ==="
+if sudo virsh net-info "$NET_NAME" &>/dev/null; then
+  echo "Network '$NET_NAME' already exists"
+else
+  cat > /tmp/haos-isolated-net.xml << 'NETEOF'
+<network>
+  <name>haos-isolated</name>
+  <forward mode='nat'>
+    <nat>
+      <port start='1024' end='65535'/>
+    </nat>
+  </forward>
+  <bridge name='virbr-haos' stp='on' delay='0'/>
+  <ip address='10.99.0.1' netmask='255.255.255.0'>
+    <dhcp>
+      <range start='10.99.0.10' end='10.99.0.50'/>
+    </dhcp>
+  </ip>
+</network>
+NETEOF
+  sudo virsh net-define /tmp/haos-isolated-net.xml
+  sudo virsh net-start "$NET_NAME"
+  sudo virsh net-autostart "$NET_NAME"
+  echo "Network created"
+fi
+
+echo ""
+echo "=== Step 2: Download HAOS image ==="
+sudo mkdir -p "$IMG_DIR"
+if [ -f "$IMG_DIR/$QCOW2" ]; then
+  echo "Image already exists: $IMG_DIR/$QCOW2"
+else
+  echo "Downloading HAOS ${HAOS_VERSION}..."
+  sudo wget -O "$IMG_DIR/${QCOW2}.xz" \
+    "https://github.com/home-assistant/operating-system/releases/download/${HAOS_VERSION}/${QCOW2}.xz"
+  sudo unxz "$IMG_DIR/${QCOW2}.xz"
+  echo "Image ready"
+fi
+
+echo ""
+echo "=== Step 3: Create VM ==="
+if sudo virsh dominfo "$VM_NAME" &>/dev/null; then
+  echo "VM '$VM_NAME' already exists"
+else
+  sudo virt-install \
+    --name "$VM_NAME" \
+    --description "Home Assistant OS - Dev" \
+    --memory 4096 \
+    --vcpus 2 \
+    --disk "path=$IMG_DIR/$QCOW2,format=qcow2,bus=virtio" \
+    --network "network=$NET_NAME,model=virtio" \
+    --graphics vnc,listen=127.0.0.1 --video virtio \
+    --import \
+    --boot uefi \
+    --osinfo detect=on,require=off \
+    --noautoconsole
+  echo "VM created and starting..."
+fi
+
+echo ""
+echo "=== Waiting for VM to get IP ==="
+for i in $(seq 1 30); do
+  IP=$(sudo virsh net-dhcp-leases "$NET_NAME" 2>/dev/null | grep -oP '10\.99\.0\.\d+' | head -1)
+  if [ -n "$IP" ]; then
+    echo ""
+    echo "✓ Home Assistant is booting at: http://${IP}:8123"
+    echo ""
+    echo "Next steps:"
+    echo "  1. Open http://${IP}:8123 in your browser"
+    echo "  2. Complete the onboarding wizard"
+    echo "  3. Install SSH add-on, configure authorized_keys, map port 22"
+    echo "  4. Create a long-lived token and add to .env as HAOS_API_TOKEN"
+    exit 0
+  fi
+  printf "."
+  sleep 2
+done
+echo ""
+echo "WARNING: VM didn't get an IP in 60s. Check: sudo virsh console $VM_NAME"

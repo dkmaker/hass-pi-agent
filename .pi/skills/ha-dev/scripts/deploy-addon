@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+#
+# Deploy the hass-claude-code add-on to the HAOS dev VM via SSH/rsync.
+#
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
+source "$REPO_ROOT/.env"
+
+ADDON_DIR="$REPO_ROOT/addon"
+NET_NAME="${HAOS_NET_NAME:-haos-isolated}"
+
+VM_IP=$(sudo virsh net-dhcp-leases "$NET_NAME" 2>/dev/null | grep -oP '10\.99\.0\.\d+' | head -1)
+if [ -z "$VM_IP" ]; then
+  echo "ERROR: Cannot find VM IP. Is the VM running?"
+  echo "  .pi/skills/ha-dev/scripts/vm-ctl start"
+  exit 1
+fi
+
+SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR"
+SSH_CMD="ssh $SSH_OPTS root@${VM_IP}"
+
+echo "==> VM IP: $VM_IP"
+echo "==> Testing SSH..."
+if ! $SSH_CMD echo "SSH OK" 2>/dev/null; then
+  echo "ERROR: Cannot SSH to HAOS VM at root@${VM_IP}:22"
+  echo "Ensure the Terminal & SSH add-on is installed, configured, and port 22 is mapped."
+  exit 1
+fi
+
+echo "==> Syncing addon/ → VM:/addons/claude_code/"
+rsync -avz --delete \
+  -e "ssh $SSH_OPTS" \
+  "$ADDON_DIR/" \
+  "root@${VM_IP}:/addons/claude_code/"
+
+echo "==> Reloading Supervisor add-on list..."
+$SSH_CMD 'ha addons reload' 2>/dev/null || true
+
+echo ""
+echo "Done! Add-on synced to VM."
+echo "  http://${VM_IP}:8123 → Settings → Add-ons → Add-on Store → Local add-ons"
+echo ""
+echo "Rebuild after changes:"
+echo "  .pi/skills/ha-dev/scripts/ha-supervisor addon-rebuild local_claude_code"

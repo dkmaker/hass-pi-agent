@@ -1,0 +1,274 @@
+#!/usr/bin/env bash
+#
+# ha-api — CLI for the Home Assistant REST API on the local dev VM.
+#
+set -euo pipefail
+
+# Load config from repo root .env
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
+ENV_FILE="$REPO_ROOT/.env"
+
+if [ ! -f "$ENV_FILE" ]; then
+  echo "ERROR: $ENV_FILE not found. Create it with HAOS_API_TOKEN and HAOS_URL."
+  exit 1
+fi
+source "$ENV_FILE"
+
+HAOS_URL="${HAOS_URL:?HAOS_URL not set in .env}"
+TOKEN="${HAOS_API_TOKEN:?HAOS_API_TOKEN not set in .env}"
+
+AUTH=("Authorization: Bearer $TOKEN")
+CT=("Content-Type: application/json")
+
+_curl() {
+  curl -s -H "${AUTH[0]}" "$@"
+}
+
+_post() {
+  curl -s -H "${AUTH[0]}" -H "${CT[0]}" -X POST "$@"
+}
+
+_pretty() {
+  python3 -m json.tool 2>/dev/null || cat
+}
+
+cmd="${1:-help}"
+shift 2>/dev/null || true
+
+case "$cmd" in
+
+  # ── Info ──────────────────────────────────────────────────────────
+  ping)
+    _curl "$HAOS_URL/api/" | _pretty
+    ;;
+
+  config)
+    _curl "$HAOS_URL/api/config" | _pretty
+    ;;
+
+  health)
+    _curl "$HAOS_URL/api/config" | python3 -c "
+import json,sys
+c=json.load(sys.stdin)
+print(f'State:   {c[\"state\"]}')
+print(f'Version: {c[\"version\"]}')
+print(f'Name:    {c[\"location_name\"]}')
+print(f'TZ:      {c[\"time_zone\"]}')
+print(f'Safe:    {c[\"safe_mode\"]}')
+"
+    ;;
+
+  # ── Entities / States ────────────────────────────────────────────
+  states)
+    FILTER="${1:-}"
+    _curl "$HAOS_URL/api/states" | python3 -c "
+import json,sys
+states=json.load(sys.stdin)
+f='$FILTER'.lower()
+for s in sorted(states, key=lambda x: x['entity_id']):
+    eid=s['entity_id']
+    if f and f not in eid.lower():
+        continue
+    state=s['state']
+    name=s['attributes'].get('friendly_name','')
+    print(f'{eid:50s} {state:20s} {name}')
+"
+    ;;
+
+  state)
+    ENTITY="${1:?Usage: ha-api state <entity_id>}"
+    _curl "$HAOS_URL/api/states/$ENTITY" | _pretty
+    ;;
+
+  set-state)
+    ENTITY="${1:?Usage: ha-api set-state <entity_id> <state> [attributes_json]}"
+    STATE="${2:?Missing state value}"
+    ATTRS="${3:-\{\}}"
+    _post -d "{\"state\": \"$STATE\", \"attributes\": $ATTRS}" \
+      "$HAOS_URL/api/states/$ENTITY" | _pretty
+    ;;
+
+  # ── Services ─────────────────────────────────────────────────────
+  services)
+    FILTER="${1:-}"
+    _curl "$HAOS_URL/api/services" | python3 -c "
+import json,sys
+svcs=json.load(sys.stdin)
+f='$FILTER'.lower()
+for domain in sorted(svcs, key=lambda x: x['domain']):
+    d=domain['domain']
+    for svc in sorted(domain['services']):
+        full=f'{d}.{svc}'
+        if f and f not in full:
+            continue
+        desc=domain['services'][svc].get('description','')[:60]
+        print(f'{full:45s} {desc}')
+"
+    ;;
+
+  call)
+    DOMAIN="${1:?Usage: ha-api call <domain> <service> [json_data]}"
+    SERVICE="${2:?Missing service name}"
+    DATA="${3:-\{\}}"
+    _post -d "$DATA" "$HAOS_URL/api/services/$DOMAIN/$SERVICE" | _pretty
+    ;;
+
+  # ── Events ───────────────────────────────────────────────────────
+  events)
+    _curl "$HAOS_URL/api/events" | python3 -c "
+import json,sys
+for e in sorted(json.load(sys.stdin), key=lambda x: x['event']):
+    print(f'{e[\"event\"]:45s} listeners={e[\"listener_count\"]}')
+"
+    ;;
+
+  fire)
+    EVENT="${1:?Usage: ha-api fire <event_type> [json_data]}"
+    DATA="${2:-\{\}}"
+    _post -d "$DATA" "$HAOS_URL/api/events/$EVENT" | _pretty
+    ;;
+
+  # ── History / Logbook ────────────────────────────────────────────
+  history)
+    ENTITY="${1:?Usage: ha-api history <entity_id> [hours_back]}"
+    HOURS="${2:-24}"
+    SINCE=$(date -u -d "$HOURS hours ago" +%Y-%m-%dT%H:%M:%S 2>/dev/null || date -u -v-${HOURS}H +%Y-%m-%dT%H:%M:%S)
+    _curl "$HAOS_URL/api/history/period/$SINCE?filter_entity_id=$ENTITY&minimal_response" | python3 -c "
+import json,sys
+data=json.load(sys.stdin)
+if data:
+    for entry in data[0]:
+        ts=entry.get('last_changed','')[:19]
+        print(f'{ts}  {entry[\"state\"]}')
+else:
+    print('No history')
+"
+    ;;
+
+  logbook)
+    HOURS="${1:-24}"
+    SINCE=$(date -u -d "$HOURS hours ago" +%Y-%m-%dT%H:%M:%S 2>/dev/null || date -u -v-${HOURS}H +%Y-%m-%dT%H:%M:%S)
+    _curl "$HAOS_URL/api/logbook/$SINCE" | python3 -c "
+import json,sys
+for e in json.load(sys.stdin)[:50]:
+    ts=e.get('when','')[:19]
+    name=e.get('name','')
+    msg=e.get('message','')
+    print(f'{ts}  {name}: {msg}')
+"
+    ;;
+
+  # ── Templates ────────────────────────────────────────────────────
+  template)
+    TPL="${1:?Usage: ha-api template '<jinja2 template>'}"
+    _post -d "{\"template\": \"$TPL\"}" "$HAOS_URL/api/template"
+    echo
+    ;;
+
+  # ── Add-ons ──────────────────────────────────────────────────────
+  addons)
+    _curl "$HAOS_URL/api/hassio/addons" | python3 -c "
+import json,sys
+data=json.load(sys.stdin)
+addons=data.get('data',{}).get('addons',data.get('addons',[]))
+if not addons:
+    print('No add-ons installed (or unexpected API format)')
+    sys.exit(0)
+for a in sorted(addons, key=lambda x: x.get('name','')):
+    name=a.get('name','?')
+    slug=a.get('slug','?')
+    state=a.get('state','?')
+    ver=a.get('version','?')
+    print(f'{slug:35s} {state:10s} v{ver:10s} {name}')
+" 2>/dev/null || _curl "$HAOS_URL/api/hassio/addons" | _pretty
+    ;;
+
+  addon-info)
+    SLUG="${1:?Usage: ha-api addon-info <slug>}"
+    _curl "$HAOS_URL/api/hassio/addons/$SLUG/info" | _pretty
+    ;;
+
+  addon-logs)
+    SLUG="${1:?Usage: ha-api addon-logs <slug>}"
+    _curl "$HAOS_URL/api/hassio/addons/$SLUG/logs"
+    echo
+    ;;
+
+  addon-start)
+    SLUG="${1:?Usage: ha-api addon-start <slug>}"
+    _post "$HAOS_URL/api/hassio/addons/$SLUG/start" | _pretty
+    ;;
+
+  addon-stop)
+    SLUG="${1:?Usage: ha-api addon-stop <slug>}"
+    _post "$HAOS_URL/api/hassio/addons/$SLUG/stop" | _pretty
+    ;;
+
+  addon-restart)
+    SLUG="${1:?Usage: ha-api addon-restart <slug>}"
+    _post "$HAOS_URL/api/hassio/addons/$SLUG/restart" | _pretty
+    ;;
+
+  addon-rebuild)
+    SLUG="${1:?Usage: ha-api addon-rebuild <slug>}"
+    _post "$HAOS_URL/api/hassio/addons/$SLUG/rebuild" | _pretty
+    ;;
+
+  # ── Raw ──────────────────────────────────────────────────────────
+  get)
+    PATH_="${1:?Usage: ha-api get <api_path>}"
+    _curl "$HAOS_URL$PATH_" | _pretty
+    ;;
+
+  post)
+    PATH_="${1:?Usage: ha-api post <api_path> [json_data]}"
+    DATA="${2:-\{\}}"
+    _post -d "$DATA" "$HAOS_URL$PATH_" | _pretty
+    ;;
+
+  # ── Help ─────────────────────────────────────────────────────────
+  help|*)
+    cat <<'HELP'
+ha-api — CLI for Home Assistant REST API (dev VM)
+
+INFO
+  ping                          Test API connectivity
+  config                        Full HA config (JSON)
+  health                        Quick status summary
+
+ENTITIES
+  states [filter]               List all entities (optional substring filter)
+  state <entity_id>             Get full state + attributes for one entity
+  set-state <id> <state> [json] Set entity state
+
+SERVICES
+  services [filter]             List available services
+  call <domain> <svc> [json]    Call a service
+
+EVENTS
+  events                        List event types
+  fire <event> [json]           Fire an event
+
+HISTORY
+  history <entity_id> [hours]   State history (default: 24h)
+  logbook [hours]               Recent logbook entries
+
+TEMPLATES
+  template '<jinja2>'           Render a Jinja2 template
+
+ADD-ONS (via Supervisor)
+  addons                        List installed add-ons
+  addon-info <slug>             Add-on details
+  addon-logs <slug>             Add-on log output
+  addon-start <slug>            Start add-on
+  addon-stop <slug>             Stop add-on
+  addon-restart <slug>          Restart add-on
+  addon-rebuild <slug>          Rebuild add-on from source
+
+RAW
+  get <path>                    GET any API path   (e.g. /api/states)
+  post <path> [json]            POST any API path
+HELP
+    ;;
+esac

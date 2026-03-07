@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
+source "$REPO_ROOT/.env"
+
+VM_NAME="${HAOS_VM_NAME:-haos-dev}"
+NET_NAME="${HAOS_NET_NAME:-haos-isolated}"
+
+case "${1:-help}" in
+  start)
+    sudo virsh start "$VM_NAME" 2>/dev/null || echo "Already running"
+    sleep 5
+    "$0" ip
+    ;;
+  stop)
+    sudo virsh shutdown "$VM_NAME" 2>/dev/null || echo "Already stopped"
+    ;;
+  kill)
+    sudo virsh destroy "$VM_NAME" 2>/dev/null || echo "Already stopped"
+    ;;
+  status)
+    sudo virsh dominfo "$VM_NAME"
+    echo ""
+    "$0" ip
+    ;;
+  ip)
+    IP=$(sudo virsh net-dhcp-leases "$NET_NAME" 2>/dev/null | grep -oP '10\.99\.0\.\d+' | head -1)
+    if [ -n "$IP" ]; then
+      echo "Home Assistant: http://${IP}:8123"
+    else
+      echo "No IP yet (VM may still be booting)"
+    fi
+    ;;
+  console)
+    sudo virsh vncdisplay "$VM_NAME"
+    echo "Use: virt-viewer $VM_NAME"
+    ;;
+  ssh)
+    IP=$(sudo virsh net-dhcp-leases "$NET_NAME" 2>/dev/null | grep -oP '10\.99\.0\.\d+' | head -1)
+    shift
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR "root@${IP}" "$@"
+    ;;
+  destroy)
+    read -p "This will DELETE the VM and its disk. Continue? [y/N] " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+      sudo virsh destroy "$VM_NAME" 2>/dev/null || true
+      sudo virsh undefine "$VM_NAME" --nvram 2>/dev/null || true
+      echo "VM destroyed"
+    fi
+    ;;
+  help|*)
+    echo "Usage: $0 {start|stop|kill|status|ip|console|ssh|destroy|help}"
+    ;;
+esac

@@ -1,0 +1,330 @@
+#!/usr/bin/env bash
+#
+# ha-supervisor — CLI for the Home Assistant Supervisor API via WebSocket.
+#
+# The Supervisor API is not accessible via long-lived tokens on the REST endpoint.
+# This script uses the WebSocket API's supervisor/api proxy instead.
+#
+set -euo pipefail
+
+# Load config from repo root .env
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
+ENV_FILE="$REPO_ROOT/.env"
+
+if [ ! -f "$ENV_FILE" ]; then
+  echo "ERROR: $ENV_FILE not found. Create it with HAOS_API_TOKEN and HAOS_URL."
+  exit 1
+fi
+source "$ENV_FILE"
+
+HAOS_URL="${HAOS_URL:?HAOS_URL not set in .env}"
+TOKEN="${HAOS_API_TOKEN:?HAOS_API_TOKEN not set in .env}"
+WS_URL="${HAOS_URL/http/ws}/api/websocket"
+
+# Core helper: call a Supervisor API endpoint via WebSocket
+_supervisor_call() {
+  local endpoint="$1"
+  local method="${2:-get}"
+  local data="${3:-}"
+  
+  python3 -c "
+import json, asyncio, websockets, sys
+
+async def main():
+    async with websockets.connect('$WS_URL') as ws:
+        await ws.recv()
+        await ws.send(json.dumps({'type':'auth','access_token':'$TOKEN'}))
+        r = json.loads(await ws.recv())
+        if r['type'] != 'auth_ok':
+            print(json.dumps({'error':'auth_failed'}))
+            sys.exit(1)
+
+        msg = {'id':1,'type':'supervisor/api','endpoint':'$endpoint','method':'$method'}
+        data_str = '''$data'''
+        if data_str:
+            msg['data'] = json.loads(data_str)
+        await ws.send(json.dumps(msg))
+        r = json.loads(await ws.recv())
+        if r.get('success'):
+            result = r.get('result',{})
+            # Supervisor wraps in {data:...}, unwrap if present
+            if isinstance(result, dict) and 'data' in result and len(result) == 1:
+                result = result['data']
+            print(json.dumps(result, indent=2))
+        else:
+            print(json.dumps(r.get('error',r), indent=2), file=sys.stderr)
+            sys.exit(1)
+
+asyncio.run(main())
+"
+}
+
+cmd="${1:-help}"
+shift 2>/dev/null || true
+
+case "$cmd" in
+
+  # ── System Info ──────────────────────────────────────────────────
+  info)
+    _supervisor_call "/supervisor/info"
+    ;;
+
+  stats)
+    _supervisor_call "/supervisor/stats"
+    ;;
+
+  host)
+    _supervisor_call "/host/info"
+    ;;
+
+  os)
+    _supervisor_call "/os/info"
+    ;;
+
+  core)
+    _supervisor_call "/core/info"
+    ;;
+
+  core-stats)
+    _supervisor_call "/core/stats"
+    ;;
+
+  network)
+    _supervisor_call "/network/info"
+    ;;
+
+  resolution)
+    _supervisor_call "/resolution/info"
+    ;;
+
+  # ── Add-ons ──────────────────────────────────────────────────────
+  addons)
+    _supervisor_call "/addons" | python3 -c "
+import json,sys
+data=json.load(sys.stdin)
+addons=data.get('addons', data) if isinstance(data,dict) else data
+if not isinstance(addons, list):
+    print(json.dumps(data, indent=2))
+    sys.exit(0)
+for a in sorted(addons, key=lambda x: x.get('name','')):
+    name=a.get('name','?')
+    slug=a.get('slug','?')
+    state=a.get('state','?')
+    ver=a.get('version','?')
+    print(f'{slug:35s} {state:10s} v{ver:10s} {name}')
+"
+    ;;
+
+  addon-info)
+    SLUG="${1:?Usage: ha-supervisor addon-info <slug>}"
+    _supervisor_call "/addons/$SLUG/info"
+    ;;
+
+  addon-stats)
+    SLUG="${1:?Usage: ha-supervisor addon-stats <slug>}"
+    _supervisor_call "/addons/$SLUG/stats"
+    ;;
+
+  addon-logs)
+    SLUG="${1:?Usage: ha-supervisor addon-logs <slug>}"
+    _supervisor_call "/addons/$SLUG/logs"
+    ;;
+
+  addon-start)
+    SLUG="${1:?Usage: ha-supervisor addon-start <slug>}"
+    _supervisor_call "/addons/$SLUG/start" "post"
+    ;;
+
+  addon-stop)
+    SLUG="${1:?Usage: ha-supervisor addon-stop <slug>}"
+    _supervisor_call "/addons/$SLUG/stop" "post"
+    ;;
+
+  addon-restart)
+    SLUG="${1:?Usage: ha-supervisor addon-restart <slug>}"
+    _supervisor_call "/addons/$SLUG/restart" "post"
+    ;;
+
+  addon-rebuild)
+    SLUG="${1:?Usage: ha-supervisor addon-rebuild <slug>}"
+    _supervisor_call "/addons/$SLUG/rebuild" "post"
+    ;;
+
+  addon-options)
+    SLUG="${1:?Usage: ha-supervisor addon-options <slug> <json>}"
+    DATA="${2:?Missing JSON options}"
+    _supervisor_call "/addons/$SLUG/options" "post" "$DATA"
+    ;;
+
+  addon-network)
+    SLUG="${1:?Usage: ha-supervisor addon-network <slug> <json>}"
+    DATA="${2:?Missing JSON network config}"
+    _supervisor_call "/addons/$SLUG/options" "post" "{\"network\":$DATA}"
+    ;;
+
+  reload-addons)
+    _supervisor_call "/addons/reload" "post"
+    ;;
+
+  # ── Store ────────────────────────────────────────────────────────
+  store)
+    _supervisor_call "/store"
+    ;;
+
+  store-addons)
+    FILTER="${1:-}"
+    _supervisor_call "/store/addons" | python3 -c "
+import json,sys
+data=json.load(sys.stdin)
+addons=data.get('addons', data) if isinstance(data,dict) else data
+f='$FILTER'.lower()
+for a in sorted(addons, key=lambda x: x.get('name','')):
+    name=a.get('name','?')
+    slug=a.get('slug','?')
+    repo=a.get('repository','?')
+    if f and f not in name.lower() and f not in slug.lower():
+        continue
+    print(f'{slug:40s} {repo:15s} {name}')
+"
+    ;;
+
+  store-repos)
+    _supervisor_call "/store/repositories"
+    ;;
+
+  store-add-repo)
+    URL="${1:?Usage: ha-supervisor store-add-repo <repository_url>}"
+    # Get current repos, add new one
+    CURRENT=$(_supervisor_call "/store/repositories" | python3 -c "
+import json,sys
+data=json.load(sys.stdin)
+repos=data.get('repositories',data) if isinstance(data,dict) else data
+urls=[r.get('url',r.get('source','')) for r in repos if isinstance(r,dict)]
+print(json.dumps(urls))
+")
+    NEW_LIST=$(python3 -c "
+import json,sys
+current=json.loads('$CURRENT')
+url='$URL'
+if url not in current:
+    current.append(url)
+print(json.dumps(current))
+")
+    _supervisor_call "/store/repositories" "post" "{\"repositories\":$NEW_LIST}"
+    ;;
+
+  # ── Backups ──────────────────────────────────────────────────────
+  backups)
+    _supervisor_call "/backups" | python3 -c "
+import json,sys
+data=json.load(sys.stdin)
+backups=data.get('backups',data) if isinstance(data,dict) else data
+if not isinstance(backups,list):
+    print(json.dumps(data,indent=2)); sys.exit(0)
+for b in sorted(backups, key=lambda x: x.get('date',''), reverse=True):
+    name=b.get('name','?')
+    slug=b.get('slug','?')
+    date=b.get('date','?')[:19]
+    btype=b.get('type','?')
+    print(f'{date}  {slug:15s} {btype:8s} {name}')
+"
+    ;;
+
+  backup-create)
+    NAME="${1:-manual-backup}"
+    _supervisor_call "/backups/new/full" "post" "{\"name\":\"$NAME\"}"
+    ;;
+
+  # ── Core Lifecycle ───────────────────────────────────────────────
+  core-restart)
+    _supervisor_call "/core/restart" "post"
+    ;;
+
+  core-stop)
+    _supervisor_call "/core/stop" "post"
+    ;;
+
+  core-start)
+    _supervisor_call "/core/start" "post"
+    ;;
+
+  core-update)
+    _supervisor_call "/core/update" "post"
+    ;;
+
+  # ── Host ─────────────────────────────────────────────────────────
+  host-reboot)
+    _supervisor_call "/host/reboot" "post"
+    ;;
+
+  host-shutdown)
+    _supervisor_call "/host/shutdown" "post"
+    ;;
+
+  # ── Raw ──────────────────────────────────────────────────────────
+  get)
+    EP="${1:?Usage: ha-supervisor get <endpoint>}"
+    _supervisor_call "$EP" "get"
+    ;;
+
+  post)
+    EP="${1:?Usage: ha-supervisor post <endpoint> [json_data]}"
+    DATA="${2:-}"
+    _supervisor_call "$EP" "post" "$DATA"
+    ;;
+
+  # ── Help ─────────────────────────────────────────────────────────
+  help|*)
+    cat <<'HELP'
+ha-supervisor — CLI for Home Assistant Supervisor API (via WebSocket)
+
+SYSTEM
+  info                              Supervisor info (version, channel, etc.)
+  stats                             Supervisor CPU/memory stats
+  host                              Host info (OS, hostname, features)
+  os                                HAOS info (version, board, boot slots)
+  core                              HA Core info (version, state)
+  core-stats                        HA Core CPU/memory stats
+  network                           Network configuration
+  resolution                        Resolution center (issues, suggestions)
+
+ADD-ONS
+  addons                            List installed add-ons
+  addon-info <slug>                 Full add-on details
+  addon-stats <slug>                CPU/memory stats for add-on
+  addon-logs <slug>                 Add-on logs
+  addon-start <slug>                Start add-on
+  addon-stop <slug>                 Stop add-on
+  addon-restart <slug>              Restart add-on
+  addon-rebuild <slug>              Rebuild add-on from source
+  addon-options <slug> <json>       Set add-on options
+  addon-network <slug> <json>       Set add-on network ports (e.g. '{"22/tcp":22}')
+  reload-addons                     Reload add-on list
+
+STORE
+  store                             Store info
+  store-addons [filter]             List store add-ons (optional name/slug filter)
+  store-repos                       List add-on repositories
+  store-add-repo <url>              Add an add-on repository
+
+BACKUPS
+  backups                           List backups
+  backup-create [name]              Create a full backup
+
+CORE LIFECYCLE
+  core-restart                      Restart HA Core
+  core-stop                         Stop HA Core
+  core-start                        Start HA Core
+  core-update                       Update HA Core to latest
+
+HOST
+  host-reboot                       Reboot the host
+  host-shutdown                     Shutdown the host
+
+RAW
+  get <endpoint>                    GET any Supervisor endpoint
+  post <endpoint> [json]            POST any Supervisor endpoint
+HELP
+    ;;
+esac
