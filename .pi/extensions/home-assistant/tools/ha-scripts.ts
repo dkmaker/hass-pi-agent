@@ -163,6 +163,9 @@ async function handleUpdate(params: Record<string, unknown>): Promise<string> {
 async function handleDelete(params: Record<string, unknown>): Promise<string> {
   const scriptId = params.script_id as string;
   if (!scriptId) throw new Error("'script_id' is required for delete");
+  if (!params.confirm) {
+    return `⚠️ **Confirm delete**: script \`${scriptId}\`\n\nCall again with \`confirm: true\` to proceed.`;
+  }
   await apiDelete(`/api/config/script/config/${scriptId}`);
   return `✅ Deleted script '${scriptId}'`;
 }
@@ -279,6 +282,9 @@ export function registerScriptsTool(pi: ExtensionAPI): void {
       ),
       offset: Type.Optional(
         Type.Number({ description: "Pagination offset (default: 0)" })
+      ),
+      confirm: Type.Optional(
+        Type.Boolean({ description: "Set true to confirm delete (default: false, preview only)" })
       ),
     }),
 

@@ -43,6 +43,7 @@ export function registerBackupsTool(pi: ExtensionAPI): void {
       folders: Type.Optional(Type.Array(Type.String(), { description: "Folders to include: ssl, share, media, addons/local (for partial create/restore)" })),
       homeassistant: Type.Optional(Type.Boolean({ description: "Include Home Assistant config (for partial create/restore, default: true)" })),
       password: Type.Optional(Type.String({ description: "Password for encrypted backup" })),
+      confirm: Type.Optional(Type.Boolean({ description: "Set true to confirm destructive actions (default: false, preview only)" })),
     }),
 
     async execute(toolCallId, params, signal, onUpdate, ctx) {
@@ -149,6 +150,9 @@ async function executeAction(params: {
 
     case "delete": {
       const slug = requireSlug(params.slug);
+      if (!params.confirm) {
+        return `⚠️ **Confirm delete**: backup \`${slug}\`\n\nCall again with \`confirm: true\` to proceed.`;
+      }
       await supervisorApi(`/backups/${slug}`, "delete");
       return `✅ Backup \`${slug}\` deleted.`;
     }

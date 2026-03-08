@@ -40,6 +40,7 @@ export function registerZonesTool(pi: ExtensionAPI): void {
       radius: Type.Optional(Type.Number({ description: "Radius in meters (default: 100)" })),
       icon: Type.Optional(Type.String({ description: "Icon (e.g., mdi:briefcase)" })),
       passive: Type.Optional(Type.Boolean({ description: "Passive zone (don't trigger enter/leave events)" })),
+      confirm: Type.Optional(Type.Boolean({ description: "Set true to confirm destructive actions (default: false, preview only)" })),
     }),
 
     async execute(toolCallId, params, signal, onUpdate, ctx) {
@@ -57,7 +58,7 @@ async function executeAction(params: Record<string, unknown>): Promise<string> {
     case "get": return handleGet(params.id as string | undefined);
     case "create": return handleCreate(params);
     case "update": return handleUpdate(params);
-    case "delete": return handleDelete(params.id as string | undefined);
+    case "delete": return handleDelete(params.id as string | undefined, params.confirm as boolean | undefined);
     default: throw new Error(`Unknown action '${params.action}'`);
   }
 }
@@ -139,8 +140,11 @@ async function handleUpdate(params: Record<string, unknown>): Promise<string> {
   return `✅ Updated zone '${result.name}' (id: ${result.id})`;
 }
 
-async function handleDelete(id?: string): Promise<string> {
+async function handleDelete(id?: string, confirm?: boolean): Promise<string> {
   if (!id) throw new Error("'id' is required for delete");
+  if (!confirm) {
+    return `⚠️ **Confirm delete**: zone \`${id}\`\n\nCall again with \`confirm: true\` to proceed.`;
+  }
   await wsCommand("zone/delete", { id });
   return `✅ Deleted zone '${id}'`;
 }

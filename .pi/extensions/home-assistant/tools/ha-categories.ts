@@ -37,6 +37,7 @@ export function registerCategoriesTool(pi: ExtensionAPI): void {
       ),
       name: Type.Optional(Type.String({ description: "Category name" })),
       icon: Type.Optional(Type.String({ description: "Category icon (e.g., mdi:lightbulb)" })),
+      confirm: Type.Optional(Type.Boolean({ description: "Set true to confirm destructive actions (default: false, preview only)" })),
     }),
 
     async execute(toolCallId, params, signal, onUpdate, ctx) {
@@ -110,6 +111,9 @@ async function handleDelete(params: Record<string, unknown>): Promise<string> {
   const categoryId = params.category_id as string | undefined;
   if (!scope) throw new Error("'scope' is required for delete");
   if (!categoryId) throw new Error("'category_id' is required for delete");
+  if (!params.confirm) {
+    return `⚠️ **Confirm delete**: category \`${categoryId}\` (scope: ${scope})\n\nCall again with \`confirm: true\` to proceed.`;
+  }
 
   await wsCommand("config/category_registry/delete", { scope, category_id: categoryId });
   return `✅ Deleted category '${categoryId}'`;

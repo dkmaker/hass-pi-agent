@@ -48,6 +48,7 @@ export function registerIntegrationsTool(pi: ExtensionAPI): void {
       search: Type.Optional(
         Type.String({ description: "Search by title or domain" })
       ),
+      confirm: Type.Optional(Type.Boolean({ description: "Set true to confirm destructive actions (default: false, preview only)" })),
     }),
 
     async execute(toolCallId, params, signal, onUpdate, ctx) {
@@ -66,7 +67,7 @@ async function executeAction(params: Record<string, unknown>): Promise<string> {
     case "disable": return handleDisable(params.entry_id as string | undefined);
     case "enable": return handleEnable(params.entry_id as string | undefined);
     case "reload": return handleReload(params.entry_id as string | undefined);
-    case "remove": return handleRemove(params.entry_id as string | undefined);
+    case "remove": return handleRemove(params.entry_id as string | undefined, params.confirm as boolean | undefined);
     default: throw new Error(`Unknown action '${params.action}'`);
   }
 }
@@ -162,8 +163,11 @@ async function handleReload(entryId?: string): Promise<string> {
   return `✅ Reloaded config entry '${entryId}'`;
 }
 
-async function handleRemove(entryId?: string): Promise<string> {
+async function handleRemove(entryId?: string, confirm?: boolean): Promise<string> {
   if (!entryId) throw new Error("'entry_id' is required for remove");
+  if (!confirm) {
+    return `⚠️ **Confirm remove**: integration config entry \`${entryId}\`\n\nCall again with \`confirm: true\` to proceed.`;
+  }
 
   await apiDelete(`/api/config/config_entries/entry/${entryId}`);
   return `✅ Removed config entry '${entryId}'`;

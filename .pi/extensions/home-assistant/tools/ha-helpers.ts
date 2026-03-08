@@ -56,6 +56,9 @@ export function registerHelperTool(pi: ExtensionAPI): void {
           description: "Helper fields for add/update. Use 'list-types' to see required fields per type.",
         })
       ),
+      confirm: Type.Optional(
+        Type.Boolean({ description: "Set true to confirm remove (default: false, preview only)" })
+      ),
 
     }),
 
@@ -93,7 +96,7 @@ async function executeAction(params: {
       return handleUpdate(type, id, fields);
 
     case "remove":
-      return handleRemove(type, id);
+      return handleRemove(type, id, params.confirm as boolean | undefined);
 
     default:
       return `Unknown action '${action}'. Valid: list-types, list, get, add, update, remove`;
@@ -213,8 +216,11 @@ async function handleUpdate(type?: string, id?: string, fields?: Record<string, 
   }
 }
 
-async function handleRemove(type?: string, id?: string): Promise<string> {
+async function handleRemove(type?: string, id?: string, confirm?: boolean): Promise<string> {
   if (!type || !id) return "Error: 'type' and 'id' are required for remove";
+  if (!confirm) {
+    return `⚠️ **Confirm remove**: ${type} helper \`${id}\`\n\nCall again with \`confirm: true\` to proceed.`;
+  }
   const t = requireType(type);
   if (typeof t === "string") return t;
 

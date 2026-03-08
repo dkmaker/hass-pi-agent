@@ -129,7 +129,7 @@ export async function handleUpdateCard(params: Record<string, unknown>): Promise
 
 // ── Remove Card ──────────────────────────────────────────────
 
-export async function handleRemoveCard(params: Record<string, unknown>): Promise<string> {
+export async function handleRemoveCard(params: Record<string, unknown>, confirm?: boolean): Promise<string> {
   const urlPath = params.url_path as string | undefined;
   const config = await fetchDashboardConfig(urlPath);
   const views = config.views || [];
@@ -142,6 +142,10 @@ export async function handleRemoveCard(params: Record<string, unknown>): Promise
 
   const { cards } = getViewCards(views, viewIdx);
   const cardIdx = validateCardIndex(cards, params.card_index as number | undefined, "remove-card");
+
+  if (!confirm) {
+    return `⚠️ **Confirm remove-card**: card ${cardIdx} from view ${viewIdx} (type: ${cards[cardIdx]?.type})\n\nCall again with \`confirm: true\` to proceed.`;
+  }
 
   const removed = cards.splice(cardIdx, 1)[0];
   await saveDashboardConfig(urlPath, config);
