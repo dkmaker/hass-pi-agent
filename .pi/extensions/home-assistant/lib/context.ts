@@ -1,20 +1,19 @@
 /**
  * Gathers Home Assistant installation context at session start
  * and injects it into the system prompt via before_agent_start.
+ *
+ * Reuses existing API helpers — supervisorApi (WebSocket) for Supervisor
+ * endpoints, apiGet for Core REST API, wsSendCommand for registries.
  */
 import { apiGet } from "./api.js";
 import { HA_TOKEN } from "./config.js";
+import { supervisorApi } from "./supervisor.js";
 import { wsSendCommand } from "./ws.js";
 
 interface HAState {
   entity_id: string;
   state: string;
   attributes: Record<string, unknown>;
-}
-
-interface SupervisorResponse<T> {
-  result: string;
-  data: T;
 }
 
 let cachedContext: string | null = null;
@@ -32,13 +31,13 @@ export async function gatherContext(): Promise<string> {
       return cachedContext;
     }
 
-    // Parallel API calls
+    // Parallel API calls — reuse existing helpers
     const [states, supInfo, osInfo, hostInfo, addonsInfo] = await Promise.allSettled([
       apiGet<HAState[]>("/api/states"),
-      supervisorGet<any>("/supervisor/info"),
-      supervisorGet<any>("/os/info"),
-      supervisorGet<any>("/host/info"),
-      supervisorGet<any>("/addons"),
+      supervisorApi<Record<string, unknown>>("/supervisor/info"),
+      supervisorApi<Record<string, unknown>>("/os/info"),
+      supervisorApi<Record<string, unknown>>("/host/info"),
+      supervisorApi<{ addons: any[] }>("/addons"),
     ]);
 
     // Process states
@@ -59,29 +58,33 @@ export async function gatherContext(): Promise<string> {
       .join(", ");
 
     // System info
-    const sup = supInfo.status === "fulfilled" ? supInfo.value : {};
-    const os = osInfo.status === "fulfilled" ? osInfo.value : {};
-    const host = hostInfo.status === "fulfilled" ? hostInfo.value : {};
-    const addons = addonsInfo.status === "fulfilled" ? addonsInfo.value : {};
+    const sup: any = supInfo.status === "fulfilled" ? supInfo.value : {};
+    const os: any = osInfo.status === "fulfilled" ? osInfo.value : {};
+    const host: any = hostInfo.status === "fulfilled" ? hostInfo.value : {};
+    const addons: any = addonsInfo.status === "fulfilled" ? addonsInfo.value : {};
 
-    // HA version from states (sun entity has it)
     const haVersion = sup.homeassistant || "unknown";
 
     // Installed add-ons
     const installedAddons = (addons.addons || [])
       .filter((a: any) => a.installed)
-      .map((a: any) => `- ${a.name} (v${a.version || "?"})${a.state === "started" ? " — running" : ""}`)
+      .map(
+        (a: any) =>
+          `- ${a.name} (v${a.version || "?"})${a.state === "started" ? " — running" : ""}`
+      )
       .join("\n");
 
-    // Areas (try via websocket)
+    // Areas (via websocket registry)
     let areaInfo = "";
     try {
-      const areas = await wsSendCommand({ type: "config/area_registry/list" }) as any[];
+      const areas = (await wsSendCommand({
+        type: "config/area_registry/list",
+      })) as any[];
       if (areas.length > 0) {
         areaInfo = `\n### Areas (${areas.length})\n${areas.map((a: any) => `- ${a.name}`).join("\n")}`;
       }
     } catch {
-      // WS not available yet, skip
+      // skip if WS not ready
     }
 
     cachedContext = `# Home Assistant Installation Context
@@ -143,16 +146,4 @@ export function getContext(): string | null {
  */
 export function resetContext(): void {
   cachedContext = null;
-}
-
-/**
- * Helper to call Supervisor API endpoints.
- */
-async function supervisorGet<T>(path: string): Promise<T> {
-  const resp = await fetch(`http://supervisor${path}`, {
-    headers: { Authorization: `Bearer ${HA_TOKEN}` },
-  });
-  if (!resp.ok) throw new Error(`Supervisor ${resp.status}`);
-  const json = (await resp.json()) as SupervisorResponse<T>;
-  return json.data;
 }

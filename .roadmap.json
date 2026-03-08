@@ -150,7 +150,7 @@
         },
         {
           "text": "Verify image pulls correctly on HA install from repository",
-          "done": false
+          "done": true
         },
         {
           "text": "Add workflow status badge to README",
@@ -164,7 +164,7 @@
         "PRs trigger build-only (no push) for validation"
       ],
       "createdAt": "2026-03-08T08:05:03.070Z",
-      "updatedAt": "2026-03-08T08:24:34.610Z"
+      "updatedAt": "2026-03-08T08:53:00.206Z"
     },
     {
       "id": "8jj9v05p",
