@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.7.0](https://github.com/dkmaker/hass-pi-agent/compare/v0.6.0...v0.7.0) (2026-03-08)
+
+
+### Features
+
+* show visible startup status message with mock fallback for dev mode ([bd4cb92](https://github.com/dkmaker/hass-pi-agent/commit/bd4cb9293199c6997bb4ab0da319a5a001877cbf))
+* show visible startup status message with mock fallback for dev mode ([ee76315](https://github.com/dkmaker/hass-pi-agent/commit/ee7631583cd99ab44b95fd1355bb0ba6230daead))
+
 ## [0.6.0](https://github.com/dkmaker/hass-pi-agent/compare/v0.5.0...v0.6.0) (2026-03-08)
 
 
