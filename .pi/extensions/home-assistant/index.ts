@@ -31,11 +31,19 @@ import { registerBlueprintsTool } from "./tools/ha-blueprints.js";
 import { registerCategoriesTool } from "./tools/ha-categories.js";
 import { registerConversationTool } from "./tools/ha-conversation.js";
 import { registerShoppingListTool } from "./tools/ha-shopping-list.js";
+import { registerToolDocsTool } from "./tools/ha-tool-docs.js";
 import { wsClose } from "./lib/ws.js";
-import { gatherContext, getContext } from "./lib/context.js";
+import {
+  gatherContext,
+  getContext,
+  formatContextForLLM,
+  isMockContext,
+  type HAContext,
+} from "./lib/context.js";
 import { readFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
+
 
 // Load APPEND_SYSTEM.md from the extension directory
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -82,30 +90,69 @@ export default function (pi: ExtensionAPI) {
   registerCategoriesTool(pi);
   registerConversationTool(pi);
   registerShoppingListTool(pi);
+  registerToolDocsTool(pi);
 
-  // Gather HA installation context at session start
-  pi.on("session_start", async () => {
+  // Show HA status as a visible chat message at startup (like project extension)
+  pi.on("session_start", async (_event, ctx) => {
     await gatherContext();
+
+    const haCtx = getContext();
+    if (!haCtx) return;
+
+    const devTag = isMockContext() ? " *(mock data — dev mode)*" : "";
+
+    // Build a visible markdown status dashboard
+    const sys = haCtx.system;
+    const domainEntries = Object.entries(haCtx.entities.domains)
+      .sort((a, b) => b[1] - a[1]);
+    const domainList = domainEntries.map(([d, c]) => `${d}: ${c}`).join(", ");
+    const automationCount = haCtx.entities.domains["automation"] || 0;
+
+    const addonLines = haCtx.addons
+      .map((a) => `- ${a.running ? "🟢" : "⚪"} ${a.name} v${a.version}`)
+      .join("\n");
+
+    const areaLine = haCtx.areas?.length
+      ? `\n**Areas:** ${haCtx.areas.join(" · ")}`
+      : "";
+
+    const brief = `# 🏠 Home Assistant${devTag}
+
+| Property | Value |
+|----------|-------|
+| Hostname | ${sys.hostname} |
+| HA Core | ${sys.ha_version} |
+| OS | ${sys.os_name} ${sys.os_version} |
+| Supervisor | ${sys.supervisor_version} (${sys.arch} · ${sys.board}) |
+
+**${haCtx.entities.total}** entities (${domainList}) · **${automationCount}** automations
+
+${addonLines || "No add-ons installed"}${areaLine}`;
+
+    pi.sendMessage(
+      { customType: "ha-status", content: brief, display: true },
+      { triggerTurn: false },
+    );
   });
 
   let contextInjected = false;
 
-  // Inject context as a persistent message on the first turn only
+  // Inject context for LLM only (hidden from user — header shows it visually)
   pi.on("before_agent_start", async (event) => {
     const result: Record<string, unknown> = {};
 
-    // Behavioral system prompt — appended every turn (it's not stored in history)
+    // Behavioral system prompt — appended every turn
     if (systemPromptAppend) {
       result.systemPrompt = event.systemPrompt + "\n\n" + systemPromptAppend;
     }
 
-    // Installation context — injected once as a persistent message
+    // Installation context — injected once, hidden (user sees the header instead)
     if (!contextInjected) {
-      const context = getContext();
-      if (context) {
+      const ctx = getContext();
+      if (ctx) {
         result.message = {
           customType: "ha-context",
-          content: context,
+          content: formatContextForLLM(ctx),
           display: false,
         };
         contextInjected = true;
