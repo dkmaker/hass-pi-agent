@@ -32,6 +32,9 @@ import { registerCategoriesTool } from "./tools/ha-categories.js";
 import { registerConversationTool } from "./tools/ha-conversation.js";
 import { registerShoppingListTool } from "./tools/ha-shopping-list.js";
 import { registerToolDocsTool } from "./tools/ha-tool-docs.js";
+import { registerPoliciesTool } from "./tools/ha-policies.js";
+import { registerQuestionnaireTool } from "./tools/questionnaire.js";
+import { policiesExist, loadPolicies, formatPoliciesForPrompt } from "./lib/policies.js";
 import { wsClose } from "./lib/ws.js";
 import {
   gatherContext,
@@ -91,6 +94,16 @@ export default function (pi: ExtensionAPI) {
   registerConversationTool(pi);
   registerShoppingListTool(pi);
   registerToolDocsTool(pi);
+  registerPoliciesTool(pi);
+  registerQuestionnaireTool(pi);
+
+  // /setup slash command — triggers the guided policy setup wizard
+  pi.registerCommand("setup", {
+    description: "Start the guided Home Assistant naming & organization setup wizard",
+    handler: async (_args, _ctx) => {
+      pi.sendUserMessage("/setup");
+    },
+  });
 
   // Show HA status as a visible chat message at startup (like project extension)
   pi.on("session_start", async (_event, ctx) => {
@@ -133,6 +146,22 @@ ${addonLines || "No add-ons installed"}${areaLine}`;
       { customType: "ha-status", content: brief, display: true },
       { triggerTurn: false },
     );
+
+    // First-run: suggest policy setup if no policies file exists
+    if (!policiesExist()) {
+      pi.sendMessage(
+        {
+          customType: "ha-policies-suggestion",
+          content:
+            "💡 **No naming/organization policies configured yet.**\n\n" +
+            "I can help you set up conventions for entity naming, areas, labels, and automations. " +
+            "This helps me follow your preferences consistently.\n\n" +
+            "Say **`/setup`** to start the guided setup wizard, or ignore this to configure later.",
+          display: true,
+        },
+        { triggerTurn: false },
+      );
+    }
   });
 
   let contextInjected = false;
@@ -142,8 +171,21 @@ ${addonLines || "No add-ons installed"}${areaLine}`;
     const result: Record<string, unknown> = {};
 
     // Behavioral system prompt — appended every turn
-    if (systemPromptAppend) {
-      result.systemPrompt = event.systemPrompt + "\n\n" + systemPromptAppend;
+    let appendedPrompt = systemPromptAppend;
+
+    // Inject user policies into system prompt
+    if (policiesExist()) {
+      const policies = loadPolicies();
+      const policyPrompt = formatPoliciesForPrompt(policies);
+      if (policyPrompt) {
+        appendedPrompt = appendedPrompt
+          ? appendedPrompt + "\n\n" + policyPrompt
+          : policyPrompt;
+      }
+    }
+
+    if (appendedPrompt) {
+      result.systemPrompt = event.systemPrompt + "\n\n" + appendedPrompt;
     }
 
     // Installation context — injected once, hidden (user sees the header instead)

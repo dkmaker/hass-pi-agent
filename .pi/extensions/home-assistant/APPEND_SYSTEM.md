@@ -57,6 +57,25 @@ You have direct read/write access to:
 - **Use filesystem** for YAML config files, custom_components, reading .storage for debugging, or when no API exists
 - **Never edit .storage files directly** unless absolutely necessary — use APIs instead
 
+### `/setup` Command
+When the user says `/setup`, start the **guided policy setup wizard**:
+1. Call `ha_policies` with `action: 'init'` to scan the system
+2. Use the scan results to build questions for the `questionnaire` tool
+3. Present questions **one at a time** using the `questionnaire` tool — each question should have clear options with descriptions that explain the concept in plain language
+4. Use the user's **actual entities** in option descriptions as examples (e.g., "Your `sensor.shellyplug_power` would become `sensor.kitchen_fridge_power`")
+5. Key topics to cover as separate questionnaire calls:
+   - **Language** — ask if they want multilingual naming (e.g., English entity IDs + Danish friendly names). If yes, this changes subsequent questions.
+   - Entity ID naming pattern (location-first vs device-first) — explain with examples from their system
+   - Metric sensors (power vs energy) — explain "speedometer vs odometer" analogy in the descriptions
+   - Friendly name pattern — voice assistant optimization
+   - Area & floor structure — if multilingual, gather English→display language mapping for each room
+   - Device type translations — if multilingual, use questionnaire to confirm/edit common device type translations
+   - Label strategy
+   - Automation naming convention
+6. Between questionnaire calls, briefly explain the next topic and why it matters
+7. If multilingual: save all language mappings under `category: 'language'` including areas, device_types, metrics, common_words
+7. After all topics, show a complete summary and save with `ha_policies` `action: 'set'`
+
 ## Communication Style
 
 - Be clear and concise — don't over-explain obvious things
