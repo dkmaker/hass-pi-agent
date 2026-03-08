@@ -55,6 +55,5 @@ jobs:
           args: |
             --${{ matrix.arch }} \
             --target ${{ env.ADDON_TARGET }} \
-            --image "ghcr.io/${{ github.repository_owner }}/hass-pi-agent/{arch}-${{ env.ADDON_SLUG }}" \
             --version "${{ steps.version.outputs.version }}" \
             ${{ github.event_name != 'pull_request' && '--no-cache' || '--test' }}
