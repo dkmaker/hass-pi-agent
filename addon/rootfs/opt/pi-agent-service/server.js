@@ -82,14 +82,16 @@ function spawnPi(question, overrides = {}) {
 
   const args = ["--print"];
 
+  const validStr = (s) => s && s.trim() && s.trim() !== "null";
+
   // Provider priority: per-call override > service config > default
-  const provider = overrides.provider || piEnv.PI_SERVICE_PROVIDER || piEnv.PI_DEFAULT_PROVIDER;
+  const provider = [overrides.provider, piEnv.PI_SERVICE_PROVIDER, piEnv.PI_DEFAULT_PROVIDER].find(validStr);
   if (provider) {
     args.push("--provider", provider);
   }
 
   // Model priority: per-call override > service config > default
-  const model = overrides.model || piEnv.PI_SERVICE_MODEL || piEnv.PI_DEFAULT_MODEL;
+  const model = [overrides.model, piEnv.PI_SERVICE_MODEL, piEnv.PI_DEFAULT_MODEL].find(validStr);
   if (model) {
     args.push("--model", model);
   }

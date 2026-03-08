@@ -662,17 +662,17 @@
       "status": "closed",
       "research": [],
       "createdAt": "2026-03-08T09:48:34.569Z",
-      "updatedAt": "2026-03-08T10:33:10.882Z",
+      "updatedAt": "2026-03-08T10:51:26.180Z",
       "linkedIssueIds": [],
-      "closeMessage": "Implemented both add-on config defaults and per-call overrides with clear priority chain.",
       "validations": [
         {
           "criterion": "Allow configuring an optional provider and model for the `pi_agent.ask` service, separate from the interactive session defaults. This lets users pick a cheaper/faster model for automation-triggered Pi calls (e.g., a small model for simple \"turn off lights\" tasks vs the full model for interactive use).\n\nOptions could be:\n- Add-on config: `service_provider` and `service_model` fields\n- Or per-call: `pi_agent.ask` service fields for `provider` and `model`\n- Or both (add-on config as defaults, per-call as overrides)",
-          "evidence": "Both approaches implemented: (1) Add-on config: service_provider and service_model fields in config.yaml, wired through init-pi to PI_SERVICE_PROVIDER/PI_SERVICE_MODEL env vars. (2) Per-call: optional provider and model fields in pi_agent.ask service schema, passed through component → HTTP server → pi CLI args. Priority: per-call > service config > default.",
+          "evidence": "Tested both paths: (1) Per-call override with provider: google — Pi ran with Google/Gemini and responded successfully in the logbook. (2) Default Anthropic (no override) — still works. Also fixed null model bug where empty env vars passed literal \"null\" to Pi CLI.",
           "met": true
         }
       ],
-      "closedAt": "2026-03-08T10:33:10.882Z"
+      "closeMessage": "Configurable provider/model working. Both add-on config defaults and per-call overrides tested.",
+      "closedAt": "2026-03-08T10:51:26.180Z"
     }
   ],
   "categories": [],
