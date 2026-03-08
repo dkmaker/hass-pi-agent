@@ -37,15 +37,15 @@ Development workspace for **Pi Agent for Home Assistant**, a Home Assistant add-
 | Network | `haos-isolated` — private subnet, NAT internet, no LAN bridge |
 
 ```bash
-tools/vm-ctl start|stop|status|ssh|destroy
+.pi/skills/ha-dev/scripts/vm-ctl start|stop|status|ssh|destroy
 ```
 
 ## Deploy Workflow
 
 ```bash
-tools/deploy-addon          # SCP to VM + store reload
-tools/ha-supervisor addon-rebuild local_pi_agent  # Rebuild after changes
-tools/ha-api addon-logs local_pi_agent            # Check logs
+.pi/skills/ha-dev/scripts/deploy-addon          # SCP to VM + store reload
+.pi/skills/ha-dev/scripts/ha-supervisor addon-rebuild local_pi_agent  # Rebuild after changes
+.pi/skills/ha-dev/scripts/ha-api addon-logs local_pi_agent            # Check logs
 ```
 
 First install: HA UI → Settings → Add-ons → Add-on Store → ⋮ Check for updates → Local add-ons → Install.
