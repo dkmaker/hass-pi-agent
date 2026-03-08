@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.9.0](https://github.com/dkmaker/hass-pi-agent/compare/v0.8.0...v0.9.0) (2026-03-08)
+
+
+### Features
+
+* align output formatting across all 34 HA tools ([#17](https://github.com/dkmaker/hass-pi-agent/issues/17)) ([c2c18cd](https://github.com/dkmaker/hass-pi-agent/commit/c2c18cddc239f812010484774047374d919c5e5d))
+
+
+### Bug Fixes
+
+* add missing extension files (ha-policies, questionnaire, lib/policies) ([#18](https://github.com/dkmaker/hass-pi-agent/issues/18)) ([36cb0c5](https://github.com/dkmaker/hass-pi-agent/commit/36cb0c5827e3fd9f4ac01a451e51da5da535711c))
+* add programmatic confirmation gate to all destructive operations ([234d41d](https://github.com/dkmaker/hass-pi-agent/commit/234d41d712a06fa81fc9e7b0f084d8932a310a0a))
+* add programmatic confirmation gate to all destructive operations ([d13e9c1](https://github.com/dkmaker/hass-pi-agent/commit/d13e9c133183a39c968713af7c8fb8b9035670f5))
+
 ## [0.8.0](https://github.com/dkmaker/hass-pi-agent/compare/v0.7.0...v0.8.0) (2026-03-08)
 
 
