@@ -9,6 +9,7 @@ import { Type } from "@sinclair/typebox";
 import { StringEnum } from "@mariozechner/pi-ai";
 import { wsCommand } from "../lib/ws.js";
 import { apiPost } from "../lib/api.js";
+import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
 
 // ── Tool registration ────────────────────────────────────────
 
@@ -41,6 +42,15 @@ export function registerRecorderTool(pi: ExtensionAPI): void {
         Type.Boolean({ description: "Repack database after purge to free disk space (default: false)" })
       ),
     }),
+
+
+    renderCall(args: Record<string, unknown>, theme: any) {
+      return renderToolCall("HA Recorder", args, theme);
+    },
+
+    renderResult(result: any) {
+      return renderMarkdownResult(result);
+    },
 
     async execute(toolCallId, params, signal, onUpdate, ctx) {
       const result = await executeAction(params);

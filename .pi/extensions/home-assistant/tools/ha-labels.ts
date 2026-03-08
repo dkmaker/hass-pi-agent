@@ -8,6 +8,7 @@ import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { StringEnum } from "@mariozechner/pi-ai";
 import { wsCommand } from "../lib/ws.js";
+import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -51,6 +52,15 @@ export function registerLabelsTool(pi: ExtensionAPI): void {
       ),
     }),
 
+
+    renderCall(args: Record<string, unknown>, theme: any) {
+      return renderToolCall("HA Labels", args, theme);
+    },
+
+    renderResult(result: any) {
+      return renderMarkdownResult(result);
+    },
+
     async execute(toolCallId, params, signal, onUpdate, ctx) {
       const result = await executeAction(params);
       return { content: [{ type: "text" as const, text: result }] };
@@ -78,16 +88,17 @@ async function handleList(): Promise<string> {
   if (labels.length === 0) return "No labels defined.";
 
   labels.sort((a, b) => a.name.localeCompare(b.name));
-  const lines = labels.map((l) => {
-    const parts = [l.name];
-    if (l.color) parts.push(`color: ${l.color}`);
-    if (l.icon) parts.push(`icon: ${l.icon}`);
-    if (l.description) parts.push(`"${l.description}"`);
-    return `${parts.join(" — ")} (id: ${l.label_id})`;
-  });
-
-  lines.push("");
-  lines.push(`${labels.length} labels`);
+  const lines: string[] = [
+    "| Name | Color | Icon | Description | ID |",
+    "|------|-------|------|-------------|----|",
+    ...labels.map((l) => {
+      const color = l.color || "";
+      const icon = l.icon || "";
+      const desc = l.description || "";
+      return `| **${l.name}** | ${color} | ${icon} | ${desc} | ${l.label_id} |`;
+    }),
+    `\n${labels.length} labels`,
+  ];
   return lines.join("\n");
 }
 

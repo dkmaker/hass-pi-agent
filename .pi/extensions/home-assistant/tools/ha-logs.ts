@@ -8,6 +8,7 @@ import { Type } from "@sinclair/typebox";
 import { StringEnum } from "@mariozechner/pi-ai";
 import { apiGet, apiPost } from "../lib/api.js";
 import { wsCommand } from "../lib/ws.js";
+import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
 
 interface LogEntry {
   name: string;
@@ -73,20 +74,19 @@ async function handleList(params: Record<string, unknown>): Promise<string> {
     DEBUG: "⚪",
   };
 
-  const lines: string[] = [];
+  const lines: string[] = [
+    "| Level | Name | Message | Source | Time | Count |",
+    "|-------|------|---------|--------|------|-------|",
+  ];
   for (const e of page) {
     const icon = levelIcons[e.level] || "⚪";
     const date = new Date(e.timestamp * 1000).toISOString().slice(0, 19);
-    const count = e.count > 1 ? ` (×${e.count})` : "";
-    lines.push(`${icon} [${e.level}] ${e.name}${count} — ${date}`);
-    lines.push(`  ${e.message[0]?.slice(0, 200) || "(no message)"}`);
-    if (e.source.length > 0) {
-      lines.push(`  source: ${e.source[0]}`);
-    }
+    const msg = (e.message[0]?.slice(0, 100) || "(no message)").replace(/\|/g, "\\|").replace(/\n/g, " ");
+    const src = e.source.length > 0 ? e.source[0] : "";
+    lines.push(`| ${icon} ${e.level} | ${e.name} | ${msg} | ${src} | ${date} | ${e.count > 1 ? `×${e.count}` : ""} |`);
   }
 
-  lines.push("");
-  lines.push(`${filtered.length} entries (showing ${page.length})`);
+  lines.push(`\n${filtered.length} entries (showing ${page.length})`);
   return lines.join("\n");
 }
 
@@ -137,6 +137,15 @@ export function registerLogsTool(pi: ExtensionAPI): void {
         Type.Number({ description: "Max entries/lines to return (default: 100 for get, 30 for list)" })
       ),
     }),
+
+
+    renderCall(args: Record<string, unknown>, theme: any) {
+      return renderToolCall("HA Logs", args, theme);
+    },
+
+    renderResult(result: any) {
+      return renderMarkdownResult(result);
+    },
 
     async execute(toolCallId, params, signal, onUpdate, ctx) {
       const result = await dispatch(params);

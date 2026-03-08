@@ -2,7 +2,7 @@
  * Automation trace handlers — list traces and get trace detail.
  */
 import { wsCommand } from "../../lib/ws.js";
-import { timeSince } from "../../lib/format.js";
+import { timeSince, formatTrace } from "../../lib/format.js";
 import type { TraceListEntry } from "../../lib/types.js";
 import { resolveAutomationId } from "./crud.js";
 
@@ -23,19 +23,18 @@ export async function handleTraces(params: Record<string, unknown>): Promise<str
   const limit = (params.limit as number) || 20;
   const page = traces.slice(0, limit);
 
-  const lines: string[] = [];
+  const lines: string[] = [
+    "| Status | Automation | Execution | Run ID | Last Step | Time |",
+    "|--------|-----------|-----------|--------|-----------|------|",
+  ];
   for (const t of page) {
     const stateIcon = t.state === "stopped" ? "✅" : t.state === "running" ? "🔄" : "❌";
     const ago = timeSince(t.timestamp.start);
     const execution = t.script_execution || "unknown";
-    const itemId = t.item_id;
-
-    lines.push(`${stateIcon} ${itemId} — ${execution} (${ago})`);
-    lines.push(`  run_id: ${t.run_id} | last_step: ${t.last_step || "none"}`);
+    lines.push(`| ${stateIcon} | ${t.item_id} | ${execution} | ${t.run_id} | ${t.last_step || "none"} | ${ago} |`);
   }
 
-  lines.push("");
-  lines.push(`${traces.length} traces total (showing ${page.length})`);
+  lines.push(`\n${traces.length} traces (showing ${page.length})`);
   return lines.join("\n");
 }
 
@@ -50,5 +49,5 @@ export async function handleTrace(params: Record<string, unknown>): Promise<stri
     run_id: runId,
   });
 
-  return JSON.stringify(trace, null, 2);
+  return formatTrace("automation", automationId, runId, trace);
 }

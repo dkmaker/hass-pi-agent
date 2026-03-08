@@ -10,6 +10,7 @@ import { Type } from "@sinclair/typebox";
 import { StringEnum } from "@mariozechner/pi-ai";
 import { requireToken } from "../lib/api.js";
 import { HA_URL, HA_TOKEN } from "../lib/config.js";
+import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
 
 async function renderTemplate(template: string): Promise<{ success: boolean; result: string }> {
   requireToken();
@@ -46,6 +47,15 @@ export function registerTemplateTool(pi: ExtensionAPI): void {
         description: "Jinja2 template string, e.g. {{ states('sensor.temperature') }}",
       }),
     }),
+
+
+    renderCall(args: Record<string, unknown>, theme: any) {
+      return renderToolCall("HA Template", args, theme);
+    },
+
+    renderResult(result: any) {
+      return renderMarkdownResult(result);
+    },
 
     async execute(toolCallId, params, signal, onUpdate, ctx) {
       const { action, template } = params;

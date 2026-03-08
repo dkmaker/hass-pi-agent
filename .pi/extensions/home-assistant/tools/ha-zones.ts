@@ -8,6 +8,7 @@ import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { StringEnum } from "@mariozechner/pi-ai";
 import { wsCommand } from "../lib/ws.js";
+import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -43,6 +44,15 @@ export function registerZonesTool(pi: ExtensionAPI): void {
       confirm: Type.Optional(Type.Boolean({ description: "Set true to confirm destructive actions (default: false, preview only)" })),
     }),
 
+
+    renderCall(args: Record<string, unknown>, theme: any) {
+      return renderToolCall("HA Zones", args, theme);
+    },
+
+    renderResult(result: any) {
+      return renderMarkdownResult(result);
+    },
+
     async execute(toolCallId, params, signal, onUpdate, ctx) {
       const result = await executeAction(params);
       return { content: [{ type: "text" as const, text: result }] };
@@ -70,17 +80,15 @@ async function handleList(): Promise<string> {
   if (zones.length === 0) return "No custom zones defined.";
 
   zones.sort((a, b) => a.name.localeCompare(b.name));
-  const lines = zones.map((z) => {
-    const parts = [`**${z.name}**`];
-    parts.push(`📍 ${z.latitude.toFixed(4)}, ${z.longitude.toFixed(4)}`);
-    parts.push(`radius: ${z.radius}m`);
-    if (z.icon) parts.push(z.icon);
-    if (z.passive) parts.push("(passive)");
-    return `${parts.join(" — ")} (id: ${z.id})`;
-  });
-
-  lines.push("");
-  lines.push(`${zones.length} zones`);
+  const lines: string[] = [
+    "| Name | Location | Radius | Icon | Passive | ID |",
+    "|------|----------|--------|------|---------|-----|",
+    ...zones.map((z) => {
+      const loc = `${z.latitude.toFixed(4)}, ${z.longitude.toFixed(4)}`;
+      return `| **${z.name}** | ${loc} | ${z.radius}m | ${z.icon || ""} | ${z.passive ? "yes" : ""} | ${z.id} |`;
+    }),
+    `\n${zones.length} zones`,
+  ];
   return lines.join("\n");
 }
 
@@ -92,7 +100,7 @@ async function handleGet(id?: string): Promise<string> {
   if (!zone) throw new Error(`Zone '${id}' not found`);
 
   return [
-    `# ${zone.name}`,
+    `## ${zone.name}`,
     "",
     `| Field | Value |`,
     `|-------|-------|`,

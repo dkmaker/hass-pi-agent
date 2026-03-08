@@ -27,6 +27,7 @@ import { handleNew, handleLoad, handleListDrafts, handleShow, handleYaml, handle
 import { handleListTypes, handleAddElement, handleUpdateElement, handleRemoveElement } from "./ha-automations/elements.js";
 import { handleGetServiceSchema } from "./ha-automations/service-schema.js";
 import { handleImportYaml } from "./ha-automations/import.js";
+import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
 
 // ── Tool registration ────────────────────────────────────────
 
@@ -102,6 +103,15 @@ export function registerAutomationsTool(pi: ExtensionAPI): void {
         Type.Boolean({ description: "Set true to confirm destructive actions like delete (default: false, preview only)" })
       ),
     }),
+
+
+    renderCall(args: Record<string, unknown>, theme: any) {
+      return renderToolCall("HA Automations", args, theme);
+    },
+
+    renderResult(result: any) {
+      return renderMarkdownResult(result);
+    },
 
     async execute(toolCallId, params, signal, onUpdate, ctx) {
       const result = await dispatch(params);

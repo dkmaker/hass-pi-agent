@@ -8,6 +8,7 @@ import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { StringEnum } from "@mariozechner/pi-ai";
 import { wsCommand } from "../lib/ws.js";
+import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -40,6 +41,15 @@ export function registerCategoriesTool(pi: ExtensionAPI): void {
       confirm: Type.Optional(Type.Boolean({ description: "Set true to confirm destructive actions (default: false, preview only)" })),
     }),
 
+
+    renderCall(args: Record<string, unknown>, theme: any) {
+      return renderToolCall("HA Categories", args, theme);
+    },
+
+    renderResult(result: any) {
+      return renderMarkdownResult(result);
+    },
+
     async execute(toolCallId, params, signal, onUpdate, ctx) {
       const result = await executeAction(params);
       return { content: [{ type: "text" as const, text: result }] };
@@ -68,14 +78,12 @@ async function handleList(scope?: string): Promise<string> {
   if (categories.length === 0) return `No categories defined for ${scope}.`;
 
   categories.sort((a, b) => a.name.localeCompare(b.name));
-  const lines = categories.map((c) => {
-    const parts = [c.name];
-    if (c.icon) parts.push(c.icon);
-    return `${parts.join(" — ")} (id: ${c.category_id})`;
-  });
-
-  lines.push("");
-  lines.push(`${categories.length} ${scope} categories`);
+  const lines: string[] = [
+    "| Name | Icon | ID |",
+    "|------|------|----|",
+    ...categories.map((c) => `| **${c.name}** | ${c.icon || ""} | ${c.category_id} |`),
+    `\n${categories.length} ${scope} categories`,
+  ];
   return lines.join("\n");
 }
 

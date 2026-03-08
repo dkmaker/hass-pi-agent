@@ -8,6 +8,7 @@ import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { StringEnum } from "@mariozechner/pi-ai";
 import { wsCommand } from "../lib/ws.js";
+import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -33,6 +34,15 @@ export function registerShoppingListTool(pi: ExtensionAPI): void {
       name: Type.Optional(Type.String({ description: "Item name (for add/update)" })),
       complete: Type.Optional(Type.Boolean({ description: "Mark as complete/incomplete (for update)" })),
     }),
+
+
+    renderCall(args: Record<string, unknown>, theme: any) {
+      return renderToolCall("HA Shopping List", args, theme);
+    },
+
+    renderResult(result: any) {
+      return renderMarkdownResult(result);
+    },
 
     async execute(toolCallId, params, signal, onUpdate, ctx) {
       const result = await executeAction(params);
@@ -60,26 +70,18 @@ async function handleList(): Promise<string> {
   const items = await wsCommand<ShoppingItem[]>("shopping_list/items");
   if (items.length === 0) return "Shopping list is empty.";
 
-  const incomplete = items.filter((i) => !i.complete);
-  const complete = items.filter((i) => i.complete);
-
-  const lines: string[] = [];
-  if (incomplete.length > 0) {
-    lines.push("## To buy");
-    for (const item of incomplete) {
-      lines.push(`  ☐ ${item.name} (id: ${item.id})`);
-    }
-  }
-  if (complete.length > 0) {
-    if (lines.length > 0) lines.push("");
-    lines.push("## Completed");
-    for (const item of complete) {
-      lines.push(`  ☑ ${item.name} (id: ${item.id})`);
-    }
+  const lines: string[] = [
+    "| Status | Name | ID |",
+    "|--------|------|----|",
+  ];
+  for (const item of items) {
+    const status = item.complete ? "☑" : "☐";
+    lines.push(`| ${status} | **${item.name}** | ${item.id} |`);
   }
 
-  lines.push("");
-  lines.push(`${items.length} items (${incomplete.length} to buy, ${complete.length} done)`);
+  const incomplete = items.filter((i) => !i.complete).length;
+  const complete = items.filter((i) => i.complete).length;
+  lines.push(`\n${items.length} items (${incomplete} to buy, ${complete} done)`);
   return lines.join("\n");
 }
 

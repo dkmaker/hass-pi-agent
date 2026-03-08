@@ -11,6 +11,7 @@ import { StringEnum } from "@mariozechner/pi-ai";
 import { wsCommand } from "../lib/ws.js";
 import { apiGet } from "../lib/api.js";
 import type { HAState } from "../lib/types.js";
+import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -173,6 +174,15 @@ export function registerDevicesTool(pi: ExtensionAPI): void {
       ),
     }),
 
+
+    renderCall(args: Record<string, unknown>, theme: any) {
+      return renderToolCall("HA Devices", args, theme);
+    },
+
+    renderResult(result: any) {
+      return renderMarkdownResult(result);
+    },
+
     async execute(toolCallId, params, signal, onUpdate, ctx) {
       const result = await executeAction(params);
       return { content: [{ type: "text" as const, text: result }] };
@@ -274,30 +284,19 @@ async function handleList(params: Record<string, unknown>): Promise<string> {
   const page = filtered.slice(offset, offset + limit);
 
   // Format output
-  const lines: string[] = [];
+  const lines: string[] = [
+    "| Name | Manufacturer | Model | Integration | Area | ID |",
+    "|------|-------------|-------|-------------|------|----|",
+  ];
   for (const d of page) {
     const name = getDisplayName(d);
     const integrations = getIntegrations(d, configEntries);
-    const area = d.area_id ? areaReg.get(d.area_id)?.name : null;
-    const parts: string[] = [];
-
-    // First line: name + basic info
-    let line = `${name}`;
-    if (d.manufacturer || d.model) {
-      const hw = [d.manufacturer, d.model].filter(Boolean).join(" ");
-      line += ` — ${hw}`;
-    }
-    parts.push(line);
-
-    // Second line: details
-    const details: string[] = [`id: ${d.id}`];
-    if (integrations.length > 0) details.push(`via: ${integrations.join(", ")}`);
-    if (area) details.push(`area: ${area}`);
-    if (d.disabled_by) details.push(`disabled: ${d.disabled_by}`);
-    if (d.via_device_id) details.push("has hub");
-    parts.push(`  ${details.join(" | ")}`);
-
-    lines.push(parts.join("\n"));
+    const area = d.area_id ? areaReg.get(d.area_id)?.name || "" : "";
+    const mfr = d.manufacturer || "";
+    const model = d.model || "";
+    const integ = integrations.join(", ");
+    const disabled = d.disabled_by ? " 🔴" : "";
+    lines.push(`| **${name}**${disabled} | ${mfr} | ${model} | ${integ} | ${area} | ${d.id} |`);
   }
 
   // Summary
@@ -307,12 +306,13 @@ async function handleList(params: Record<string, unknown>): Promise<string> {
 
   let summary: string;
   if (total <= limit && offset === 0) {
-    summary = `Showing ${total} devices${disabledStr}`;
+    summary = `${total} devices${disabledStr}`;
   } else {
     summary = `Showing ${offset + 1}-${Math.min(offset + limit, total)} of ${total} devices${disabledStr}`;
   }
 
-  return lines.join("\n") + "\n\n" + summary;
+  lines.push(`\n${summary}`);
+  return lines.join("\n");
 }
 
 // ── Get ──────────────────────────────────────────────────────
@@ -397,7 +397,45 @@ async function handleGet(deviceId?: string): Promise<string> {
     }));
   }
 
-  return JSON.stringify(result, null, 2);
+  const lines: string[] = [];
+  const displayName = result.display_name || result.name || "(unnamed)";
+  lines.push(`## ${displayName}`);
+  lines.push("");
+  lines.push("| Property | Value |");
+  lines.push("|----------|-------|");
+  const topKeys = ["id", "name", "name_by_user", "manufacturer", "model", "hw_version", "sw_version", "serial_number", "integrations", "disabled_by", "entry_type", "configuration_url"];
+  for (const k of topKeys) {
+    const v = result[k];
+    if (v === null || v === undefined || v === "") continue;
+    const val = typeof v === "object" ? JSON.stringify(v) : String(v);
+    lines.push(`| ${k} | ${val} |`);
+  }
+  if (area) lines.push(`| area | ${area.name} (${area.id}) |`);
+  if (result.labels && (result.labels as string[]).length) lines.push(`| labels | ${(result.labels as string[]).join(", ")} |`);
+
+  const entities = result.entities as Array<{ entity_id: string; state?: string; platform?: string; name?: string; disabled_by?: string }>;
+  if (entities && entities.length > 0) {
+    lines.push("");
+    lines.push(`### Entities (${entities.length})`);
+    lines.push("");
+    lines.push("| Entity | State | Platform |");
+    lines.push("|--------|-------|----------|");
+    for (const e of entities) {
+      lines.push(`| ${e.entity_id} | ${e.state ?? "—"} | ${e.platform ?? "—"} |`);
+    }
+  }
+
+  const childDevices = result.child_devices as Array<{ id: string; name: string; manufacturer?: string; model?: string }> | undefined;
+  if (childDevices && childDevices.length > 0) {
+    lines.push("");
+    lines.push(`### Child Devices (${childDevices.length})`);
+    lines.push("");
+    for (const c of childDevices) {
+      lines.push(`- **${c.name}** (${c.id})${c.manufacturer ? ` — ${c.manufacturer}` : ""}${c.model ? ` ${c.model}` : ""}`);
+    }
+  }
+
+  return lines.join("\n");
 }
 
 // ── Update ───────────────────────────────────────────────────

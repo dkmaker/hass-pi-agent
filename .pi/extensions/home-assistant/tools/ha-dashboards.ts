@@ -35,6 +35,7 @@ import {
   handleMoveCard,
 } from "./ha-dashboards/cards.js";
 import { handleListCardTypes } from "./ha-dashboards/card-types.js";
+import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
 
 // ── Tool registration ────────────────────────────────────────
 
@@ -109,6 +110,15 @@ export function registerDashboardsTool(pi: ExtensionAPI): void {
       ),
     }),
 
+
+    renderCall(args: Record<string, unknown>, theme: any) {
+      return renderToolCall("HA Dashboards", args, theme);
+    },
+
+    renderResult(result: any) {
+      return renderMarkdownResult(result);
+    },
+
     async execute(toolCallId, params, signal, onUpdate, ctx) {
       const result = await executeAction(params);
       return { content: [{ type: "text" as const, text: result }] };
@@ -174,38 +184,39 @@ async function handleList(): Promise<string> {
     return "No custom dashboards. The default dashboard exists at url_path: null.";
   }
 
-  const lines: string[] = ["## Dashboards\n"];
+  const rows: Array<{ title: string; id: string; urlPath: string; icon: string; views: string; flags: string }> = [];
 
-  // Always mention the default dashboard
+  // Default dashboard
   try {
     const defaultConfig = await fetchDashboardConfig(undefined);
-    const viewCount = defaultConfig.views?.length ?? 0;
-    lines.push(`**Default Dashboard** (url_path: null)`);
-    lines.push(`  ${viewCount} views\n`);
+    rows.push({ title: "Default Dashboard", id: "—", urlPath: "(null)", icon: "", views: `${defaultConfig.views?.length ?? 0}`, flags: "" });
   } catch {
-    lines.push(`**Default Dashboard** (url_path: null)`);
-    lines.push(`  auto-generated (no custom config)\n`);
+    rows.push({ title: "Default Dashboard", id: "—", urlPath: "(null)", icon: "", views: "auto", flags: "" });
   }
 
   for (const d of dashboards) {
-    const icon = d.icon ? ` ${d.icon}` : "";
-    const admin = d.require_admin ? " [admin]" : "";
-    const sidebar = d.show_in_sidebar ? "" : " [hidden from sidebar]";
-    const mode = d.mode === "yaml" ? " (YAML)" : "";
-    lines.push(`**${d.title}**${icon}${admin}${sidebar}${mode}`);
-    lines.push(`  id: ${d.id} | url_path: ${d.url_path}`);
-
+    const flags: string[] = [];
+    if (d.require_admin) flags.push("admin");
+    if (!d.show_in_sidebar) flags.push("hidden");
+    if (d.mode === "yaml") flags.push("YAML");
+    let views = "";
     if (d.mode === "storage") {
       try {
         const config = await fetchDashboardConfig(d.url_path);
-        lines.push(`  ${config.views?.length ?? 0} views`);
+        views = `${config.views?.length ?? 0}`;
       } catch {
-        lines.push(`  no config yet`);
+        views = "—";
       }
     }
-    lines.push("");
+    rows.push({ title: d.title, id: d.id, urlPath: d.url_path, icon: d.icon || "", views, flags: flags.join(", ") });
   }
 
+  const lines: string[] = [
+    "| Title | URL Path | ID | Icon | Views | Flags |",
+    "|-------|----------|----|------|-------|-------|",
+    ...rows.map((r) => `| **${r.title}** | ${r.urlPath} | ${r.id} | ${r.icon} | ${r.views} | ${r.flags} |`),
+    `\n${rows.length} dashboards`,
+  ];
   return lines.join("\n");
 }
 

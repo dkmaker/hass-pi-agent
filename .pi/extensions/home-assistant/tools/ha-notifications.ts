@@ -8,7 +8,7 @@ import { Type } from "@sinclair/typebox";
 import { StringEnum } from "@mariozechner/pi-ai";
 import { wsCommand } from "../lib/ws.js";
 import { apiPost } from "../lib/api.js";
-import { timeSince } from "../lib/format.js";
+import { timeSince , renderMarkdownResult, renderToolCall } from "../lib/format.js";
 
 interface PersistentNotification {
   notification_id: string;
@@ -27,17 +27,18 @@ async function handleList(): Promise<string> {
 
   notifications.sort((a, b) => b.created_at.localeCompare(a.created_at));
 
-  const lines: string[] = [];
+  const lines: string[] = [
+    "| Title | ID | Message | Created |",
+    "|-------|-----|---------|---------|",
+  ];
   for (const n of notifications) {
     const title = n.title || "(no title)";
     const ago = timeSince(n.created_at);
-    lines.push(`📌 ${title} (${ago})`);
-    lines.push(`  id: ${n.notification_id}`);
-    lines.push(`  ${n.message.slice(0, 200)}`);
+    const msg = n.message.slice(0, 80).replace(/\|/g, "\\|").replace(/\n/g, " ");
+    lines.push(`| **${title}** | ${n.notification_id} | ${msg} | ${ago} |`);
   }
 
-  lines.push("");
-  lines.push(`${notifications.length} notifications`);
+  lines.push(`\n${notifications.length} notifications`);
   return lines.join("\n");
 }
 
@@ -94,6 +95,15 @@ export function registerNotificationsTool(pi: ExtensionAPI): void {
         Type.String({ description: "Notification message (for create)" })
       ),
     }),
+
+
+    renderCall(args: Record<string, unknown>, theme: any) {
+      return renderToolCall("HA Notifications", args, theme);
+    },
+
+    renderResult(result: any) {
+      return renderMarkdownResult(result);
+    },
 
     async execute(toolCallId, params, signal, onUpdate, ctx) {
       const result = await dispatch(params);

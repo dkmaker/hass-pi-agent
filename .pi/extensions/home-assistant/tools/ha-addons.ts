@@ -10,6 +10,7 @@ import { Type } from "@sinclair/typebox";
 import { StringEnum } from "@mariozechner/pi-ai";
 import { supervisorApi } from "../lib/supervisor.js";
 import { apiGet } from "../lib/api.js";
+import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
 
 interface AddonSummary {
   name: string;
@@ -84,6 +85,15 @@ export function registerAddonsTool(pi: ExtensionAPI): void {
       confirm: Type.Optional(Type.Boolean({ description: "Set true to confirm destructive actions (default: false, preview only)" })),
     }),
 
+
+    renderCall(args: Record<string, unknown>, theme: any) {
+      return renderToolCall("HA Add-ons", args, theme);
+    },
+
+    renderResult(result: any) {
+      return renderMarkdownResult(result);
+    },
+
     async execute(toolCallId, params, signal, onUpdate, ctx) {
       const result = await executeAction(params);
       return { content: [{ type: "text" as const, text: result }] };
@@ -119,37 +129,47 @@ async function executeAction(params: {
       if (!addons.length) return "No add-ons installed.";
 
       const sorted = [...addons].sort((a, b) => a.name.localeCompare(b.name));
-      const lines = sorted.map((a) => {
-        const update = a.update_available ? ` → ${a.version_latest}` : "";
-        return `${a.state === "started" ? "🟢" : "⚪"} ${a.slug} — ${a.name} (v${a.version}${update}) [${a.state}]`;
-      });
-      return `**Installed add-ons (${addons.length}):**\n\n${lines.join("\n")}`;
+      const lines: string[] = [
+        "| Status | Name | Slug | Version | State |",
+        "|--------|------|------|---------|-------|",
+        ...sorted.map((a) => {
+          const icon = a.state === "started" ? "🟢" : "⚪";
+          const update = a.update_available ? ` → ${a.version_latest}` : "";
+          return `| ${icon} | **${a.name}** | ${a.slug} | ${a.version}${update} | ${a.state} |`;
+        }),
+        `\n${addons.length} add-ons`,
+      ];
+      return lines.join("\n");
     }
 
     case "get": {
       const slug = requireSlug(params.slug);
       const info = await supervisorApi<AddonInfo>(`/addons/${slug}/info`);
-      const parts = [
-        `**${info.name}** (${info.slug})`,
+      const rows = [
+        `## ${info.name}`,
         "",
-        `State: ${info.state}`,
-        `Version: ${info.version}${info.update_available ? ` → ${info.version_latest} (update available)` : ""}`,
-        `Boot: ${info.boot} | Auto-update: ${info.auto_update ?? false}`,
+        "| Property | Value |",
+        "|----------|-------|",
+        `| Slug | ${info.slug} |`,
+        `| State | ${info.state} |`,
+        `| Version | ${info.version}${info.update_available ? ` → ${info.version_latest} (update available)` : ""} |`,
+        `| Boot | ${info.boot} |`,
+        `| Auto-update | ${info.auto_update ?? false} |`,
       ];
-      if (info.description) parts.push(`Description: ${info.description}`);
-      if (info.url) parts.push(`URL: ${info.url}`);
-      if (info.ingress) parts.push(`Ingress: ${info.ingress_url || "yes"}`);
-      if (info.arch) parts.push(`Architectures: ${info.arch.join(", ")}`);
+      if (info.description) rows.push(`| Description | ${info.description} |`);
+      if (info.url) rows.push(`| URL | ${info.url} |`);
+      if (info.ingress) rows.push(`| Ingress | ${info.ingress_url || "yes"} |`);
+      if (info.arch) rows.push(`| Architectures | ${info.arch.join(", ")} |`);
       if (info.ports && Object.keys(info.ports).length) {
-        parts.push(`Ports: ${Object.entries(info.ports).map(([k, v]) => `${k}→${v}`).join(", ")}`);
+        rows.push(`| Ports | ${Object.entries(info.ports).map(([k, v]) => `${k}→${v}`).join(", ")} |`);
       }
       if (info.options && Object.keys(info.options).length) {
-        parts.push("", "**Current options:**", "```json", JSON.stringify(info.options, null, 2), "```");
+        rows.push("", "### Current options", "", "```json", JSON.stringify(info.options, null, 2), "```");
       }
       if (info.schema) {
-        parts.push("", "**Config schema:**", "```json", JSON.stringify(info.schema, null, 2), "```");
+        rows.push("", "### Config schema", "", "```json", JSON.stringify(info.schema, null, 2), "```");
       }
-      return parts.join("\n");
+      return rows.join("\n");
     }
 
     // ── Lifecycle ────────────────────────────────────────────
@@ -212,12 +232,16 @@ async function executeAction(params: {
       const slug = requireSlug(params.slug);
       const s = await supervisorApi<AddonStats>(`/addons/${slug}/stats`);
       return [
-        `**Stats for \`${slug}\`:**`,
+        `## Stats for \`${slug}\``,
         "",
-        `CPU: ${s.cpu_percent.toFixed(1)}%`,
-        `Memory: ${formatBytes(s.memory_usage)} / ${formatBytes(s.memory_limit)} (${s.memory_percent.toFixed(1)}%)`,
-        `Network: ↓ ${formatBytes(s.network_rx)} / ↑ ${formatBytes(s.network_tx)}`,
-        `Disk: R ${formatBytes(s.blk_read)} / W ${formatBytes(s.blk_write)}`,
+        "| Metric | Value |",
+        "|--------|-------|",
+        `| CPU | ${s.cpu_percent.toFixed(1)}% |`,
+        `| Memory | ${formatBytes(s.memory_usage)} / ${formatBytes(s.memory_limit)} (${s.memory_percent.toFixed(1)}%) |`,
+        `| Network ↓ | ${formatBytes(s.network_rx)} |`,
+        `| Network ↑ | ${formatBytes(s.network_tx)} |`,
+        `| Disk read | ${formatBytes(s.blk_read)} |`,
+        `| Disk write | ${formatBytes(s.blk_write)} |`,
       ].join("\n");
     }
 
@@ -253,12 +277,16 @@ async function executeAction(params: {
 
       const sorted = [...addons].sort((a, b) => (a.name ?? "").localeCompare(b.name ?? ""));
       const limited = sorted.slice(0, 50);
-      const lines = limited.map((a) => {
-        const installed = a.installed ? " ✓" : "";
-        return `${a.slug} — ${a.name}${installed}`;
-      });
-      const suffix = sorted.length > 50 ? `\n\n… and ${sorted.length - 50} more. Use 'search' to filter.` : "";
-      return `**Add-on store (${sorted.length} add-ons):**\n\n${lines.join("\n")}${suffix}`;
+      const lines: string[] = [
+        "| Name | Slug | Installed |",
+        "|------|------|-----------|",
+        ...limited.map((a) => `| **${a.name}** | ${a.slug} | ${a.installed ? "✓" : ""} |`),
+      ];
+      const countLine = sorted.length > 50
+        ? `Showing 50 of ${sorted.length} add-ons. Use 'search' to filter.`
+        : `${sorted.length} add-ons`;
+      lines.push(`\n${countLine}`);
+      return lines.join("\n");
     }
 
     case "store-refresh": {
@@ -271,8 +299,13 @@ async function executeAction(params: {
       const data = await supervisorApi<{ repositories: StoreRepo[] }>("/store/repositories");
       const repos = data.repositories ?? (data as unknown as StoreRepo[]);
       if (!repos.length) return "No repositories configured.";
-      const lines = repos.map((r) => `- **${r.name || r.slug}**: ${r.source || r.url}`);
-      return `**Add-on repositories (${repos.length}):**\n\n${lines.join("\n")}`;
+      const lines: string[] = [
+        "| Name | Source |",
+        "|------|--------|",
+        ...repos.map((r) => `| **${r.name || r.slug}** | ${r.source || r.url} |`),
+        `\n${repos.length} repositories`,
+      ];
+      return lines.join("\n");
     }
 
     case "add-repo": {

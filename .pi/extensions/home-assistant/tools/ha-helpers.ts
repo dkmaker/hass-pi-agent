@@ -24,6 +24,7 @@ import {
 } from "../lib/registry.js";
 import * as collectionWsBackend from "../lib/backends/collection-ws.js";
 import * as configEntryBackend from "../lib/backends/config-entry.js";
+import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
 
 
 // ── Tool registration ────────────────────────────────────────
@@ -61,6 +62,15 @@ export function registerHelperTool(pi: ExtensionAPI): void {
       ),
 
     }),
+
+
+    renderCall(args: Record<string, unknown>, theme: any) {
+      return renderToolCall("HA Helpers", args, theme);
+    },
+
+    renderResult(result: any) {
+      return renderMarkdownResult(result);
+    },
 
     async execute(toolCallId, params, signal, onUpdate, ctx) {
       const result = await executeAction(params);
@@ -131,6 +141,48 @@ function handleListTypes(): string {
   return lines.join("\n");
 }
 
+function formatHelperItems(type: string, items: Record<string, unknown>[]): string {
+  // Internal/noisy fields to hide from list output
+  const skip = new Set([
+    "unique_id", "name", "title", "id", "entry_id",
+    "created_at", "modified_at", "source", "domain",
+    "supports_options", "supports_remove_device", "supports_unload",
+    "supports_reconfigure", "supported_subentry_types",
+    "pref_disable_new_entities", "pref_disable_polling",
+    "num_subentries", "state", "config_entry_id",
+  ]);
+
+  const lines: string[] = [];
+  lines.push(`| Name | ID | Details |`);
+  lines.push(`|------|-----|---------|`);
+  for (const item of items) {
+    const name = (item.name as string) || (item.title as string) || "(unnamed)";
+    const id = (item.id as string) || (item.entry_id as string) || "";
+    const details: string[] = [];
+    for (const [k, v] of Object.entries(item)) {
+      if (skip.has(k) || v === null || v === undefined || v === false || v === "") continue;
+      const val = typeof v === "object" ? JSON.stringify(v) : String(v);
+      if (val.length < 50) details.push(`${k}: ${val}`);
+    }
+    lines.push(`| ${name} | ${id} | ${details.join(", ") || "—"} |`);
+  }
+  return `**${type}** (${items.length})\n\n` + lines.join("\n");
+}
+
+function formatHelperDetail(type: string, item: Record<string, unknown>): string {
+  const name = (item.name as string) || (item.title as string) || "(unnamed)";
+  const lines: string[] = [`## ${type}: ${name}`];
+  lines.push("");
+  lines.push("| Property | Value |");
+  lines.push("|----------|-------|");
+  for (const [k, v] of Object.entries(item)) {
+    if (v === null || v === undefined) continue;
+    const val = typeof v === "object" ? JSON.stringify(v) : String(v);
+    lines.push(`| ${k} | ${val} |`);
+  }
+  return lines.join("\n");
+}
+
 async function handleList(type?: string): Promise<string> {
   if (type) {
     const t = requireType(type);
@@ -139,20 +191,22 @@ async function handleList(type?: string): Promise<string> {
       ? await collectionWsBackend.listItems(t)
       : await configEntryBackend.listEntries(t);
     if (items.length === 0) return `No ${type} helpers found.\n\n${formatSchema(type)}`;
-    return JSON.stringify(items, null, 2);
+    return formatHelperItems(type, items);
   }
 
   // List all types
-  const results: Record<string, unknown[]> = {};
+  const lines: string[] = [];
   for (const t of listTypes()) {
     const items = t.storageType === "collection"
       ? await collectionWsBackend.listItems(t)
       : await configEntryBackend.listEntries(t);
-    if (items.length > 0) results[t.domain] = items;
+    if (items.length > 0) {
+      lines.push(formatHelperItems(t.domain, items));
+    }
   }
 
-  if (Object.keys(results).length === 0) return "No helpers found.";
-  return JSON.stringify(results, null, 2);
+  if (lines.length === 0) return "No helpers found.";
+  return lines.join("\n\n");
 }
 
 async function handleGet(type?: string, id?: string): Promise<string> {
@@ -165,7 +219,7 @@ async function handleGet(type?: string, id?: string): Promise<string> {
     : await configEntryBackend.getEntry(t, id);
 
   if (!item) return `Helper '${id}' not found in ${type}.\n\n${formatSchema(type)}`;
-  return JSON.stringify(item, null, 2);
+  return formatHelperDetail(type, item);
 }
 
 async function handleAdd(type?: string, fields?: Record<string, unknown>): Promise<string> {

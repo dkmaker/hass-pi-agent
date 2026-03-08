@@ -9,6 +9,7 @@ import { Type } from "@sinclair/typebox";
 import { StringEnum } from "@mariozechner/pi-ai";
 import { wsCommand } from "../lib/ws.js";
 import { apiPost, apiDelete } from "../lib/api.js";
+import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -46,6 +47,15 @@ export function registerBlueprintsTool(pi: ExtensionAPI): void {
       confirm: Type.Optional(Type.Boolean({ description: "Set true to confirm destructive actions (default: false, preview only)" })),
     }),
 
+
+    renderCall(args: Record<string, unknown>, theme: any) {
+      return renderToolCall("HA Blueprints", args, theme);
+    },
+
+    renderResult(result: any) {
+      return renderMarkdownResult(result);
+    },
+
     async execute(toolCallId, params, signal, onUpdate, ctx) {
       const result = await executeAction(params);
       return { content: [{ type: "text" as const, text: result }] };
@@ -77,12 +87,13 @@ async function handleList(domain?: string): Promise<string> {
     if (entries.length === 0) continue;
 
     lines.push(`## ${d}`);
+    lines.push("| Name | Path | Author | Source |");
+    lines.push("|------|------|--------|--------|");
     for (const [path, bp] of entries) {
       if (!bp) continue;
-      const parts = [`**${bp.metadata.name}**`];
-      if (bp.metadata.author) parts.push(`by ${bp.metadata.author}`);
-      if (bp.metadata.source_url) parts.push(`source: ${bp.metadata.source_url}`);
-      lines.push(`  ${parts.join(" — ")} (${path})`);
+      const author = bp.metadata.author || "";
+      const source = bp.metadata.source_url || "";
+      lines.push(`| **${bp.metadata.name}** | ${path} | ${author} | ${source} |`);
       total++;
     }
     lines.push("");

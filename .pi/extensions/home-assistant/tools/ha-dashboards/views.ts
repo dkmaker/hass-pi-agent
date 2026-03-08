@@ -9,6 +9,7 @@ import {
   resolveViewIndex,
   type ViewConfig,
 } from "./types.js";
+import { toYaml } from "../../lib/yaml.js";
 
 // ── Get View ─────────────────────────────────────────────────
 
@@ -24,7 +25,7 @@ export async function handleGetView(params: Record<string, unknown>): Promise<st
   );
 
   const view = views[idx];
-  return `## View ${idx}: ${view.title || "(untitled)"}\n\n${JSON.stringify(view, null, 2)}`;
+  return `## View ${idx}: ${view.title || "(untitled)"}\n\n\`\`\`yaml\n${toYaml(view).trim()}\n\`\`\``;
 }
 
 // ── Add View ─────────────────────────────────────────────────

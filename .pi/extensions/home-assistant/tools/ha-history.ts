@@ -8,7 +8,7 @@ import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { StringEnum } from "@mariozechner/pi-ai";
 import { wsCommand } from "../lib/ws.js";
-import { parseRelativeTime } from "../lib/format.js";
+import { parseRelativeTime , renderMarkdownResult, renderToolCall } from "../lib/format.js";
 
 /** Compressed state keys from HA history API */
 const S = "s";   // state
@@ -49,21 +49,33 @@ function formatHistory(
       states = states.slice(-limit);
     }
 
-    lines.push(`\n**${entityId}** (${total} state change${total !== 1 ? "s" : ""}${total > limit ? `, showing last ${limit}` : ""}):`);
+    const countLabel = total > limit ? `${total} changes, showing last ${limit}` : `${total} change${total !== 1 ? "s" : ""}`;
+    lines.push(`\n**${entityId}** (${countLabel}):\n`);
+
+    if (noAttributes) {
+      lines.push("| Time | State |");
+      lines.push("|------|-------|");
+    } else {
+      lines.push("| Time | State | Attributes |");
+      lines.push("|------|-------|------------|");
+    }
 
     for (const s of states) {
       const time = formatTimestamp(s[LU]);
-      let line = `  ${time}  →  ${s[S]}`;
-
+      let attrs = "";
       if (!noAttributes && s[A]) {
-        const attrs = Object.entries(s[A]!)
+        attrs = Object.entries(s[A]!)
           .filter(([k]) => !k.startsWith("_") && k !== "friendly_name" && k !== "icon")
           .map(([k, v]) => `${k}=${typeof v === "object" ? JSON.stringify(v) : v}`)
-          .join(", ");
-        if (attrs) line += `  (${attrs})`;
+          .join(", ")
+          .replace(/\|/g, "\\|");
       }
 
-      lines.push(line);
+      if (noAttributes) {
+        lines.push(`| ${time} | ${s[S]} |`);
+      } else {
+        lines.push(`| ${time} | ${s[S]} | ${attrs} |`);
+      }
     }
   }
 
@@ -99,6 +111,15 @@ export function registerHistoryTool(pi: ExtensionAPI): void {
         description: "Max state changes per entity (default: 100)",
       })),
     }),
+
+
+    renderCall(args: Record<string, unknown>, theme: any) {
+      return renderToolCall("HA History", args, theme);
+    },
+
+    renderResult(result: any) {
+      return renderMarkdownResult(result);
+    },
 
     async execute(_toolCallId, params) {
       const startTime = parseRelativeTime(params.start_time || "24h");

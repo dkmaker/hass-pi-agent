@@ -10,6 +10,7 @@ import { StringEnum } from "@mariozechner/pi-ai";
 import { wsCommand } from "../lib/ws.js";
 import { apiGet, apiPost, apiDelete } from "../lib/api.js";
 import type { HAState } from "../lib/types.js";
+import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
 
 // ── List ─────────────────────────────────────────────────────
 
@@ -34,22 +35,22 @@ async function handleList(params: Record<string, unknown>): Promise<string> {
 
   if (total === 0) return "No scenes found.";
 
-  const lines: string[] = [];
+  const lines: string[] = [
+    "| Name | Entity | Config ID |",
+    "|------|--------|-----------|",
+  ];
   for (const s of page) {
     const name = (s.attributes.friendly_name as string) || s.entity_id;
-    const configId = s.attributes.id as string;
-    const meta: string[] = [];
-    if (configId) meta.push(`id: ${configId}`);
-    meta.push(`entity: ${s.entity_id}`);
-    lines.push(`🎬 ${name}`);
-    lines.push(`  ${meta.join(" | ")}`);
+    const configId = (s.attributes.id as string) || "";
+    lines.push(`| **${name}** | ${s.entity_id} | ${configId} |`);
   }
 
   const summary = total <= limit && offset === 0
     ? `${total} scenes`
     : `Showing ${offset + 1}-${Math.min(offset + limit, total)} of ${total} scenes`;
 
-  return lines.join("\n") + "\n\n" + summary;
+  lines.push(`\n${summary}`);
+  return lines.join("\n");
 }
 
 // ── Get ──────────────────────────────────────────────────────
@@ -81,17 +82,35 @@ async function handleGet(params: Record<string, unknown>): Promise<string> {
     throw new Error("Scene not found. Provide a valid entity_id or scene_id.");
   }
 
-  const result: Record<string, unknown> = {};
+  const lines: string[] = [];
+  const name = state?.attributes.friendly_name || (config as Record<string, unknown>)?.name || sceneId || "(unnamed)";
+  lines.push(`## ${name}`);
+  lines.push("");
+  lines.push("| Property | Value |");
+  lines.push("|----------|-------|");
   if (state) {
-    result.entity_id = state.entity_id;
-    result.state = state.state;
-    result.friendly_name = state.attributes.friendly_name;
+    lines.push(`| Entity | ${state.entity_id} |`);
+    lines.push(`| State | ${state.state} |`);
   }
   if (config) {
-    result.config = config;
+    const c = config as Record<string, unknown>;
+    if (c.icon) lines.push(`| Icon | ${c.icon} |`);
+    const entities = c.entities as Record<string, unknown> | undefined;
+    if (entities) {
+      lines.push(`| Entities | ${Object.keys(entities).length} |`);
+      lines.push("");
+      lines.push("### Entity States");
+      lines.push("");
+      lines.push("| Entity | State |");
+      lines.push("|--------|-------|");
+      for (const [eid, st] of Object.entries(entities)) {
+        const val = typeof st === "object" ? JSON.stringify(st) : String(st);
+        lines.push(`| ${eid} | ${val} |`);
+      }
+    }
   }
 
-  return JSON.stringify(result, null, 2);
+  return lines.join("\n");
 }
 
 // ── Create ───────────────────────────────────────────────────
@@ -206,6 +225,15 @@ export function registerScenesTool(pi: ExtensionAPI): void {
       offset: Type.Optional(Type.Number({ description: "Pagination offset (default: 0)" })),
       confirm: Type.Optional(Type.Boolean({ description: "Set true to confirm delete (default: false, preview only)" })),
     }),
+
+
+    renderCall(args: Record<string, unknown>, theme: any) {
+      return renderToolCall("HA Scenes", args, theme);
+    },
+
+    renderResult(result: any) {
+      return renderMarkdownResult(result);
+    },
 
     async execute(toolCallId, params, signal, onUpdate, ctx) {
       const result = await dispatch(params);

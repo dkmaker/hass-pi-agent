@@ -8,6 +8,7 @@ import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { StringEnum } from "@mariozechner/pi-ai";
 import { wsCommand } from "../lib/ws.js";
+import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -38,6 +39,15 @@ export function registerTagsTool(pi: ExtensionAPI): void {
       confirm: Type.Optional(Type.Boolean({ description: "Set true to confirm destructive actions (default: false, preview only)" })),
     }),
 
+
+    renderCall(args: Record<string, unknown>, theme: any) {
+      return renderToolCall("HA Tags", args, theme);
+    },
+
+    renderResult(result: any) {
+      return renderMarkdownResult(result);
+    },
+
     async execute(toolCallId, params, signal, onUpdate, ctx) {
       const result = await executeAction(params);
       return { content: [{ type: "text" as const, text: result }] };
@@ -64,16 +74,17 @@ async function handleList(): Promise<string> {
   const tags = await wsCommand<WSTag[]>("tag/list");
   if (tags.length === 0) return "No tags defined.";
 
-  const lines = tags.map((t) => {
-    const parts = [t.name || "(unnamed)"];
-    parts.push(`tag_id: ${t.tag_id}`);
-    if (t.description) parts.push(`"${t.description}"`);
-    if (t.last_scanned) parts.push(`last scanned: ${t.last_scanned}`);
-    return `${parts.join(" — ")} (id: ${t.id})`;
-  });
-
-  lines.push("");
-  lines.push(`${tags.length} tags`);
+  const lines: string[] = [
+    "| Name | Tag ID | Description | Last Scanned | ID |",
+    "|------|--------|-------------|--------------|-----|",
+    ...tags.map((t) => {
+      const name = t.name || "(unnamed)";
+      const desc = t.description || "";
+      const scanned = t.last_scanned || "never";
+      return `| **${name}** | ${t.tag_id} | ${desc} | ${scanned} | ${t.id} |`;
+    }),
+    `\n${tags.length} tags`,
+  ];
   return lines.join("\n");
 }
 
@@ -85,7 +96,7 @@ async function handleGet(id?: string): Promise<string> {
   if (!tag) throw new Error(`Tag '${id}' not found`);
 
   return [
-    `# ${tag.name || "(unnamed)"}`,
+    `## ${tag.name || "(unnamed)"}`,
     "",
     `| Field | Value |`,
     `|-------|-------|`,

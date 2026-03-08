@@ -8,6 +8,7 @@ import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { StringEnum } from "@mariozechner/pi-ai";
 import { wsCommand } from "../lib/ws.js";
+import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -52,6 +53,15 @@ export function registerConversationTool(pi: ExtensionAPI): void {
       ),
     }),
 
+
+    renderCall(args: Record<string, unknown>, theme: any) {
+      return renderToolCall("HA Conversation", args, theme);
+    },
+
+    renderResult(result: any) {
+      return renderMarkdownResult(result);
+    },
+
     async execute(toolCallId, params, signal, onUpdate, ctx) {
       const result = await executeAction(params);
       return { content: [{ type: "text" as const, text: result }] };
@@ -84,24 +94,26 @@ async function handleProcess(params: Record<string, unknown>): Promise<string> {
   const speech = result.response?.speech?.plain?.speech ?? "(no response)";
   const type = result.response?.response_type ?? "unknown";
 
-  const lines = [
-    `**Response:** ${speech}`,
-    `**Type:** ${type}`,
+  const rows: string[] = [
+    "| Property | Value |",
+    "|----------|-------|",
+    `| Response | ${speech} |`,
+    `| Type | ${type} |`,
   ];
 
   if (result.conversation_id) {
-    lines.push(`**Conversation ID:** ${result.conversation_id}`);
+    rows.push(`| Conversation ID | ${result.conversation_id} |`);
   }
 
   const respData = result.response?.data;
   if (respData?.targets && Array.isArray(respData.targets) && respData.targets.length > 0) {
-    lines.push(`**Targets:** ${JSON.stringify(respData.targets)}`);
+    rows.push(`| Targets | ${JSON.stringify(respData.targets)} |`);
   }
   if (respData?.failed && Array.isArray(respData.failed) && respData.failed.length > 0) {
-    lines.push(`**Failed:** ${JSON.stringify(respData.failed)}`);
+    rows.push(`| Failed | ${JSON.stringify(respData.failed)} |`);
   }
 
-  return lines.join("\n");
+  return rows.join("\n");
 }
 
 async function handleAgents(): Promise<string> {
@@ -109,8 +121,11 @@ async function handleAgents(): Promise<string> {
   const agents = result.agents ?? [];
   if (agents.length === 0) return "No conversation agents available.";
 
-  const lines = agents.map((a) => `**${a.name}** (id: ${a.id})`);
-  lines.push("");
-  lines.push(`${agents.length} agents`);
+  const lines: string[] = [
+    "| Name | ID |",
+    "|------|----|",
+    ...agents.map((a) => `| **${a.name}** | ${a.id} |`),
+    `\n${agents.length} agents`,
+  ];
   return lines.join("\n");
 }

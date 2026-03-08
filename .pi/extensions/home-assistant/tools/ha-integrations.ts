@@ -8,7 +8,7 @@ import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { StringEnum } from "@mariozechner/pi-ai";
 import { apiGet, apiPost, apiDelete } from "../lib/api.js";
-import { timeSince } from "../lib/format.js";
+import { timeSince , renderMarkdownResult, renderToolCall } from "../lib/format.js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -50,6 +50,15 @@ export function registerIntegrationsTool(pi: ExtensionAPI): void {
       ),
       confirm: Type.Optional(Type.Boolean({ description: "Set true to confirm destructive actions (default: false, preview only)" })),
     }),
+
+
+    renderCall(args: Record<string, unknown>, theme: any) {
+      return renderToolCall("HA Integrations", args, theme);
+    },
+
+    renderResult(result: any) {
+      return renderMarkdownResult(result);
+    },
 
     async execute(toolCallId, params, signal, onUpdate, ctx) {
       const result = await executeAction(params);
@@ -94,20 +103,15 @@ async function handleList(params: Record<string, unknown>): Promise<string> {
   // Group by domain
   entries.sort((a, b) => a.domain.localeCompare(b.domain) || a.title.localeCompare(b.title));
 
-  const lines: string[] = [];
-  let currentDomain = "";
-  for (const e of entries) {
-    if (e.domain !== currentDomain) {
-      if (currentDomain) lines.push("");
-      currentDomain = e.domain;
-      lines.push(`## ${e.domain}`);
-    }
-    const status = e.disabled_by ? "🔴 disabled" : e.state === "loaded" ? "🟢" : `⚠️ ${e.state}`;
-    lines.push(`  ${status} ${e.title} (${e.entry_id})`);
-  }
-
-  lines.push("");
-  lines.push(`${entries.length} config entries`);
+  const lines: string[] = [
+    "| Status | Title | Domain | Entry ID |",
+    "|--------|-------|--------|----------|",
+    ...entries.map((e) => {
+      const status = e.disabled_by ? "🔴 disabled" : e.state === "loaded" ? "🟢" : `⚠️ ${e.state}`;
+      return `| ${status} | **${e.title}** | ${e.domain} | ${e.entry_id} |`;
+    }),
+    `\n${entries.length} config entries`,
+  ];
   return lines.join("\n");
 }
 
@@ -119,7 +123,7 @@ async function handleGet(entryId?: string): Promise<string> {
   if (!entry) throw new Error(`Config entry '${entryId}' not found`);
 
   const lines = [
-    `# ${entry.title}`,
+    `## ${entry.title}`,
     "",
     `| Field | Value |`,
     `|-------|-------|`,

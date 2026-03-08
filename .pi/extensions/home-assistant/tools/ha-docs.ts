@@ -7,6 +7,7 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { StringEnum } from "@mariozechner/pi-ai";
+import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
 
 export function registerDocsTool(pi: ExtensionAPI): void {
   pi.registerTool({
@@ -50,6 +51,15 @@ export function registerDocsTool(pi: ExtensionAPI): void {
         description: "Max lines to return for 'get' action (default: 200)",
       })),
     }),
+
+
+    renderCall(args: Record<string, unknown>, theme: any) {
+      return renderToolCall("HA Docs", args, theme);
+    },
+
+    renderResult(result: any) {
+      return renderMarkdownResult(result);
+    },
 
     async execute(toolCallId, params, signal, onUpdate, ctx) {
       const result = await executeAction(params);
@@ -254,15 +264,17 @@ async function executeAction(params: {
         const iCount = Object.keys(index.integrations).length;
         const dCount = Object.keys(index.docs).length;
         return [
-          "**Docs Index Status**",
+          "## Docs Index Status",
           "",
-          `Source: ${index.source}`,
-          `Version: ${index.version}`,
-          `Updated: ${index.updated}`,
-          `Commit: ${index.commit ?? "unknown"}`,
-          `Integrations: ${iCount}`,
-          `Docs: ${dCount}`,
-          `Data dir: ${DOCS_DATA_DIR}`,
+          "| Property | Value |",
+          "|----------|-------|",
+          `| Source | ${index.source} |`,
+          `| Version | ${index.version} |`,
+          `| Updated | ${index.updated} |`,
+          `| Commit | ${index.commit ?? "unknown"} |`,
+          `| Integrations | ${iCount} |`,
+          `| Docs | ${dCount} |`,
+          `| Data dir | ${DOCS_DATA_DIR} |`,
         ].join("\n");
       } catch {
         return `❌ No docs index found. Run update-docs.py to fetch from GitHub.\nData dir: ${DOCS_DATA_DIR}`;

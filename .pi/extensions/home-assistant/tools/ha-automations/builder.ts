@@ -115,18 +115,21 @@ export function handleListDrafts(): string {
     return "No drafts found. Use 'new' to create one or 'load' to edit an existing automation.";
   }
 
-  const lines: string[] = [`${files.length} draft(s):\n`];
+  const lines: string[] = [
+    "| Name | Source | Triggers | Conditions | Actions | Mode | Modified |",
+    "|------|--------|----------|------------|---------|------|----------|",
+  ];
   for (const f of files.sort()) {
     try {
       const draft = readDraftFile(f);
-      const source = draft._meta.source_id ? ` (editing: ${draft._meta.source_id})` : " (new)";
-      lines.push(`📋 ${draft.alias}${source}`);
-      lines.push(`   T:${draft.triggers.length} C:${draft.conditions.length} A:${draft.actions.length} | mode: ${draft.mode} | modified: ${timeSince(draft._meta.modified)}`);
+      const source = draft._meta.source_id ? `editing: ${draft._meta.source_id}` : "new";
+      lines.push(`| **${draft.alias}** | ${source} | ${draft.triggers.length} | ${draft.conditions.length} | ${draft.actions.length} | ${draft.mode} | ${timeSince(draft._meta.modified)} |`);
     } catch {
-      lines.push(`❌ ${f} (corrupt)`);
+      lines.push(`| ❌ ${f} | corrupt | | | | | |`);
     }
   }
 
+  lines.push(`\n${files.length} drafts`);
   return lines.join("\n");
 }
 
@@ -134,7 +137,7 @@ export function handleShow(params: Record<string, unknown>): string {
   const alias = requireAlias(params);
   const draft = loadDraft(alias);
   const config = draftToConfig(draft);
-  return draftSummary(draft) + "\n\n" + JSON.stringify(config, null, 2);
+  return draftSummary(draft) + "\n\n```yaml\n" + toYaml(config).trim() + "\n```";
 }
 
 export function handleYaml(params: Record<string, unknown>): string {
