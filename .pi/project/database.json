@@ -1001,8 +1001,10 @@
       "epicId": "15biab7g",
       "research": [],
       "createdAt": "2026-03-08T09:40:57.905Z",
-      "updatedAt": "2026-03-08T10:29:23.990Z",
-      "linkedIssueIds": [],
+      "updatedAt": "2026-03-08T21:20:56.285Z",
+      "linkedIssueIds": [
+        "7wn51uvg"
+      ],
       "closeMessage": "Done.",
       "validations": [
         {
@@ -1755,6 +1757,77 @@
         }
       ],
       "closedAt": "2026-03-08T20:53:18.616Z"
+    },
+    {
+      "id": "7wn51uvg",
+      "type": "bug",
+      "title": "Build/deploy doesn't sync current extension source into addon build context",
+      "description": "The Dockerfile copies the extension from `addon/extensions/home-assistant/`, but development happens in `.pi/extensions/home-assistant/`. Neither the Dockerfile nor `deploy-addon` syncs the latest source before building, so the container always ships a stale extension. Fix: add a sync step to `deploy-addon` that copies `.pi/extensions/home-assistant/` → `addon/extensions/home-assistant/` before SCP.",
+      "status": "closed",
+      "linkedIssueIds": [
+        "pjlzjvpe",
+        "bzmea2de"
+      ],
+      "questions": [],
+      "research": [],
+      "createdAt": "2026-03-08T21:20:53.073Z",
+      "updatedAt": "2026-03-08T21:37:04.230Z",
+      "autoValidation": {
+        "type": "agent",
+        "strategy": "Read deploy-addon script and verify it includes sync step"
+      },
+      "closeMessage": "Added sync step to deploy-addon that copies current extension source into addon build context before every deploy. Bumped version to 0.9.1.",
+      "validations": [
+        {
+          "criterion": "The Dockerfile copies the extension from `addon/extensions/home-assistant/`, but development happens in `.pi/extensions/home-assistant/`. Neither the Dockerfile nor `deploy-addon` syncs the latest source before building, so the container always ships a stale extension. Fix: add a sync step to `deploy-addon` that copies `.pi/extensions/home-assistant/` → `addon/extensions/home-assistant/` before SCP.",
+          "evidence": "Verified deploy-addon lines 37-42 contain sync step: rm -rf + cp -a from .pi/extensions/home-assistant → addon/extensions/home-assistant, with node_modules/data cleanup. Runs before SCP to VM. addon/config.yaml version is now 0.9.1.",
+          "met": true
+        }
+      ],
+      "closedAt": "2026-03-08T21:21:23.737Z"
+    },
+    {
+      "id": "or7ff70u",
+      "type": "feature",
+      "title": "Install MQTT client tools in add-on container",
+      "description": "Add `mosquitto-clients` to the Dockerfile `apk add` list so `mosquitto_pub` and `mosquitto_sub` are available via bash for MQTT testing/debugging.",
+      "status": "draft",
+      "linkedIssueIds": [],
+      "questions": [],
+      "research": [],
+      "createdAt": "2026-03-08T21:25:53.483Z",
+      "updatedAt": "2026-03-08T21:25:53.483Z",
+      "autoValidation": {
+        "type": "agent",
+        "strategy": "Check Dockerfile contains mosquitto-clients in apk add line"
+      }
+    },
+    {
+      "id": "bzmea2de",
+      "type": "bug",
+      "title": "CI build uses stale extension copy — no sync step in build workflow",
+      "description": "The GitHub Actions build workflow checks out the repo and builds from `addon/` directly. There's no step to sync `.pi/extensions/home-assistant/` → `addon/extensions/home-assistant/` before the Docker build, so the container ships a stale extension (51 files vs 202). Add a sync step to `build.yaml` that purges and copies the current extension source before the builder runs.",
+      "status": "closed",
+      "linkedIssueIds": [
+        "7wn51uvg"
+      ],
+      "questions": [],
+      "research": [],
+      "createdAt": "2026-03-08T21:37:00.381Z",
+      "updatedAt": "2026-03-08T21:37:28.995Z",
+      "autoValidation": {
+        "type": "agent",
+        "strategy": "Check build.yaml contains sync step before the Build add-on step"
+      },
+      "closeMessage": "Added sync step to build.yaml that purges and copies current extension source before Docker build.",
+      "validations": [
+        {
+          "criterion": "The GitHub Actions build workflow checks out the repo and builds from `addon/` directly. There's no step to sync `.pi/extensions/home-assistant/` → `addon/extensions/home-assistant/` before the Docker build, so the container ships a stale extension (51 files vs 202). Add a sync step to `build.yaml` that purges and copies the current extension source before the builder runs.",
+          "evidence": "```\\n$ grep -A6 \"Sync extension\" .github/workflows/build.yaml\\n      - name: Sync extension source into addon build context\\n        run: |\\n          rm -rf addon/extensions/home-assistant\\n          mkdir -p addon/extensions\\n          cp -a .pi/extensions/home-assistant addon/extensions/home-assistant\\n          rm -rf addon/extensions/home-assistant/node_modules addon/extensions/home-assistant/data\\n```\\nStep appears before \"Build add-on\" step. Purges old dir, copies fresh, removes node_modules/data.",
+          "met": true
+        }
+      ],
+      "closedAt": "2026-03-08T21:37:28.995Z"
     }
   ],
   "categories": [
