@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.8.0](https://github.com/dkmaker/hass-pi-agent/compare/v0.7.0...v0.8.0) (2026-03-08)
+
+
+### Features
+
+* add ha_tool_docs, slim tool descriptions, addon-side context gathering ([fba79a3](https://github.com/dkmaker/hass-pi-agent/commit/fba79a38e2f6b1c0bfdd4ffcca236ae7e4f96025))
+* add ha_tool_docs, slim tool descriptions, addon-side context gathering ([2f33e0f](https://github.com/dkmaker/hass-pi-agent/commit/2f33e0f51f9a446cf6670f7b2c10ead4ce75c95b))
+
+
+### Bug Fixes
+
+* trigger Docker build on release publish instead of tag push ([e0d6482](https://github.com/dkmaker/hass-pi-agent/commit/e0d648239adc5f6c85e2c8dc9e1604cbd8f8d506))
+* trigger Docker build on release publish instead of tag push ([a438c4b](https://github.com/dkmaker/hass-pi-agent/commit/a438c4b3fbd82e064eb8d2404c9677bd1e1511fd))
+
 ## [0.7.0](https://github.com/dkmaker/hass-pi-agent/compare/v0.6.0...v0.7.0) (2026-03-08)
 
 
