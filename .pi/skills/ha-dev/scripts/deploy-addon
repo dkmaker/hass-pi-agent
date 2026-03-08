@@ -34,6 +34,12 @@ if ! $SSH_CMD echo "SSH OK" 2>/dev/null; then
   exit 1
 fi
 
+echo "==> Syncing extension source into addon build context..."
+rm -rf "$ADDON_DIR/extensions/home-assistant"
+mkdir -p "$ADDON_DIR/extensions"
+cp -a "$REPO_ROOT/.pi/extensions/home-assistant" "$ADDON_DIR/extensions/home-assistant"
+rm -rf "$ADDON_DIR/extensions/home-assistant/node_modules" "$ADDON_DIR/extensions/home-assistant/data"
+
 echo "==> Cleaning remote /addons/${ADDON_SLUG}/"
 $SSH_CMD "rm -rf /addons/${ADDON_SLUG} && mkdir -p /addons/${ADDON_SLUG}"
 
