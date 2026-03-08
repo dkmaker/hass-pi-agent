@@ -20,6 +20,8 @@ CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
 SERVICE_SCHEMA = vol.Schema(
     {
         vol.Required("question"): cv.string,
+        vol.Optional("provider"): cv.string,
+        vol.Optional("model"): cv.string,
     }
 )
 
@@ -30,13 +32,21 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     async def handle_ask(call: ServiceCall) -> None:
         """Handle pi_agent.ask service call — fire and forget."""
         question = call.data["question"]
+        provider = call.data.get("provider")
+        model = call.data.get("model")
         url = f"http://{ADDON_HOST}:{ADDON_PORT}/ask"
+
+        payload = {"question": question}
+        if provider:
+            payload["provider"] = provider
+        if model:
+            payload["model"] = model
 
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
                     url,
-                    json={"question": question},
+                    json=payload,
                     timeout=aiohttp.ClientTimeout(total=10),
                 ) as resp:
                     if resp.status == 202:

@@ -77,21 +77,21 @@ function fireLogbookEntry(name, message, entityId) {
   req.end();
 }
 
-function spawnPi(question) {
+function spawnPi(question, overrides = {}) {
   activeProcesses++;
 
   const args = ["--print"];
 
-  if (piEnv.PI_SERVICE_PROVIDER) {
-    args.push("--provider", piEnv.PI_SERVICE_PROVIDER);
-  } else if (piEnv.PI_DEFAULT_PROVIDER) {
-    args.push("--provider", piEnv.PI_DEFAULT_PROVIDER);
+  // Provider priority: per-call override > service config > default
+  const provider = overrides.provider || piEnv.PI_SERVICE_PROVIDER || piEnv.PI_DEFAULT_PROVIDER;
+  if (provider) {
+    args.push("--provider", provider);
   }
 
-  if (piEnv.PI_SERVICE_MODEL) {
-    args.push("--model", piEnv.PI_SERVICE_MODEL);
-  } else if (piEnv.PI_DEFAULT_MODEL) {
-    args.push("--model", piEnv.PI_DEFAULT_MODEL);
+  // Model priority: per-call override > service config > default
+  const model = overrides.model || piEnv.PI_SERVICE_MODEL || piEnv.PI_DEFAULT_MODEL;
+  if (model) {
+    args.push("--model", model);
   }
 
   // Instruct Pi to respond in plain text for the logbook
@@ -158,7 +158,7 @@ const server = http.createServer((req, res) => {
     req.on("data", (chunk) => (body += chunk));
     req.on("end", () => {
       try {
-        const { question } = JSON.parse(body);
+        const { question, provider, model } = JSON.parse(body);
         if (!question || typeof question !== "string") {
           res.writeHead(400, { "Content-Type": "application/json" });
           res.end(JSON.stringify({ error: "Missing 'question' field" }));
@@ -171,7 +171,7 @@ const server = http.createServer((req, res) => {
           return;
         }
 
-        spawnPi(question);
+        spawnPi(question, { provider, model });
         res.writeHead(202, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ status: "accepted" }));
       } catch (err) {

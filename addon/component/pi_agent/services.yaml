@@ -10,3 +10,22 @@ ask:
       selector:
         text:
           multiline: true
+    provider:
+      name: Provider
+      description: Override the AI provider for this call (uses add-on default if not set).
+      selector:
+        select:
+          options:
+            - anthropic
+            - openai
+            - google
+            - openrouter
+            - groq
+            - xai
+            - mistral
+          custom_value: true
+    model:
+      name: Model
+      description: Override the AI model for this call (uses add-on default if not set).
+      selector:
+        text:

@@ -30,6 +30,8 @@ options:
   default_provider: anthropic
   default_model: ''
   install_integration: true
+  service_provider: ''
+  service_model: ''
   environment: []
   additional_packages: []
 schema:
@@ -37,6 +39,9 @@ schema:
     list(anthropic|openai|google|openrouter|groq|xai|mistral|cerebras|huggingface|github-copilot|amazon-bedrock|google-vertex|azure-openai-responses)
   default_model: str?
   install_integration: bool?
+  service_provider: >-
+    list(anthropic|openai|google|openrouter|groq|xai|mistral|cerebras|huggingface|github-copilot|amazon-bedrock|google-vertex|azure-openai-responses)?
+  service_model: str?
   environment:
     - str
   additional_packages:

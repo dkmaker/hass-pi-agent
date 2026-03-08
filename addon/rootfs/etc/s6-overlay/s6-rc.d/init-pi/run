@@ -45,6 +45,19 @@ if bashio::var.has_value "${default_model}"; then
     echo "export PI_DEFAULT_MODEL=\"${default_model}\"" >> /etc/profile.d/pi-agent.sh
 fi
 
+# --- Service provider/model (for pi_agent.ask, separate from interactive defaults) ---
+service_provider=$(bashio::config 'service_provider')
+if bashio::var.has_value "${service_provider}"; then
+    printf '%s' "${service_provider}" > /var/run/s6/container_environment/PI_SERVICE_PROVIDER
+    echo "export PI_SERVICE_PROVIDER=\"${service_provider}\"" >> /etc/profile.d/pi-agent.sh
+fi
+
+service_model=$(bashio::config 'service_model')
+if bashio::var.has_value "${service_model}"; then
+    printf '%s' "${service_model}" > /var/run/s6/container_environment/PI_SERVICE_MODEL
+    echo "export PI_SERVICE_MODEL=\"${service_model}\"" >> /etc/profile.d/pi-agent.sh
+fi
+
 # --- User-defined environment variables (API keys, provider config, etc.) ---
 if bashio::config.has_value 'environment'; then
     env_count=$(bashio::config 'environment | length')
