@@ -198,6 +198,9 @@ export async function handleUpdate(params: Record<string, unknown>): Promise<str
 
 export async function handleDelete(params: Record<string, unknown>): Promise<string> {
   const automationId = resolveAutomationId(params);
+  if (!params.confirm) {
+    return `⚠️ **Confirm delete**: automation \`${automationId}\`\n\nCall again with \`confirm: true\` to proceed.`;
+  }
   await apiDelete(`/api/config/automation/config/${automationId}`);
   return `✅ Deleted automation '${automationId}'\nEntity registry cleaned up automatically.`;
 }

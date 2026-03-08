@@ -98,6 +98,9 @@ export function registerAutomationsTool(pi: ExtensionAPI): void {
       offset: Type.Optional(
         Type.Number({ description: "Pagination offset (default: 0)" })
       ),
+      confirm: Type.Optional(
+        Type.Boolean({ description: "Set true to confirm destructive actions like delete (default: false, preview only)" })
+      ),
     }),
 
     async execute(toolCallId, params, signal, onUpdate, ctx) {

@@ -79,6 +79,9 @@ export function registerAreasTool(pi: ExtensionAPI): void {
       level: Type.Optional(
         Type.Number({ description: "Floor level (0=ground, negative=basement, positive=upper)" })
       ),
+      confirm: Type.Optional(
+        Type.Boolean({ description: "Set true to confirm delete-area/delete-floor (default: false, preview only)" })
+      ),
     }),
 
     async execute(toolCallId, params, signal, onUpdate, ctx) {
@@ -96,11 +99,11 @@ async function executeAction(params: Record<string, unknown>): Promise<string> {
     case "get": return handleGet(params.area_id as string | undefined);
     case "create-area": return handleCreateArea(params);
     case "update-area": return handleUpdateArea(params);
-    case "delete-area": return handleDeleteArea(params.area_id as string | undefined);
+    case "delete-area": return handleDeleteArea(params.area_id as string | undefined, params.confirm as boolean | undefined);
     case "list-floors": return handleListFloors();
     case "create-floor": return handleCreateFloor(params);
     case "update-floor": return handleUpdateFloor(params);
-    case "delete-floor": return handleDeleteFloor(params.floor_id as string | undefined);
+    case "delete-floor": return handleDeleteFloor(params.floor_id as string | undefined, params.confirm as boolean | undefined);
     default:
       throw new Error(`Unknown action '${params.action}'`);
   }
@@ -224,8 +227,11 @@ async function handleUpdateArea(params: Record<string, unknown>): Promise<string
   return `✅ Updated area '${result.name}' (id: ${result.area_id})`;
 }
 
-async function handleDeleteArea(areaId?: string): Promise<string> {
+async function handleDeleteArea(areaId?: string, confirm?: boolean): Promise<string> {
   if (!areaId) throw new Error("'area_id' is required for delete-area");
+  if (!confirm) {
+    return `⚠️ **Confirm delete**: area \`${areaId}\`\n\nCall again with \`confirm: true\` to proceed.`;
+  }
   await wsCommand("config/area_registry/delete", { area_id: areaId });
   return `✅ Deleted area '${areaId}'`;
 }
@@ -274,8 +280,11 @@ async function handleUpdateFloor(params: Record<string, unknown>): Promise<strin
   return `✅ Updated floor '${result.name}' (id: ${result.floor_id})`;
 }
 
-async function handleDeleteFloor(floorId?: string): Promise<string> {
+async function handleDeleteFloor(floorId?: string, confirm?: boolean): Promise<string> {
   if (!floorId) throw new Error("'floor_id' is required for delete-floor");
+  if (!confirm) {
+    return `⚠️ **Confirm delete**: floor \`${floorId}\`\n\nCall again with \`confirm: true\` to proceed.`;
+  }
   await wsCommand("config/floor_registry/delete", { floor_id: floorId });
   return `✅ Deleted floor '${floorId}'`;
 }

@@ -104,6 +104,9 @@ export function registerDashboardsTool(pi: ExtensionAPI): void {
       search: Type.Optional(
         Type.String({ description: "Filter card types by name (for list-card-types)" })
       ),
+      confirm: Type.Optional(
+        Type.Boolean({ description: "Set true to confirm delete/remove-view/remove-card (default: false, preview only)" })
+      ),
     }),
 
     async execute(toolCallId, params, signal, onUpdate, ctx) {
@@ -129,7 +132,7 @@ async function executeAction(params: Record<string, unknown>): Promise<string> {
     case "update":
       return handleUpdate(params);
     case "delete":
-      return handleDelete(params.dashboard_id as string | undefined);
+      return handleDelete(params.dashboard_id as string | undefined, params.confirm as boolean | undefined);
 
     // View operations
     case "get-view":
@@ -139,7 +142,7 @@ async function executeAction(params: Record<string, unknown>): Promise<string> {
     case "update-view":
       return handleUpdateView(params);
     case "remove-view":
-      return handleRemoveView(params);
+      return handleRemoveView(params, params.confirm as boolean | undefined);
     case "move-view":
       return handleMoveView(params);
 
@@ -149,7 +152,7 @@ async function executeAction(params: Record<string, unknown>): Promise<string> {
     case "update-card":
       return handleUpdateCard(params);
     case "remove-card":
-      return handleRemoveCard(params);
+      return handleRemoveCard(params, params.confirm as boolean | undefined);
     case "move-card":
       return handleMoveCard(params);
 
@@ -325,8 +328,11 @@ async function handleUpdate(params: Record<string, unknown>): Promise<string> {
   return `✅ Updated dashboard '${result.title}' (id: ${result.id})`;
 }
 
-async function handleDelete(dashboardId?: string): Promise<string> {
+async function handleDelete(dashboardId?: string, confirm?: boolean): Promise<string> {
   if (!dashboardId) throw new Error("'dashboard_id' is required for delete");
+  if (!confirm) {
+    return `⚠️ **Confirm delete**: dashboard \`${dashboardId}\`\n\nCall again with \`confirm: true\` to proceed.`;
+  }
 
   await wsCommand("lovelace/dashboards/delete", { dashboard_id: dashboardId });
   return `✅ Deleted dashboard '${dashboardId}'`;

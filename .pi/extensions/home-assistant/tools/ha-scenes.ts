@@ -136,6 +136,9 @@ async function handleUpdate(params: Record<string, unknown>): Promise<string> {
 async function handleDelete(params: Record<string, unknown>): Promise<string> {
   const sceneId = params.scene_id as string;
   if (!sceneId) throw new Error("'scene_id' is required for delete");
+  if (!params.confirm) {
+    return `⚠️ **Confirm delete**: scene \`${sceneId}\`\n\nCall again with \`confirm: true\` to proceed.`;
+  }
   await apiDelete(`/api/config/scene/config/${sceneId}`);
   return `✅ Deleted scene '${sceneId}'`;
 }
@@ -201,6 +204,7 @@ export function registerScenesTool(pi: ExtensionAPI): void {
       search: Type.Optional(Type.String({ description: "Search scene name/entity_id" })),
       limit: Type.Optional(Type.Number({ description: "Max results (default: 50)" })),
       offset: Type.Optional(Type.Number({ description: "Pagination offset (default: 0)" })),
+      confirm: Type.Optional(Type.Boolean({ description: "Set true to confirm delete (default: false, preview only)" })),
     }),
 
     async execute(toolCallId, params, signal, onUpdate, ctx) {

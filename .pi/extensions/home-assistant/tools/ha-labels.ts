@@ -46,6 +46,9 @@ export function registerLabelsTool(pi: ExtensionAPI): void {
       description: Type.Optional(
         Type.String({ description: "Label description" })
       ),
+      confirm: Type.Optional(
+        Type.Boolean({ description: "Set true to confirm delete (default: false, preview only)" })
+      ),
     }),
 
     async execute(toolCallId, params, signal, onUpdate, ctx) {
@@ -62,7 +65,7 @@ async function executeAction(params: Record<string, unknown>): Promise<string> {
     case "list": return handleList();
     case "create": return handleCreate(params);
     case "update": return handleUpdate(params);
-    case "delete": return handleDelete(params.label_id as string | undefined);
+    case "delete": return handleDelete(params.label_id as string | undefined, params.confirm as boolean | undefined);
     default:
       throw new Error(`Unknown action '${params.action}'`);
   }
@@ -115,8 +118,11 @@ async function handleUpdate(params: Record<string, unknown>): Promise<string> {
   return `✅ Updated label '${result.name}' (id: ${result.label_id})`;
 }
 
-async function handleDelete(labelId?: string): Promise<string> {
+async function handleDelete(labelId?: string, confirm?: boolean): Promise<string> {
   if (!labelId) throw new Error("'label_id' is required for delete");
+  if (!confirm) {
+    return `⚠️ **Confirm delete**: label \`${labelId}\`\n\nCall again with \`confirm: true\` to proceed.`;
+  }
   await wsCommand("config/label_registry/delete", { label_id: labelId });
   return `✅ Deleted label '${labelId}'`;
 }

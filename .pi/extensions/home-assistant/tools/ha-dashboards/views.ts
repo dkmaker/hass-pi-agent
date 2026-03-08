@@ -86,7 +86,7 @@ export async function handleUpdateView(params: Record<string, unknown>): Promise
 
 // ── Remove View ──────────────────────────────────────────────
 
-export async function handleRemoveView(params: Record<string, unknown>): Promise<string> {
+export async function handleRemoveView(params: Record<string, unknown>, confirm?: boolean): Promise<string> {
   const urlPath = params.url_path as string | undefined;
   const config = await fetchDashboardConfig(urlPath);
   const views = config.views || [];
@@ -96,6 +96,11 @@ export async function handleRemoveView(params: Record<string, unknown>): Promise
     params.view_index as number | undefined,
     params.view_path as string | undefined
   );
+
+  const view = views[idx];
+  if (!confirm) {
+    return `⚠️ **Confirm remove-view**: view ${idx} '${view?.title || "(untitled)"}' (${view?.cards?.length ?? 0} cards)\n\nCall again with \`confirm: true\` to proceed.`;
+  }
 
   const removed = config.views.splice(idx, 1)[0];
   await saveDashboardConfig(urlPath, config);

@@ -143,7 +143,7 @@ export function registerEntitiesTools(pi: ExtensionAPI): void {
         Type.String({ description: "Set to 'user' to hide, null to unhide" })
       ),
       confirm: Type.Optional(
-        Type.Boolean({ description: "For regenerate-ids: set true to apply renames after previewing (default: false, preview only)" })
+        Type.Boolean({ description: "For remove/regenerate-ids: set true to confirm destructive operation (default: false, preview only)" })
       ),
     }),
 
@@ -167,7 +167,7 @@ async function executeAction(params: Record<string, unknown>): Promise<string> {
     case "update":
       return handleUpdate(params);
     case "remove":
-      return handleRemove(params.entity_id as string | undefined);
+      return handleRemove(params.entity_id as string | undefined, params.confirm as boolean | undefined);
     case "regenerate-ids":
       return handleRegenerateIds(params);
     default:
@@ -412,8 +412,12 @@ async function handleUpdate(params: Record<string, unknown>): Promise<string> {
   return `✅ Updated entity '${updated.entity_id}'\n${changes.map((c) => `  ${c}`).join("\n")}`;
 }
 
-async function handleRemove(entityId?: string): Promise<string> {
+async function handleRemove(entityId?: string, confirm?: boolean): Promise<string> {
   if (!entityId) throw new Error("'entity_id' is required for remove");
+
+  if (!confirm) {
+    return `⚠️ **Confirm remove**: entity \`${entityId}\`\n\nCall again with \`confirm: true\` to proceed.`;
+  }
 
   await wsCommand("config/entity_registry/remove", { entity_id: entityId });
   return `✅ Removed entity '${entityId}' from registry`;

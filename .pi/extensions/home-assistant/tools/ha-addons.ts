@@ -81,6 +81,7 @@ export function registerAddonsTool(pi: ExtensionAPI): void {
       url: Type.Optional(Type.String({ description: "Repository URL for add-repo/remove-repo" })),
       search: Type.Optional(Type.String({ description: "Filter store add-ons by name/slug" })),
       lines: Type.Optional(Type.Number({ description: "Number of log lines to return (default: 100)" })),
+      confirm: Type.Optional(Type.Boolean({ description: "Set true to confirm destructive actions (default: false, preview only)" })),
     }),
 
     async execute(toolCallId, params, signal, onUpdate, ctx) {
@@ -178,6 +179,9 @@ async function executeAction(params: {
 
     case "uninstall": {
       const slug = requireSlug(params.slug);
+      if (!params.confirm) {
+        return `⚠️ **Confirm uninstall**: add-on \`${slug}\`\n\nCall again with \`confirm: true\` to proceed.`;
+      }
       await supervisorApi(`/addons/${slug}/uninstall`, "post");
       return `✅ Add-on \`${slug}\` uninstalled.`;
     }

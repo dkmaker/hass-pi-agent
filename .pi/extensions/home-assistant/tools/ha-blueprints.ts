@@ -43,6 +43,7 @@ export function registerBlueprintsTool(pi: ExtensionAPI): void {
       path: Type.Optional(
         Type.String({ description: "Blueprint path to delete (e.g., automation/motion_light.yaml)" })
       ),
+      confirm: Type.Optional(Type.Boolean({ description: "Set true to confirm destructive actions (default: false, preview only)" })),
     }),
 
     async execute(toolCallId, params, signal, onUpdate, ctx) {
@@ -105,6 +106,9 @@ async function handleDelete(params: Record<string, unknown>): Promise<string> {
   const domain = params.domain as string | undefined;
   if (!path) throw new Error("'path' is required for delete");
   if (!domain) throw new Error("'domain' is required for delete");
+  if (!params.confirm) {
+    return `⚠️ **Confirm delete**: blueprint \`${path}\` from ${domain}\n\nCall again with \`confirm: true\` to proceed.`;
+  }
 
   await wsCommand("blueprint/delete", { domain, path });
   return `✅ Deleted blueprint '${path}' from ${domain}`;

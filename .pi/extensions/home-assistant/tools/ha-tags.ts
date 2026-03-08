@@ -35,6 +35,7 @@ export function registerTagsTool(pi: ExtensionAPI): void {
       tag_id: Type.Optional(Type.String({ description: "Custom tag ID (for create; auto-generated if omitted)" })),
       name: Type.Optional(Type.String({ description: "Tag name" })),
       description: Type.Optional(Type.String({ description: "Tag description" })),
+      confirm: Type.Optional(Type.Boolean({ description: "Set true to confirm destructive actions (default: false, preview only)" })),
     }),
 
     async execute(toolCallId, params, signal, onUpdate, ctx) {
@@ -52,7 +53,7 @@ async function executeAction(params: Record<string, unknown>): Promise<string> {
     case "get": return handleGet(params.id as string | undefined);
     case "create": return handleCreate(params);
     case "update": return handleUpdate(params);
-    case "delete": return handleDelete(params.id as string | undefined);
+    case "delete": return handleDelete(params.id as string | undefined, params.confirm as boolean | undefined);
     default: throw new Error(`Unknown action '${params.action}'`);
   }
 }
@@ -118,8 +119,11 @@ async function handleUpdate(params: Record<string, unknown>): Promise<string> {
   return `✅ Updated tag '${result.name || result.tag_id}' (id: ${result.id})`;
 }
 
-async function handleDelete(id?: string): Promise<string> {
+async function handleDelete(id?: string, confirm?: boolean): Promise<string> {
   if (!id) throw new Error("'id' is required for delete");
+  if (!confirm) {
+    return `⚠️ **Confirm delete**: tag \`${id}\`\n\nCall again with \`confirm: true\` to proceed.`;
+  }
   await wsCommand("tag/delete", { tag_id: id });
   return `✅ Deleted tag '${id}'`;
 }
