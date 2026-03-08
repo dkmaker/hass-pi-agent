@@ -8,6 +8,7 @@ import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { StringEnum } from "@mariozechner/pi-ai";
 import { wsSubscribe } from "../lib/ws.js";
+import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
 
 interface HAEvent {
   event_type: string;
@@ -26,7 +27,7 @@ function formatTimestamp(iso: string): string {
 }
 
 function summarizeData(data: Record<string, unknown>, maxLen: number = 120): string {
-  if (!data || Object.keys(data).length === 0) return "";
+  if (!data || Object.keys(data).length === 0) return "(no data)";
   const json = JSON.stringify(data);
   if (json.length <= maxLen) return json;
   // Show key fields
@@ -45,29 +46,30 @@ function formatEvents(events: HAEvent[], limit: number): string {
   if (!events.length) return "No events captured during the listening period.";
 
   const shown = events.slice(0, limit);
-  const lines: string[] = [];
-
-  if (events.length > limit) {
-    lines.push(`Showing ${limit} of ${events.length} captured events:\n`);
-  } else {
-    lines.push(`Captured ${events.length} event${events.length !== 1 ? "s" : ""}:\n`);
-  }
 
   // Group by event_type for summary
   const typeCounts = new Map<string, number>();
   for (const e of events) {
     typeCounts.set(e.event_type, (typeCounts.get(e.event_type) || 0) + 1);
   }
+
+  const lines: string[] = [];
   if (typeCounts.size > 1) {
     lines.push("Event types: " + [...typeCounts.entries()].map(([t, c]) => `${t} (${c})`).join(", ") + "\n");
   }
 
+  lines.push("| Time | Event Type | Data |");
+  lines.push("|------|-----------|------|");
   for (const e of shown) {
     const time = formatTimestamp(e.time_fired);
-    const data = summarizeData(e.data);
-    lines.push(`  ${time}  ${e.event_type}${data ? "  " + data : ""}`);
+    const data = summarizeData(e.data).replace(/\|/g, "\\|");
+    lines.push(`| ${time} | ${e.event_type} | ${data} |`);
   }
 
+  const countLine = events.length > limit
+    ? `Showing ${limit} of ${events.length} events`
+    : `${events.length} events`;
+  lines.push(`\n${countLine}`);
   return lines.join("\n");
 }
 
@@ -91,6 +93,15 @@ export function registerEventsTool(pi: ExtensionAPI): void {
         description: "Max events to capture before stopping (default: 100)",
       })),
     }),
+
+
+    renderCall(args: Record<string, unknown>, theme: any) {
+      return renderToolCall("HA Events", args, theme);
+    },
+
+    renderResult(result: any) {
+      return renderMarkdownResult(result);
+    },
 
     async execute(_toolCallId, params, _signal, onUpdate) {
       const timeout = Math.min(params.timeout ?? 10, 60);

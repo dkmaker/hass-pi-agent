@@ -7,6 +7,7 @@ import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { StringEnum } from "@mariozechner/pi-ai";
 import { supervisorApi } from "../lib/supervisor.js";
+import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
 
 export function registerSystemTool(pi: ExtensionAPI): void {
   pi.registerTool({
@@ -20,6 +21,15 @@ export function registerSystemTool(pi: ExtensionAPI): void {
         { description: "Action to perform" }
       ),
     }),
+
+
+    renderCall(args: Record<string, unknown>, theme: any) {
+      return renderToolCall("HA System", args, theme);
+    },
+
+    renderResult(result: any) {
+      return renderMarkdownResult(result);
+    },
 
     async execute(toolCallId, params, signal, onUpdate, ctx) {
       const result = await executeAction(params.action);
@@ -37,47 +47,55 @@ async function executeAction(action: string): Promise<string> {
   switch (action) {
     case "info": {
       const d = await supervisorApi<Record<string, unknown>>("/supervisor/info");
-      return [
-        "**Supervisor Info**",
+      const rows = [
+        "## Supervisor Info",
         "",
-        `Version: ${d.version}`,
-        `Channel: ${d.channel}`,
-        `Architecture: ${d.arch}`,
-        `Supported: ${d.supported ? "✅" : "❌"}`,
-        `Healthy: ${d.healthy ? "✅" : "❌"}`,
-        ...(d.update_available ? [`Update available: ${d.version_latest}`] : []),
-        `Timezone: ${d.timezone}`,
-        `Logging: ${d.logging}`,
-      ].join("\n");
+        "| Property | Value |",
+        "|----------|-------|",
+        `| Version | ${d.version} |`,
+        `| Channel | ${d.channel} |`,
+        `| Architecture | ${d.arch} |`,
+        `| Supported | ${d.supported ? "✅" : "❌"} |`,
+        `| Healthy | ${d.healthy ? "✅" : "❌"} |`,
+      ];
+      if (d.update_available) rows.push(`| Update available | ${d.version_latest} |`);
+      rows.push(`| Timezone | ${d.timezone} |`);
+      rows.push(`| Logging | ${d.logging} |`);
+      return rows.join("\n");
     }
 
     case "host": {
       const d = await supervisorApi<Record<string, unknown>>("/host/info");
-      const parts = [
-        "**Host Info**",
+      const rows = [
+        "## Host Info",
         "",
-        `Hostname: ${d.hostname}`,
-        `Operating System: ${d.operating_system}`,
-        `Kernel: ${d.kernel}`,
-        `CPUs: ${d.cpe ?? "?"}`,
+        "| Property | Value |",
+        "|----------|-------|",
+        `| Hostname | ${d.hostname} |`,
+        `| Operating System | ${d.operating_system} |`,
+        `| Kernel | ${d.kernel} |`,
+        `| CPUs | ${d.cpe ?? "?"} |`,
       ];
-      if (d.disk_total) parts.push(`Disk: ${formatBytes(d.disk_used as number)} / ${formatBytes(d.disk_total as number)} used`);
-      if (d.disk_free) parts.push(`Disk free: ${formatBytes(d.disk_free as number)}`);
-      if (Array.isArray(d.features) && d.features.length) parts.push(`Features: ${d.features.join(", ")}`);
-      return parts.join("\n");
+      if (d.disk_total) rows.push(`| Disk | ${formatBytes(d.disk_used as number)} / ${formatBytes(d.disk_total as number)} used |`);
+      if (d.disk_free) rows.push(`| Disk free | ${formatBytes(d.disk_free as number)} |`);
+      if (Array.isArray(d.features) && d.features.length) rows.push(`| Features | ${d.features.join(", ")} |`);
+      return rows.join("\n");
     }
 
     case "os": {
       const d = await supervisorApi<Record<string, unknown>>("/os/info");
-      return [
-        "**HAOS Info**",
+      const rows = [
+        "## HAOS Info",
         "",
-        `Version: ${d.version}`,
-        ...(d.update_available ? [`Update available: ${d.version_latest}`] : []),
-        `Board: ${d.board}`,
-        `Boot slot: ${d.boot_slot ?? d.boot ?? "?"}`,
-        ...(d.data_disk ? [`Data disk: ${d.data_disk}`] : []),
-      ].join("\n");
+        "| Property | Value |",
+        "|----------|-------|",
+        `| Version | ${d.version} |`,
+      ];
+      if (d.update_available) rows.push(`| Update available | ${d.version_latest} |`);
+      rows.push(`| Board | ${d.board} |`);
+      rows.push(`| Boot slot | ${d.boot_slot ?? d.boot ?? "?"} |`);
+      if (d.data_disk) rows.push(`| Data disk | ${d.data_disk} |`);
+      return rows.join("\n");
     }
 
     case "network": {
@@ -85,15 +103,18 @@ async function executeAction(action: string): Promise<string> {
       const interfaces = d.interfaces as Array<Record<string, unknown>> | undefined;
       if (!interfaces?.length) return "No network interfaces found.";
 
-      const parts = ["**Network Interfaces**", ""];
+      const parts = ["## Network Interfaces", ""];
       for (const iface of interfaces) {
         parts.push(`### ${iface.interface ?? iface.name ?? "?"} (${iface.type ?? "?"})`);
-        if (iface.enabled !== undefined) parts.push(`Enabled: ${iface.enabled}`);
-        if (iface.connected !== undefined) parts.push(`Connected: ${iface.connected}`);
+        parts.push("");
+        parts.push("| Property | Value |");
+        parts.push("|----------|-------|");
+        if (iface.enabled !== undefined) parts.push(`| Enabled | ${iface.enabled} |`);
+        if (iface.connected !== undefined) parts.push(`| Connected | ${iface.connected} |`);
         const ipv4 = iface.ipv4 as Record<string, unknown> | undefined;
-        if (ipv4?.address) parts.push(`IPv4: ${Array.isArray(ipv4.address) ? ipv4.address.join(", ") : ipv4.address}`);
-        if (ipv4?.gateway) parts.push(`Gateway: ${ipv4.gateway}`);
-        if (ipv4?.nameservers) parts.push(`DNS: ${Array.isArray(ipv4.nameservers) ? ipv4.nameservers.join(", ") : ipv4.nameservers}`);
+        if (ipv4?.address) parts.push(`| IPv4 | ${Array.isArray(ipv4.address) ? ipv4.address.join(", ") : ipv4.address} |`);
+        if (ipv4?.gateway) parts.push(`| Gateway | ${ipv4.gateway} |`);
+        if (ipv4?.nameservers) parts.push(`| DNS | ${Array.isArray(ipv4.nameservers) ? ipv4.nameservers.join(", ") : ipv4.nameservers} |`);
         parts.push("");
       }
       return parts.join("\n");

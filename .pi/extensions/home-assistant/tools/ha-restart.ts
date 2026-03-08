@@ -13,6 +13,7 @@ import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { StringEnum } from "@mariozechner/pi-ai";
 import { requireToken, callService, apiPost } from "../lib/api.js";
+import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
 
 const RELOADABLE_DOMAINS = [
   "automation",
@@ -50,6 +51,15 @@ export function registerRestartTool(pi: ExtensionAPI): void {
         })
       ),
     }),
+
+
+    renderCall(args: Record<string, unknown>, theme: any) {
+      return renderToolCall("HA Restart", args, theme);
+    },
+
+    renderResult(result: any) {
+      return renderMarkdownResult(result);
+    },
 
     async execute(toolCallId, params, signal, onUpdate, ctx) {
       const result = await executeAction(params);

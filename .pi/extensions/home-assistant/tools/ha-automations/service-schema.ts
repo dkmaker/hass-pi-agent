@@ -73,12 +73,13 @@ export async function handleGetServiceSchema(params: Record<string, unknown>): P
     }
   }
 
-  lines.push(`\nExample action config:`);
+  lines.push(`\nExample action config:\n\`\`\`json`);
   lines.push(JSON.stringify({
     action: service,
     target: { entity_id: `${domain}.example` },
     data: {},
   }, null, 2));
+  lines.push("```");
 
   return lines.join("\n");
 }

@@ -7,6 +7,7 @@ import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { StringEnum } from "@mariozechner/pi-ai";
 import { supervisorApi } from "../lib/supervisor.js";
+import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
 
 interface BackupSummary {
   slug: string;
@@ -46,6 +47,15 @@ export function registerBackupsTool(pi: ExtensionAPI): void {
       confirm: Type.Optional(Type.Boolean({ description: "Set true to confirm destructive actions (default: false, preview only)" })),
     }),
 
+
+    renderCall(args: Record<string, unknown>, theme: any) {
+      return renderToolCall("HA Backups", args, theme);
+    },
+
+    renderResult(result: any) {
+      return renderMarkdownResult(result);
+    },
+
     async execute(toolCallId, params, signal, onUpdate, ctx) {
       const result = await executeAction(params);
       return { content: [{ type: "text" as const, text: result }] };
@@ -81,33 +91,43 @@ async function executeAction(params: {
       if (!backups.length) return "No backups found.";
 
       const sorted = [...backups].sort((a, b) => b.date.localeCompare(a.date));
-      const lines = sorted.map((b) => {
-        const date = b.date.slice(0, 19).replace("T", " ");
-        const prot = b.protected ? " 🔒" : "";
-        return `\`${b.slug}\` ${date} — ${b.name} (${b.type}, ${formatSize(b.size)})${prot}`;
-      });
-      return `**Backups (${backups.length}):**\n\n${lines.join("\n")}`;
+      const lines: string[] = [
+        "| Name | Slug | Date | Type | Size | Protected |",
+        "|------|------|------|------|------|-----------|",
+        ...sorted.map((b) => {
+          const date = b.date.slice(0, 19).replace("T", " ");
+          const prot = b.protected ? "🔒" : "";
+          return `| **${b.name}** | \`${b.slug}\` | ${date} | ${b.type} | ${formatSize(b.size)} | ${prot} |`;
+        }),
+        `\n${backups.length} backups`,
+      ];
+      return lines.join("\n");
     }
 
     case "get": {
       const slug = requireSlug(params.slug);
       const info = await supervisorApi<BackupInfo>(`/backups/${slug}/info`);
-      const parts = [
-        `**${info.name}** (\`${info.slug}\`)`,
+      const rows = [
+        `## ${info.name}`,
         "",
-        `Type: ${info.type}`,
-        `Date: ${info.date.slice(0, 19).replace("T", " ")}`,
-        `Size: ${formatSize(info.size)}`,
-        `Protected: ${info.protected ? "yes 🔒" : "no"}`,
+        "| Property | Value |",
+        "|----------|-------|",
+        `| Slug | \`${info.slug}\` |`,
+        `| Type | ${info.type} |`,
+        `| Date | ${info.date.slice(0, 19).replace("T", " ")} |`,
+        `| Size | ${formatSize(info.size)} |`,
+        `| Protected | ${info.protected ? "yes 🔒" : "no"} |`,
       ];
-      if (info.homeassistant) parts.push(`HA version: ${info.homeassistant}`);
+      if (info.homeassistant) rows.push(`| HA version | ${info.homeassistant} |`);
       if (info.addons?.length) {
-        parts.push("", "**Add-ons:**");
-        for (const a of info.addons) parts.push(`- ${a.name} (${a.slug}) v${a.version}`);
+        rows.push("", "### Add-ons", "");
+        rows.push("| Name | Slug | Version |");
+        rows.push("|------|------|---------|");
+        for (const a of info.addons) rows.push(`| ${a.name} | ${a.slug} | ${a.version} |`);
       }
-      if (info.folders?.length) parts.push("", `**Folders:** ${info.folders.join(", ")}`);
-      if (info.repositories?.length) parts.push("", `**Repositories:** ${info.repositories.length}`);
-      return parts.join("\n");
+      if (info.folders?.length) rows.push("", `**Folders:** ${info.folders.join(", ")}`);
+      if (info.repositories?.length) rows.push("", `**Repositories:** ${info.repositories.length}`);
+      return rows.join("\n");
     }
 
     case "create-full": {

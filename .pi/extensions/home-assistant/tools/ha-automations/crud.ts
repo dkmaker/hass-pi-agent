@@ -8,6 +8,7 @@ import { apiGet, apiPost, apiDelete } from "../../lib/api.js";
 import { timeSince } from "../../lib/format.js";
 import { validateAutomationConfig } from "../../lib/validation.js";
 import type { HAState, AutomationConfig } from "../../lib/types.js";
+import { toYaml } from "../../lib/yaml.js";
 
 // ── Helpers ──────────────────────────────────────────────────
 
@@ -56,25 +57,16 @@ export async function handleList(params: Record<string, unknown>): Promise<strin
   const total = automations.length;
   const page = automations.slice(offset, offset + limit);
 
-  const lines: string[] = [];
+  const rows: string[] = [];
+  rows.push("| | Name | Entity | Mode | Last triggered |");
+  rows.push("|---|------|--------|------|----------------|");
   for (const a of page) {
     const name = (a.attributes.friendly_name as string) || a.entity_id;
-    const configId = a.attributes.id as string;
     const lastTriggered = a.attributes.last_triggered as string;
-    const mode = a.attributes.mode as string;
+    const mode = (a.attributes.mode as string) || "single";
     const stateIcon = a.state === "on" ? "🟢" : "🔴";
-
-    const line = `${stateIcon} ${name}`;
-    const meta: string[] = [];
-    if (configId) meta.push(`id: ${configId}`);
-    meta.push(`entity: ${a.entity_id}`);
-    if (mode && mode !== "single") meta.push(`mode: ${mode}`);
-    if (lastTriggered) {
-      const ago = timeSince(lastTriggered);
-      meta.push(`last: ${ago}`);
-    }
-    lines.push(line);
-    lines.push(`  ${meta.join(" | ")}`);
+    const ago = lastTriggered ? timeSince(lastTriggered) : "—";
+    rows.push(`| ${stateIcon} | ${name} | ${a.entity_id} | ${mode} | ${ago} |`);
   }
 
   let summary: string;
@@ -84,7 +76,7 @@ export async function handleList(params: Record<string, unknown>): Promise<strin
     summary = `Showing ${offset + 1}-${Math.min(offset + limit, total)} of ${total} automations`;
   }
 
-  return lines.join("\n") + "\n\n" + summary;
+  return rows.join("\n") + "\n\n" + summary;
 }
 
 // ── Get ──────────────────────────────────────────────────────
@@ -123,26 +115,40 @@ export async function handleGet(params: Record<string, unknown>): Promise<string
     } catch { /* not available */ }
   }
 
-  const result: Record<string, unknown> = {};
-
-  if (state) {
-    result.entity_id = state.entity_id;
-    result.state = state.state;
-    result.friendly_name = state.attributes.friendly_name;
-    result.last_triggered = state.attributes.last_triggered;
-    result.mode = state.attributes.mode;
-    result.current = state.attributes.current;
-  }
-
-  if (config) {
-    result.config = config;
-  }
-
   if (!state && !config) {
     throw new Error(`Automation not found. Provide a valid entity_id or automation_id.`);
   }
 
-  return JSON.stringify(result, null, 2);
+  const lines: string[] = [];
+  const name = state?.attributes.friendly_name || config?.alias || entityId || "(unnamed)";
+  lines.push(`## ${name}`);
+  lines.push("");
+  lines.push("| Property | Value |");
+  lines.push("|----------|-------|");
+  if (state) {
+    lines.push(`| Entity | ${state.entity_id} |`);
+    lines.push(`| State | ${state.state} |`);
+    lines.push(`| Mode | ${state.attributes.mode || "single"} |`);
+    if (state.attributes.last_triggered) lines.push(`| Last triggered | ${state.attributes.last_triggered} |`);
+    if (state.attributes.current) lines.push(`| Current runs | ${state.attributes.current} |`);
+  }
+  if (config) {
+    if (config.description) lines.push(`| Description | ${config.description} |`);
+    const triggers = config.triggers || config.trigger;
+    const conditions = config.conditions || config.condition;
+    const actions = config.actions || config.action;
+    if (Array.isArray(triggers)) lines.push(`| Triggers | ${triggers.length} |`);
+    if (Array.isArray(conditions)) lines.push(`| Conditions | ${conditions.length} |`);
+    if (Array.isArray(actions)) lines.push(`| Actions | ${actions.length} |`);
+    lines.push("");
+    lines.push("### Config");
+    lines.push("");
+    lines.push("```yaml");
+    lines.push(toYaml(config).trim());
+    lines.push("```");
+  }
+
+  return lines.join("\n");
 }
 
 // ── Create ───────────────────────────────────────────────────

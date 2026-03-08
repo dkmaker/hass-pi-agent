@@ -8,7 +8,7 @@ import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { StringEnum } from "@mariozechner/pi-ai";
 import { wsCommand } from "../lib/ws.js";
-import { parseRelativeTime } from "../lib/format.js";
+import { parseRelativeTime , renderMarkdownResult, renderToolCall } from "../lib/format.js";
 
 interface LogbookEvent {
   when: number;       // timestamp
@@ -36,30 +36,30 @@ function formatEvents(events: LogbookEvent[], limit: number): string {
   const total = events.length;
   const shown = events.slice(0, limit);
 
-  const lines: string[] = [];
-  if (total > limit) {
-    lines.push(`Showing ${limit} of ${total} events:\n`);
-  }
+  const lines: string[] = [
+    "| Time | Entity | Event | State | Triggered by |",
+    "|------|--------|-------|-------|-------------|",
+  ];
 
   for (const e of shown) {
     const time = formatTimestamp(e.when);
     const name = e.name || e.entity_id || "Unknown";
-    const state = e.state ? ` → ${e.state}` : "";
-    const message = e.message ? ` ${e.message}` : "";
-    const entity = e.entity_id && e.entity_id !== e.name ? ` (${e.entity_id})` : "";
+    const message = e.message ? e.message.replace(/\|/g, "\\|") : "";
+    const state = e.state || "";
+    const entity = e.entity_id || "";
 
-    let line = `${time}  ${name}${entity}${message}${state}`;
-
-    // Add context if available (what triggered this)
+    let context = "";
     if (e.context_name || e.context_entity_id) {
       const ctx = e.context_name || e.context_entity_id;
       const ctxMsg = e.context_message ? ` ${e.context_message}` : "";
-      line += `  ← ${ctx}${ctxMsg}`;
+      context = `${ctx}${ctxMsg}`;
     }
 
-    lines.push(line);
+    lines.push(`| ${time} | **${name}**${entity && entity !== name ? ` (${entity})` : ""} | ${message} | ${state} | ${context} |`);
   }
 
+  const countLine = total > limit ? `Showing ${limit} of ${total} events` : `${total} events`;
+  lines.push(`\n${countLine}`);
   return lines.join("\n");
 }
 
@@ -92,6 +92,15 @@ export function registerLogbookTool(pi: ExtensionAPI): void {
         description: "Max events to return (default: 50)",
       })),
     }),
+
+
+    renderCall(args: Record<string, unknown>, theme: any) {
+      return renderToolCall("HA Logbook", args, theme);
+    },
+
+    renderResult(result: any) {
+      return renderMarkdownResult(result);
+    },
 
     async execute(_toolCallId, params) {
       const startTime = parseRelativeTime(params.start_time || "24h");

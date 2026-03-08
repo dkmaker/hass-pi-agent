@@ -10,6 +10,7 @@ import { StringEnum } from "@mariozechner/pi-ai";
 import { apiGet } from "../lib/api.js";
 import { wsCommand } from "../lib/ws.js";
 import type { HAState } from "../lib/types.js";
+import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -147,6 +148,15 @@ export function registerEntitiesTools(pi: ExtensionAPI): void {
       ),
     }),
 
+
+    renderCall(args: Record<string, unknown>, theme: any) {
+      return renderToolCall("HA Entities", args, theme);
+    },
+
+    renderResult(result: any) {
+      return renderMarkdownResult(result);
+    },
+
     async execute(toolCallId, params, signal, onUpdate, ctx) {
       const result = await executeAction(params);
       return { content: [{ type: "text" as const, text: result }] };
@@ -240,31 +250,25 @@ async function handleList(params: Record<string, unknown>): Promise<string> {
   const page = filtered.slice(offset, offset + limit);
 
   // Format output
-  const lines: string[] = [];
+  const lines: string[] = [
+    "| Entity | State | Name | Area |",
+    "|--------|-------|------|------|",
+  ];
   for (const s of page) {
-    const friendlyName = s.attributes.friendly_name as string | undefined;
+    const friendlyName = (s.attributes.friendly_name as string) || "";
     const regEntry = entityReg.get(s.entity_id);
-    const parts: string[] = [];
-
-    const nameStr = friendlyName ? ` (${friendlyName})` : "";
-    parts.push(`${s.entity_id}: ${s.state}${nameStr}`);
+    let area = "";
 
     if (regEntry?.device_id) {
       const device = deviceReg.get(regEntry.device_id);
-      if (device) {
-        const deviceName = device.name_by_user || device.name;
-        if (deviceName) {
-          const areaName = device.area_id ? areaReg.get(device.area_id)?.name : null;
-          const deviceStr = areaName ? `${deviceName} @ ${areaName}` : deviceName;
-          parts.push(`  device: ${deviceStr}`);
-        }
+      if (device?.area_id) {
+        area = areaReg.get(device.area_id)?.name || "";
       }
     } else if (regEntry?.area_id) {
-      const areaName = areaReg.get(regEntry.area_id)?.name;
-      if (areaName) parts.push(`  area: ${areaName}`);
+      area = areaReg.get(regEntry.area_id)?.name || "";
     }
 
-    lines.push(parts.join("\n"));
+    lines.push(`| ${s.entity_id} | ${s.state} | ${friendlyName} | ${area} |`);
   }
 
   const domainStr = params.domain ? `${params.domain} ` : "";
@@ -274,12 +278,13 @@ async function handleList(params: Record<string, unknown>): Promise<string> {
 
   let summary: string;
   if (total <= limit && offset === 0) {
-    summary = `Showing ${total} ${domainStr}entities${filterStr}`;
+    summary = `${total} ${domainStr}entities${filterStr}`;
   } else {
     summary = `Showing ${offset + 1}-${Math.min(offset + limit, total)} of ${total} ${domainStr}entities${filterStr}`;
   }
 
-  return lines.join("\n") + "\n\n" + summary;
+  lines.push(`\n${summary}`);
+  return lines.join("\n");
 }
 
 async function handleGet(entityId?: string): Promise<string> {
@@ -321,7 +326,52 @@ async function handleGet(entityId?: string): Promise<string> {
     }
   }
 
-  return JSON.stringify(result, null, 2);
+  const lines: string[] = [];
+  lines.push(`## ${state.entity_id}`);
+  lines.push("");
+  lines.push("| Property | Value |");
+  lines.push("|----------|-------|");
+  lines.push(`| State | ${state.state} |`);
+  if (result.area) lines.push(`| Area | ${result.area} |`);
+  if (result.platform) lines.push(`| Platform | ${result.platform} |`);
+  if (result.icon) lines.push(`| Icon | ${result.icon} |`);
+  if (result.labels && (result.labels as string[]).length) lines.push(`| Labels | ${(result.labels as string[]).join(", ")} |`);
+  if (result.disabled_by) lines.push(`| Disabled by | ${result.disabled_by} |`);
+  if (result.hidden_by) lines.push(`| Hidden by | ${result.hidden_by} |`);
+  lines.push(`| Last changed | ${state.last_changed} |`);
+  lines.push(`| Last updated | ${state.last_updated} |`);
+
+  // Attributes
+  const skipAttrs = new Set(["friendly_name", "icon"]);
+  const attrs = state.attributes as Record<string, unknown>;
+  if (attrs && Object.keys(attrs).length > 0) {
+    lines.push("");
+    lines.push("### Attributes");
+    lines.push("");
+    lines.push("| Attribute | Value |");
+    lines.push("|-----------|-------|");
+    if (attrs.friendly_name) lines.push(`| friendly_name | ${attrs.friendly_name} |`);
+    for (const [k, v] of Object.entries(attrs)) {
+      if (skipAttrs.has(k)) continue;
+      const val = typeof v === "object" ? JSON.stringify(v) : String(v);
+      lines.push(`| ${k} | ${val} |`);
+    }
+  }
+
+  // Device info
+  if (result.device) {
+    const dev = result.device as Record<string, unknown>;
+    lines.push("");
+    lines.push("### Device");
+    lines.push("");
+    lines.push("| Property | Value |");
+    lines.push("|----------|-------|");
+    for (const [k, v] of Object.entries(dev)) {
+      if (v !== null && v !== undefined) lines.push(`| ${k} | ${v} |`);
+    }
+  }
+
+  return lines.join("\n");
 }
 
 async function handleDomains(includeUnavailable?: boolean): Promise<string> {
@@ -338,18 +388,20 @@ async function handleDomains(includeUnavailable?: boolean): Promise<string> {
   }
 
   const sorted = Object.entries(domains).sort((a, b) => b[1].total - a[1].total);
-  const lines = sorted.map(([domain, counts]) => {
-    const unavailStr = counts.unavailable > 0 ? ` (${counts.unavailable} unavailable)` : "";
-    return `${domain}: ${counts.total}${unavailStr}`;
-  });
+  const lines: string[] = [
+    "| Domain | Count | Unavailable |",
+    "|--------|-------|-------------|",
+    ...sorted.map(([domain, counts]) => {
+      const unavail = counts.unavailable > 0 ? String(counts.unavailable) : "";
+      return `| ${domain} | ${counts.total} | ${unavail} |`;
+    }),
+  ];
 
   const totalUnavail = states.filter(
     (s) => s.state === "unavailable" || s.state === "unknown"
   ).length;
 
-  lines.push("");
-  lines.push(`Total: ${states.length} entities (${totalUnavail} unavailable/unknown)`);
-
+  lines.push(`\n${states.length} entities (${totalUnavail} unavailable/unknown)`);
   return lines.join("\n");
 }
 

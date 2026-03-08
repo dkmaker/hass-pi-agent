@@ -8,6 +8,7 @@ import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { StringEnum } from "@mariozechner/pi-ai";
 import { wsCommand } from "../lib/ws.js";
+import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -41,6 +42,15 @@ export function registerPeopleTool(pi: ExtensionAPI): void {
       confirm: Type.Optional(Type.Boolean({ description: "Set true to confirm destructive actions (default: false, preview only)" })),
     }),
 
+
+    renderCall(args: Record<string, unknown>, theme: any) {
+      return renderToolCall("HA People", args, theme);
+    },
+
+    renderResult(result: any) {
+      return renderMarkdownResult(result);
+    },
+
     async execute(toolCallId, params, signal, onUpdate, ctx) {
       const result = await executeAction(params);
       return { content: [{ type: "text" as const, text: result }] };
@@ -69,15 +79,15 @@ async function handleList(): Promise<string> {
   if (people.length === 0) return "No people defined.";
 
   people.sort((a, b) => a.name.localeCompare(b.name));
-  const lines = people.map((p) => {
-    const parts = [`**${p.name}**`];
-    if (p.user_id) parts.push(`user: ${p.user_id}`);
-    if (p.device_trackers.length > 0) parts.push(`trackers: ${p.device_trackers.join(", ")}`);
-    return `${parts.join(" — ")} (id: ${p.id})`;
-  });
-
-  lines.push("");
-  lines.push(`${people.length} people`);
+  const lines: string[] = [
+    "| Name | User ID | Device Trackers | ID |",
+    "|------|---------|----------------|----|",
+    ...people.map((p) => {
+      const trackers = p.device_trackers.length > 0 ? p.device_trackers.join(", ") : "";
+      return `| **${p.name}** | ${p.user_id || ""} | ${trackers} | ${p.id} |`;
+    }),
+    `\n${people.length} people`,
+  ];
   return lines.join("\n");
 }
 
@@ -90,7 +100,7 @@ async function handleGet(id?: string): Promise<string> {
   if (!person) throw new Error(`Person '${id}' not found`);
 
   const lines = [
-    `# ${person.name}`,
+    `## ${person.name}`,
     "",
     `| Field | Value |`,
     `|-------|-------|`,

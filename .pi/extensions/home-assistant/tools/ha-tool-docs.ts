@@ -1,6 +1,7 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { supportedDomains } from "../lib/registry.js";
+import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
 
 const RELOADABLE_DOMAINS = [
   "automation", "conversation", "frontend", "input_boolean", "input_button",
@@ -393,6 +394,58 @@ Actions:
 
 Templates have access to all HA template functions: states(), is_state(), state_attr(), now(), as_timestamp(), etc.`,
 
+    questionnaire: `## questionnaire — Interactive Question UI
+
+Ask the user one or more questions with a visual selection interface.
+Single question: simple options list. Multiple questions: tab-based navigation.
+
+Parameters:
+- questions: Array of question objects, each with:
+  - id: Unique identifier (e.g., "entity_naming")
+  - label: Short label for tab bar (e.g., "Naming")
+  - prompt: Full question text displayed to the user
+  - options: Array of { value, label, description? }
+  - allowOther: Allow free-text input (default: true)
+
+Returns structured answers with question id, selected value, label, and whether custom text was entered.
+
+Best practices:
+- Keep options concise — use descriptions for explanations
+- Use 1-3 questions per call for focused decision-making
+- Include concrete examples from the user's system in descriptions`,
+
+    ha_policies: `## ha_policies — User-Defined Policies
+
+Manages naming conventions, organization preferences, and other policies the AI should follow consistently.
+Policies are stored in \`/homeassistant/pi-agent/policies.yaml\` — human-readable, survives backups/restores.
+
+Actions:
+- list: Show all current policies formatted for reading.
+- get: Get a specific policy category. Requires: category.
+- set: Set/update policies. Requires: category + (key & value, or fields object).
+- remove: Remove a policy category or key within it. Requires: category, optional: key.
+- init: Scan the system and return analysis data to power the guided setup wizard conversation.
+- check: Audit entities against defined policies — finds _2/_3 suffixes, brand names in IDs, etc.
+
+Policy categories: naming, organization, automations, dashboards, language, general.
+
+The \`init\` action scans all entities and returns:
+- Domain breakdown, naming pattern samples
+- Problematic names (_2/_3 suffixes, brand names in IDs)
+- Metric sensor analysis (power/energy/voltage/etc.)
+- Integration detection
+
+Use this data to guide the user through an educational setup conversation.
+The wizard should show examples from the user's own devices, explain concepts in plain language, and propose conventions with sensible defaults.
+
+The 'language' category supports multilingual setups with mapping tables:
+- areas: { "Kitchen": "Køkken", "Bedroom": "Soveværelse" }
+- device_types: { "ceiling light": "loftlampe", "motion sensor": "bevægelsessensor" }
+- metrics: { "power": "effekt", "energy": "energi", "temperature": "temperatur" }
+- common_words: { "on": "tændt", "off": "slukket" }
+
+The 'check' action validates language mappings — reports unmapped device types, metrics, and areas.`,
+
     ha_zones: `## ha_zones — Manage Zones
 
 Actions:
@@ -418,6 +471,15 @@ export function registerToolDocsTool(pi: ExtensionAPI) {
     parameters: Type.Object({
       tool: Type.String({ description: "Tool name (e.g. 'ha_zones') or 'all'" }),
     }),
+
+    renderCall(args: Record<string, unknown>, theme: any) {
+      return renderToolCall("HA Tool Docs", args, theme);
+    },
+
+    renderResult(result: any) {
+      return renderMarkdownResult(result);
+    },
+
     async execute(_id, params, _signal, _onUpdate, _ctx) {
       if (params.tool === "all") {
         const list = Object.keys(TOOL_DOCS)

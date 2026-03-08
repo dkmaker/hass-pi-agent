@@ -12,6 +12,7 @@ import { HA_CONFIG_PATH } from "../lib/config.js";
 import { buildGraph } from "../lib/graph/graph-builder.js";
 import { saveGraph, loadGraph } from "../lib/graph/cache.js";
 import type { Graph, GraphEdge, NodeType } from "../lib/graph/types.js";
+import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
 
 export function registerGraphTool(pi: ExtensionAPI) {
   pi.registerTool({
@@ -32,6 +33,15 @@ export function registerGraphTool(pi: ExtensionAPI) {
         description: "Filter by node type: entity, automation, script, scene, dashboard, helper, area, label, device"
       })),
     }),
+
+    renderCall(args: Record<string, unknown>, theme: any) {
+      return renderToolCall("ha_graph", args, theme);
+    },
+
+    renderResult(result: any) {
+      return renderMarkdownResult(result);
+    },
+
     async execute(toolCallId, params, signal, onUpdate, ctx) {
       const result = await executeAction(params as Record<string, unknown>);
       return { content: [{ type: "text" as const, text: result }] };
@@ -108,13 +118,20 @@ function doStatus(): string {
   if (!graph) return "No graph cached. Run `build` first.";
 
   const counts = countByType(graph);
-  const lines = [`**Last built**: ${graph.buildTime}`];
-  lines.push(`**Nodes**: ${graph.nodes.size}`);
+  const lines = [
+    "## Graph Status",
+    "",
+    "| Property | Value |",
+    "|----------|-------|",
+    `| Last built | ${graph.buildTime} |`,
+    `| Nodes | ${graph.nodes.size} |`,
+    `| Edges | ${graph.edges.length} |`,
+  ];
+  if (graph.errors.length) lines.push(`| Errors | ${graph.errors.length} |`);
+  lines.push("", "### Nodes by type", "", "| Type | Count |", "|------|-------|");
   for (const [type, count] of Object.entries(counts).sort((a, b) => b[1] - a[1])) {
-    lines.push(`  ${type}: ${count}`);
+    lines.push(`| ${type} | ${count} |`);
   }
-  lines.push(`**Edges**: ${graph.edges.length}`);
-  if (graph.errors.length) lines.push(`**Errors**: ${graph.errors.length}`);
   return lines.join("\n");
 }
 
@@ -199,11 +216,16 @@ function doOrphans(nodeType?: string): string {
 
   if (orphans.length === 0) return `No orphaned ${filterType === "entity" ? "entities" : filterType + "s"} found.`;
 
-  const lines = [`**Orphaned ${filterType}s** (${orphans.length}) — registered but never referenced:`];
-  for (const o of orphans.slice(0, 50)) {
-    lines.push(`  ${o.id}${o.name && o.name !== o.id ? ` (${o.name})` : ""}`);
-  }
-  if (orphans.length > 50) lines.push(`  ... and ${orphans.length - 50} more`);
+  const shown = orphans.slice(0, 50);
+  const lines: string[] = [
+    "| ID | Name |",
+    "|----|------|",
+    ...shown.map((o) => `| ${o.id} | ${o.name && o.name !== o.id ? o.name : ""} |`),
+  ];
+  const countLine = orphans.length > 50
+    ? `Showing 50 of ${orphans.length} orphaned ${filterType}s`
+    : `${orphans.length} orphaned ${filterType}s`;
+  lines.push(`\n${countLine}`);
   return lines.join("\n");
 }
 
@@ -221,10 +243,12 @@ function doUnused(type: "label" | "area"): string {
 
   if (unused.length === 0) return `No unused ${type}s found.`;
 
-  const lines = [`**Unused ${type}s** (${unused.length}):`];
-  for (const u of unused) {
-    lines.push(`  ${u.id}${u.name && u.name !== u.id ? ` (${u.name})` : ""}`);
-  }
+  const lines: string[] = [
+    "| ID | Name |",
+    "|----|------|",
+    ...unused.map((u) => `| ${u.id} | ${u.name && u.name !== u.id ? u.name : ""} |`),
+    `\n${unused.length} unused ${type}s`,
+  ];
   return lines.join("\n");
 }
 
@@ -280,5 +304,6 @@ function doExport(): string {
     edges: graph.edges,
     errors: graph.errors,
   };
-  return JSON.stringify(exported, null, 2);
+  const json = JSON.stringify(exported, null, 2);
+  return `## Graph Export\n\n${exported.nodes ? Object.keys(exported.nodes).length : 0} nodes, ${exported.edges?.length ?? 0} edges\n\n\`\`\`json\n${json}\n\`\`\``;
 }

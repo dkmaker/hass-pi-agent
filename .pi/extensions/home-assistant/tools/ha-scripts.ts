@@ -9,8 +9,9 @@ import { Type } from "@sinclair/typebox";
 import { StringEnum } from "@mariozechner/pi-ai";
 import { wsCommand } from "../lib/ws.js";
 import { apiGet, apiPost, apiDelete } from "../lib/api.js";
-import { timeSince } from "../lib/format.js";
+import { timeSince, formatTrace, renderMarkdownResult, renderToolCall } from "../lib/format.js";
 import type { HAState, TraceListEntry } from "../lib/types.js";
+import { toYaml } from "../lib/yaml.js";
 
 // ── Helpers ──────────────────────────────────────────────────
 
@@ -48,27 +49,26 @@ async function handleList(params: Record<string, unknown>): Promise<string> {
 
   if (total === 0) return "No scripts found.";
 
-  const lines: string[] = [];
+  const rows: string[] = [
+    "| | Name | Script ID | Mode | Last triggered |",
+    "|---|------|-----------|------|----------------|",
+  ];
   for (const s of page) {
     const name = (s.attributes.friendly_name as string) || s.entity_id;
     const lastTriggered = s.attributes.last_triggered as string;
-    const mode = s.attributes.mode as string;
+    const mode = (s.attributes.mode as string) || "single";
     const stateIcon = s.state === "on" ? "🔄" : "⏹️";
     const objectId = s.entity_id.replace("script.", "");
-
-    const meta: string[] = [`id: ${objectId}`];
-    if (mode && mode !== "single") meta.push(`mode: ${mode}`);
-    if (lastTriggered) meta.push(`last: ${timeSince(lastTriggered)}`);
-
-    lines.push(`${stateIcon} ${name}`);
-    lines.push(`  ${meta.join(" | ")}`);
+    const ago = lastTriggered ? timeSince(lastTriggered) : "—";
+    rows.push(`| ${stateIcon} | ${name} | ${objectId} | ${mode} | ${ago} |`);
   }
 
   const summary = total <= limit && offset === 0
     ? `${total} scripts`
     : `Showing ${offset + 1}-${Math.min(offset + limit, total)} of ${total} scripts`;
 
-  return lines.join("\n") + "\n\n" + summary;
+  rows.push(`\n${summary}`);
+  return rows.join("\n");
 }
 
 // ── Get ──────────────────────────────────────────────────────
@@ -105,20 +105,33 @@ async function handleGet(params: Record<string, unknown>): Promise<string> {
     throw new Error(`Script not found. Provide a valid entity_id or script_id.`);
   }
 
-  const result: Record<string, unknown> = {};
+  const lines: string[] = [];
+  const name = state?.attributes.friendly_name || config?.alias || scriptId || "(unnamed)";
+  lines.push(`## ${name}`);
+  lines.push("");
+  lines.push("| Property | Value |");
+  lines.push("|----------|-------|");
   if (state) {
-    result.entity_id = state.entity_id;
-    result.state = state.state;
-    result.friendly_name = state.attributes.friendly_name;
-    result.last_triggered = state.attributes.last_triggered;
-    result.mode = state.attributes.mode;
-    result.current = state.attributes.current;
+    lines.push(`| Entity | ${state.entity_id} |`);
+    lines.push(`| State | ${state.state} |`);
+    lines.push(`| Mode | ${state.attributes.mode || "single"} |`);
+    if (state.attributes.last_triggered) lines.push(`| Last triggered | ${state.attributes.last_triggered} |`);
+    if (state.attributes.current) lines.push(`| Current runs | ${state.attributes.current} |`);
   }
   if (config) {
-    result.config = config;
+    if (config.description) lines.push(`| Description | ${config.description} |`);
+    const seq = config.sequence as unknown[];
+    if (seq) lines.push(`| Actions | ${seq.length} step(s) |`);
+    if (config.fields) lines.push(`| Fields | ${Object.keys(config.fields as object).join(", ")} |`);
+    lines.push("");
+    lines.push("### Config");
+    lines.push("");
+    lines.push("```yaml");
+    lines.push(toYaml(config).trim());
+    lines.push("```");
   }
 
-  return JSON.stringify(result, null, 2);
+  return lines.join("\n");
 }
 
 // ── Create ───────────────────────────────────────────────────
@@ -208,17 +221,18 @@ async function handleTraces(params: Record<string, unknown>): Promise<string> {
   const limit = (params.limit as number) || 20;
   const page = traces.slice(0, limit);
 
-  const lines: string[] = [];
+  const lines: string[] = [
+    "| Status | Script | Execution | Run ID | Last Step | Time |",
+    "|--------|--------|-----------|--------|-----------|------|",
+  ];
   for (const t of page) {
     const stateIcon = t.state === "stopped" ? "✅" : t.state === "running" ? "🔄" : "❌";
     const ago = timeSince(t.timestamp.start);
     const execution = t.script_execution || "unknown";
-    lines.push(`${stateIcon} ${t.item_id} — ${execution} (${ago})`);
-    lines.push(`  run_id: ${t.run_id} | last_step: ${t.last_step || "none"}`);
+    lines.push(`| ${stateIcon} | ${t.item_id} | ${execution} | ${t.run_id} | ${t.last_step || "none"} | ${ago} |`);
   }
 
-  lines.push("");
-  lines.push(`${traces.length} traces total (showing ${page.length})`);
+  lines.push(`\n${traces.length} traces (showing ${page.length})`);
   return lines.join("\n");
 }
 
@@ -234,7 +248,7 @@ async function handleTrace(params: Record<string, unknown>): Promise<string> {
     run_id: runId,
   });
 
-  return JSON.stringify(trace, null, 2);
+  return formatTrace("script", scriptId, runId, trace);
 }
 
 // ── Tool registration ────────────────────────────────────────
@@ -287,6 +301,15 @@ export function registerScriptsTool(pi: ExtensionAPI): void {
         Type.Boolean({ description: "Set true to confirm delete (default: false, preview only)" })
       ),
     }),
+
+
+    renderCall(args: Record<string, unknown>, theme: any) {
+      return renderToolCall("HA Scripts", args, theme);
+    },
+
+    renderResult(result: any) {
+      return renderMarkdownResult(result);
+    },
 
     async execute(toolCallId, params, signal, onUpdate, ctx) {
       const result = await dispatch(params);

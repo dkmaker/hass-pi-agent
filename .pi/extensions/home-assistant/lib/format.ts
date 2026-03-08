@@ -2,8 +2,40 @@
  * Shared formatting and string utilities.
  *
  * Common helpers used across multiple tools — time formatting,
- * slugification, element summarization.
+ * slugification, element summarization, and TUI rendering.
  */
+import { Markdown, Text } from "@mariozechner/pi-tui";
+import { getMarkdownTheme } from "@mariozechner/pi-coding-agent";
+
+/**
+ * Shared renderResult for all HA tools — renders markdown output from execute().
+ * Extracts the text content and renders it as formatted markdown in the TUI.
+ */
+export function renderMarkdownResult(result: { content: Array<{ type: string; text?: string }> }): Markdown | Text {
+  const text = result.content?.[0]?.type === "text" ? (result.content[0] as { text: string }).text : "";
+  if (!text) return new Text("", 0, 0);
+  return new Markdown(text, 0, 0, getMarkdownTheme());
+}
+
+/**
+ * Shared renderCall for all HA tools — shows "toolName action" with styling.
+ */
+export function renderToolCall(toolLabel: string, args: Record<string, unknown>, theme: any): Text {
+  let text = theme.fg("toolTitle", theme.bold(`${toolLabel} `));
+  const action = args.action as string | undefined;
+  if (action) {
+    text += theme.fg("accent", action);
+    // Add key context based on common params
+    const id = (args.entity_id || args.device_id || args.area_id || args.slug || args.id || args.domain || "") as string;
+    if (id) text += theme.fg("dim", ` ${id}`);
+    else if (args.search) text += theme.fg("dim", ` "${args.search}"`);
+  } else if (args.template) {
+    text += theme.fg("dim", `${String(args.template).slice(0, 50)}`);
+  } else if (args.tool) {
+    text += theme.fg("accent", String(args.tool));
+  }
+  return new Text(text, 0, 0);
+}
 
 /** Format an ISO date as relative time (e.g., "5m ago", "2h ago") */
 export function timeSince(isoDate: string): string {
@@ -79,6 +111,40 @@ export function parseRelativeTime(input: string): string {
   else throw new Error(`Unknown time unit: ${unit}`);
 
   return new Date(Date.now() - ms).toISOString();
+}
+
+/** Format a trace object (automation or script) into readable markdown */
+export function formatTrace(domain: string, itemId: string, runId: string, trace: Record<string, unknown>): string {
+  const lines: string[] = [];
+  lines.push(`## ${domain} trace: ${itemId} (${runId})`);
+  lines.push("");
+
+  const state = (trace.state as string) || "unknown";
+  const timestamp = trace.timestamp as Record<string, string> | undefined;
+  lines.push("| Property | Value |");
+  lines.push("|----------|-------|");
+  lines.push(`| State | ${state} |`);
+  if (timestamp?.start) lines.push(`| Started | ${timestamp.start} |`);
+  if (timestamp?.finish) lines.push(`| Finished | ${timestamp.finish} |`);
+  if (trace.script_execution) lines.push(`| Execution | ${trace.script_execution} |`);
+  if (trace.error) lines.push(`| Error | ${trace.error} |`);
+
+  const traceSteps = trace.trace as Record<string, unknown[]> | undefined;
+  if (traceSteps) {
+    lines.push("");
+    lines.push("### Steps");
+    lines.push("");
+    for (const [path, steps] of Object.entries(traceSteps)) {
+      for (const step of steps) {
+        const s = step as Record<string, unknown>;
+        const result = s.result ? ` → ${typeof s.result === "object" ? JSON.stringify(s.result) : s.result}` : "";
+        const error = s.error ? ` ❌ ${s.error}` : "";
+        lines.push(`- \`${path}\`${result}${error}`);
+      }
+    }
+  }
+
+  return lines.join("\n");
 }
 
 /** Produce a short one-line summary of an automation element */

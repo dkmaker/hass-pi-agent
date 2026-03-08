@@ -8,6 +8,7 @@ import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { StringEnum } from "@mariozechner/pi-ai";
 import { wsCommand } from "../lib/ws.js";
+import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -83,6 +84,15 @@ export function registerAreasTool(pi: ExtensionAPI): void {
         Type.Boolean({ description: "Set true to confirm delete-area/delete-floor (default: false, preview only)" })
       ),
     }),
+
+
+    renderCall(args: Record<string, unknown>, theme: any) {
+      return renderToolCall("HA Areas", args, theme);
+    },
+
+    renderResult(result: any) {
+      return renderMarkdownResult(result);
+    },
 
     async execute(toolCallId, params, signal, onUpdate, ctx) {
       const result = await executeAction(params);
@@ -195,7 +205,35 @@ async function handleGet(areaId?: string): Promise<string> {
     .filter((e) => e.area_id === areaId)
     .map((e) => e.entity_id);
 
-  return JSON.stringify({ ...area, devices: areaDevices, entities: areaEntities }, null, 2);
+  const lines: string[] = [];
+  lines.push(`## ${area.name}`);
+  lines.push("");
+  lines.push("| Property | Value |");
+  lines.push("|----------|-------|");
+  lines.push(`| ID | ${area.area_id} |`);
+  if (area.floor_id) lines.push(`| Floor | ${area.floor_id} |`);
+  if (area.icon) lines.push(`| Icon | ${area.icon} |`);
+  if (area.aliases?.length) lines.push(`| Aliases | ${area.aliases.join(", ")} |`);
+  if (area.labels?.length) lines.push(`| Labels | ${area.labels.join(", ")} |`);
+
+  if (areaDevices.length > 0) {
+    lines.push("");
+    lines.push(`### Devices (${areaDevices.length})`);
+    for (const d of areaDevices) { lines.push(`- ${d.name} (${d.id})`); }
+  }
+
+  if (areaEntities.length > 0) {
+    lines.push("");
+    lines.push(`### Entities (${areaEntities.length})`);
+    for (const e of areaEntities) { lines.push(`- ${e}`); }
+  }
+
+  if (areaDevices.length === 0 && areaEntities.length === 0) {
+    lines.push("");
+    lines.push("*No devices or entities assigned.*");
+  }
+
+  return lines.join("\n");
 }
 
 async function handleCreateArea(params: Record<string, unknown>): Promise<string> {
@@ -244,12 +282,12 @@ async function handleListFloors(): Promise<string> {
 
   if (floors.length === 0) return "No floors defined.";
 
-  const lines = floors.map((f) => {
-    const levelStr = f.level !== null ? ` (level ${f.level})` : "";
-    const iconStr = f.icon ? ` ${f.icon}` : "";
-    return `${f.name}${levelStr}${iconStr} — id: ${f.floor_id}`;
-  });
-
+  const lines: string[] = [
+    "| Name | Level | Icon | ID |",
+    "|------|-------|------|----|",
+    ...floors.map((f) => `| **${f.name}** | ${f.level ?? ""} | ${f.icon || ""} | ${f.floor_id} |`),
+    `\n${floors.length} floors`,
+  ];
   return lines.join("\n");
 }
 

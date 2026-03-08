@@ -8,7 +8,7 @@ import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { StringEnum } from "@mariozechner/pi-ai";
 import { wsCommand } from "../lib/ws.js";
-import { parseRelativeTime } from "../lib/format.js";
+import { parseRelativeTime , renderMarkdownResult, renderToolCall } from "../lib/format.js";
 
 interface StatisticMetadata {
   statistic_id: string;
@@ -45,13 +45,17 @@ function formatNumber(n: number | null | undefined): string {
 function formatStatsList(metadata: StatisticMetadata[]): string {
   if (!metadata.length) return "No statistics available.";
 
-  const lines = [`**${metadata.length} statistic IDs available:**\n`];
-  for (const m of metadata) {
-    const unit = m.display_unit_of_measurement || m.statistics_unit_of_measurement || "";
-    const types = [m.has_mean ? "mean" : "", m.has_sum ? "sum" : ""].filter(Boolean).join(", ");
-    const name = m.name ? ` (${m.name})` : "";
-    lines.push(`  ${m.statistic_id}${name} — ${unit || "unitless"} [${types}] source:${m.source}`);
-  }
+  const lines: string[] = [
+    "| Statistic ID | Name | Unit | Types | Source |",
+    "|-------------|------|------|-------|--------|",
+    ...metadata.map((m) => {
+      const unit = m.display_unit_of_measurement || m.statistics_unit_of_measurement || "unitless";
+      const types = [m.has_mean ? "mean" : "", m.has_sum ? "sum" : ""].filter(Boolean).join(", ");
+      const name = m.name || "";
+      return `| ${m.statistic_id} | ${name} | ${unit} | ${types} | ${m.source} |`;
+    }),
+    `\n${metadata.length} statistics`,
+  ];
   return lines.join("\n");
 }
 
@@ -68,7 +72,7 @@ function formatStats(data: Record<string, StatisticRow[]>): string {
       continue;
     }
 
-    lines.push(`\n**${id}** (${rows.length} period${rows.length !== 1 ? "s" : ""}):`);
+    lines.push(`\n**${id}** (${rows.length} period${rows.length !== 1 ? "s" : ""}):\n`);
 
     // Determine which columns have data
     const hasMean = rows.some(r => r.mean != null);
@@ -78,24 +82,29 @@ function formatStats(data: Record<string, StatisticRow[]>): string {
     const hasState = rows.some(r => r.state != null);
     const hasChange = rows.some(r => r.change != null);
 
-    // Header
-    let header = "  Period Start          ";
-    if (hasMean) header += "  Mean";
-    if (hasMin) header += "    Min";
-    if (hasMax) header += "    Max";
-    if (hasSum) header += "    Sum";
-    if (hasState) header += "  State";
-    if (hasChange) header += "  Change";
+    // Build table header
+    let header = "| Period Start";
+    let sep = "|-------------";
+    if (hasMean) { header += " | Mean"; sep += " |-----"; }
+    if (hasMin) { header += " | Min"; sep += " |----"; }
+    if (hasMax) { header += " | Max"; sep += " |----"; }
+    if (hasSum) { header += " | Sum"; sep += " |----"; }
+    if (hasState) { header += " | State"; sep += " |------"; }
+    if (hasChange) { header += " | Change"; sep += " |-------"; }
+    header += " |";
+    sep += " |";
     lines.push(header);
+    lines.push(sep);
 
     for (const r of rows) {
-      let line = `  ${formatTimestamp(r.start)}`;
-      if (hasMean) line += `  ${formatNumber(r.mean).padStart(6)}`;
-      if (hasMin) line += `  ${formatNumber(r.min).padStart(6)}`;
-      if (hasMax) line += `  ${formatNumber(r.max).padStart(6)}`;
-      if (hasSum) line += `  ${formatNumber(r.sum).padStart(6)}`;
-      if (hasState) line += `  ${formatNumber(r.state).padStart(6)}`;
-      if (hasChange) line += `  ${formatNumber(r.change).padStart(6)}`;
+      let line = `| ${formatTimestamp(r.start)}`;
+      if (hasMean) line += ` | ${formatNumber(r.mean)}`;
+      if (hasMin) line += ` | ${formatNumber(r.min)}`;
+      if (hasMax) line += ` | ${formatNumber(r.max)}`;
+      if (hasSum) line += ` | ${formatNumber(r.sum)}`;
+      if (hasState) line += ` | ${formatNumber(r.state)}`;
+      if (hasChange) line += ` | ${formatNumber(r.change)}`;
+      line += " |";
       lines.push(line);
     }
   }
@@ -133,6 +142,15 @@ export function registerStatsTool(pi: ExtensionAPI): void {
         { description: "Statistics types to include" }
       )),
     }),
+
+
+    renderCall(args: Record<string, unknown>, theme: any) {
+      return renderToolCall("HA Statistics", args, theme);
+    },
+
+    renderResult(result: any) {
+      return renderMarkdownResult(result);
+    },
 
     async execute(_toolCallId, params) {
       if (params.action === "list") {
