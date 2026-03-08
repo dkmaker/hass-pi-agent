@@ -15,7 +15,7 @@ The **Pi Agent for Home Assistant** add-on source lives in `addon/` at the repo 
 ## Deploy
 
 ```bash
-tools/deploy-addon
+.pi/skills/ha-dev/scripts/deploy-addon
 ```
 
 This script:
@@ -37,26 +37,26 @@ Supervisor builds the Docker image locally on the VM from the Dockerfile. This t
 
 ```bash
 # Deploy updated source
-tools/deploy-addon
+.pi/skills/ha-dev/scripts/deploy-addon
 
 # Rebuild the add-on (rebuilds Docker image + restarts)
-tools/ha-supervisor addon-rebuild local_pi_agent
+.pi/skills/ha-dev/scripts/ha-supervisor addon-rebuild local_pi_agent
 ```
 
 ### Quick restart (no rebuild, e.g. run.sh-only changes after rebuild)
 
 ```bash
-tools/ha-supervisor addon-restart local_pi_agent
+.pi/skills/ha-dev/scripts/ha-supervisor addon-restart local_pi_agent
 ```
 
 ## Checking Logs
 
 ```bash
 # Via REST API (returns recent output, may be truncated)
-tools/ha-api addon-logs local_pi_agent
+.pi/skills/ha-dev/scripts/ha-api addon-logs local_pi_agent
 
 # Via SSH
-tools/vm-ctl ssh 'ha apps logs local_pi_agent'
+.pi/skills/ha-dev/scripts/vm-ctl ssh 'ha apps logs local_pi_agent'
 ```
 
 **Tip:** The log API truncates long output. For full logs, download from the
