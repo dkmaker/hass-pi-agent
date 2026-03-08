@@ -2,6 +2,10 @@
 """
 Fetch and update Home Assistant documentation from GitHub.
 
+NOTE: This is the canonical copy. An identical copy lives at
+addon/rootfs/opt/update-docs.py for use inside the add-on container
+(run at startup by the init-docs s6 service). Keep both in sync.
+
 First run: fetches all integration + doc files, builds index + content.
 Subsequent runs: incremental — only fetches files with changed blob SHAs.
 
