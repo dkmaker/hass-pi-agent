@@ -25,16 +25,7 @@ export function registerPeopleTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_people",
     label: "HA People",
-    description: `Manage Home Assistant people.
-
-Actions:
-- list: List all people with their device trackers.
-- get: Get full details for a person by id.
-- create: Create a new person (name required).
-- update: Update a person by id.
-- delete: Delete a person by id.
-
-People link HA users to device trackers for presence detection.`,
+    description: `Manage HA people (presence detection). Actions: list, get, create, update, delete. Use ha_tool_docs('ha_people') for full usage.`,
 
     parameters: Type.Object({
       action: StringEnum(["list", "get", "create", "update", "delete"] as const, {

@@ -2,3 +2,8 @@
 .search_cache/
 node_modules/
 .pi/extensions/home-assistant/data/
+
+# Pi-provided extensions (symlinks/copies, not project code)
+.pi/extensions/pi-docs
+.pi/extensions/project
+.pi/extensions/web-search.ts

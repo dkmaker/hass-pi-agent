@@ -245,20 +245,7 @@ export function registerScriptsTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_scripts",
     label: "HA Scripts",
-    description: `Manage Home Assistant scripts — full CRUD, run, stop, and trace debugging.
-
-Actions:
-- list: List all scripts with state and last triggered time. Filters: state (on/off), search.
-- get: Get full script config + current state.
-- create: Create a new script (script_id, alias, and sequence required). Auto-reloads.
-- update: Update an existing script config. Auto-reloads.
-- delete: Delete a script.
-- run: Run a script, optionally with input variables.
-- stop: Stop a running script.
-- traces: List recent execution traces for a script.
-- trace: Get detailed trace for a specific run.
-
-All changes take effect immediately — HA auto-reloads after writes.`,
+    description: `Manage HA scripts — CRUD, run, stop, traces. Actions: list, get, create, update, delete, run, stop, traces, trace. Use ha_tool_docs('ha_scripts') for full usage.`,
 
     parameters: Type.Object({
       action: StringEnum(ALL_ACTIONS, { description: "Action to perform" }),

@@ -75,12 +75,7 @@ export function registerEventsTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_events",
     label: "HA Events",
-    description: `Capture live Home Assistant events for a limited duration.
-
-Actions:
-- capture: Subscribe to events for N seconds and return what was captured. Useful for troubleshooting triggers, watching state changes, or seeing what's happening in real-time.
-
-Common event types: state_changed, call_service, automation_triggered, script_started, homeassistant_start`,
+    description: `Capture live HA events for a limited duration. Actions: capture. Use ha_tool_docs('ha_events') for full usage.`,
 
     parameters: Type.Object({
       action: StringEnum(["capture"] as const, {

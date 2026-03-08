@@ -23,15 +23,7 @@ export function registerCategoriesTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_categories",
     label: "HA Categories",
-    description: `Manage Home Assistant categories for organizing automations, scripts, and scenes.
-
-Actions:
-- list: List all categories for a scope (automation, script, scene).
-- create: Create a new category (scope and name required).
-- update: Update a category by category_id.
-- delete: Delete a category by category_id.
-
-Categories help organize large numbers of automations/scripts/scenes in the UI.`,
+    description: `Manage categories for automations/scripts/scenes. Actions: list, create, update, delete. Use ha_tool_docs('ha_categories') for full usage.`,
 
     parameters: Type.Object({
       action: StringEnum(["list", "create", "update", "delete"] as const, {

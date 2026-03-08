@@ -12,8 +12,11 @@ const fs = require("fs");
 
 const PORT = 9199;
 const MAX_CONCURRENT = 3;
+const CONTEXT_REFRESH_MS = 60 * 60 * 1000; // 1 hour
 
 let activeProcesses = 0;
+let cachedContext = null;
+let contextLastUpdated = null;
 
 /** Load environment from s6 container_environment */
 function loadEnv() {
@@ -76,6 +79,120 @@ function fireLogbookEntry(name, message, entityId) {
   req.write(payload);
   req.end();
 }
+
+/** Make an HTTP request to the Supervisor/Core API and return parsed JSON */
+function supervisorRequest(path) {
+  const token = piEnv.SUPERVISOR_TOKEN || piEnv.HA_TOKEN;
+  if (!token) return Promise.reject(new Error("No token"));
+
+  return new Promise((resolve, reject) => {
+    const req = http.request(
+      {
+        hostname: "supervisor",
+        port: 80,
+        path,
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      },
+      (res) => {
+        let body = "";
+        res.on("data", (d) => (body += d));
+        res.on("end", () => {
+          try {
+            const parsed = JSON.parse(body);
+            // Supervisor API wraps in { result, data }
+            resolve(parsed.data || parsed);
+          } catch (e) {
+            reject(new Error(`Parse error: ${body.slice(0, 200)}`));
+          }
+        });
+      }
+    );
+    req.on("error", reject);
+    req.setTimeout(10000, () => { req.destroy(); reject(new Error("Timeout")); });
+    req.end();
+  });
+}
+
+/** Gather stable, structural HA context (no transient state) */
+async function gatherContext() {
+  try {
+    const [states, supInfo, osInfo, hostInfo, addonsInfo] = await Promise.allSettled([
+      supervisorRequest("/core/api/states"),
+      supervisorRequest("/supervisor/info"),
+      supervisorRequest("/os/info"),
+      supervisorRequest("/host/info"),
+      supervisorRequest("/addons"),
+    ]);
+
+    // Domain counts from states (structural — not individual values)
+    const allStates = states.status === "fulfilled" ? states.value : [];
+    const domainCounts = {};
+    for (const s of allStates) {
+      if (!s.entity_id) continue;
+      const domain = s.entity_id.split(".")[0];
+      domainCounts[domain] = (domainCounts[domain] || 0) + 1;
+    }
+    const entityCount = allStates.length;
+
+    // System info
+    const sup = supInfo.status === "fulfilled" ? supInfo.value : {};
+    const os = osInfo.status === "fulfilled" ? osInfo.value : {};
+    const host = hostInfo.status === "fulfilled" ? hostInfo.value : {};
+    const addons = addonsInfo.status === "fulfilled" ? addonsInfo.value : {};
+
+    // Installed add-ons
+    const installedAddons = (addons.addons || [])
+      .filter((a) => a.installed)
+      .map((a) => ({
+        name: a.name,
+        version: a.version || "?",
+        running: a.state === "started",
+      }));
+
+    // Areas via Core API
+    let areas = [];
+    try {
+      // Use WebSocket-style via REST isn't available, use template endpoint
+      const areaStates = Array.isArray(allStates) ? allStates : [];
+      // We can't easily get areas without WS, so we'll try the REST API
+      const areaData = await supervisorRequest("/core/api/config");
+      // areas aren't in config API — skip for now, extension can supplement
+    } catch {}
+
+    cachedContext = {
+      system: {
+        hostname: host.hostname || "unknown",
+        ha_version: sup.homeassistant || "unknown",
+        os_version: os.version || "unknown",
+        supervisor_version: sup.version || "unknown",
+        arch: sup.arch || "unknown",
+        board: os.board || "unknown",
+        os_name: host.operating_system || "unknown",
+      },
+      entities: {
+        total: entityCount,
+        domains: domainCounts,
+      },
+      addons: installedAddons,
+      gathered_at: new Date().toISOString(),
+    };
+
+    contextLastUpdated = Date.now();
+    console.log(`[pi-service] Context gathered: ${entityCount} entities, ${installedAddons.length} add-ons`);
+  } catch (err) {
+    console.error(`[pi-service] Context gather failed: ${err.message}`);
+  }
+}
+
+// Gather context at startup (with a short delay for HA to be ready) and hourly
+setTimeout(() => {
+  gatherContext();
+  setInterval(gatherContext, CONTEXT_REFRESH_MS);
+}, 5000);
 
 function spawnPi(question, overrides = {}) {
   activeProcesses++;
@@ -181,6 +298,14 @@ const server = http.createServer((req, res) => {
         res.end(JSON.stringify({ error: "Invalid JSON" }));
       }
     });
+  } else if (req.method === "GET" && req.url === "/context") {
+    if (cachedContext) {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify(cachedContext));
+    } else {
+      res.writeHead(503, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Context not yet available" }));
+    }
   } else if (req.method === "GET" && req.url === "/health") {
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ status: "ok", active: activeProcesses }));

@@ -63,26 +63,7 @@ export function registerAddonsTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_addons",
     label: "HA Add-ons",
-    description: `Manage Home Assistant add-ons via the Supervisor API.
-
-Actions:
-- list: List installed add-ons with state and version.
-- get: Get full add-on details — config schema, options, state.
-- start: Start an add-on.
-- stop: Stop an add-on.
-- restart: Restart an add-on.
-- install: Install an add-on from the store.
-- uninstall: Uninstall an add-on.
-- update: Update an add-on to latest version.
-- logs: Get add-on logs (plain text, last N lines).
-- stats: Get add-on CPU/memory usage.
-- config: View current add-on configuration.
-- set-config: Update add-on configuration.
-- store: Browse available add-ons in the store (with optional search filter).
-- store-refresh: Refresh the add-on store cache.
-- list-repos: List configured add-on repositories.
-- add-repo: Add a new repository URL.
-- remove-repo: Remove a repository.`,
+    description: `Manage HA add-ons (install, start/stop, config, logs, store). Actions: list, get, start, stop, restart, install, uninstall, update, logs, stats, config, set-config, store, store-refresh, list-repos, add-repo, remove-repo. Use ha_tool_docs('ha_addons') for full usage.`,
 
     parameters: Type.Object({
       action: StringEnum(

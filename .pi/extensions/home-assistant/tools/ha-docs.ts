@@ -12,16 +12,7 @@ export function registerDocsTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_docs",
     label: "HA Docs",
-    description: `Look up Home Assistant integration and configuration documentation.
-
-Actions:
-- list: List integrations with filters. Filters: category, platform, iot_class, integration_type, search. Shows matching integrations with key metadata.
-- get: Get full documentation for a specific integration or doc page. Fetches from GitHub and caches locally.
-- search: Search integration index by keyword (title, description, domain).
-- update: Refresh the docs index from GitHub (fetches latest integration metadata).
-- status: Show index info — version, source, integration/doc counts.
-
-Index is auto-fetched on first startup and refreshed daily. Content is fetched on demand from GitHub and cached persistently.`,
+    description: `Look up HA integration and configuration documentation. Actions: list, get, search, update, status. Use ha_tool_docs('ha_docs') for full usage.`,
 
     parameters: Type.Object({
       action: StringEnum(

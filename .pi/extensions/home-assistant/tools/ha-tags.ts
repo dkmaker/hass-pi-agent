@@ -25,16 +25,7 @@ export function registerTagsTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_tags",
     label: "HA Tags",
-    description: `Manage Home Assistant tags (NFC/QR).
-
-Actions:
-- list: List all tags.
-- get: Get tag details by id.
-- create: Create a new tag (name optional, tag_id auto-generated if not provided).
-- update: Update a tag by id.
-- delete: Delete a tag by id.
-
-Tags can be scanned to trigger automations via the tag_scanned event.`,
+    description: `Manage HA tags (NFC/QR). Actions: list, get, create, update, delete. Use ha_tool_docs('ha_tags') for full usage.`,
 
     parameters: Type.Object({
       action: StringEnum(["list", "get", "create", "update", "delete"] as const, {

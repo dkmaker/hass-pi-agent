@@ -36,13 +36,7 @@ export function registerTemplateTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_template",
     label: "HA Template",
-    description: `Render and validate Home Assistant Jinja2 templates.
-
-Actions:
-- render: Render a template and return the output. Use to test template expressions against live entity states.
-- validate: Check if a template has valid syntax. Returns valid/invalid with error details.
-
-Templates have access to all HA template functions: states(), is_state(), state_attr(), now(), as_timestamp(), etc.`,
+    description: `Render and validate HA Jinja2 templates. Actions: render, validate. Use ha_tool_docs('ha_template') for full usage.`,
 
     parameters: Type.Object({
       action: StringEnum(["render", "validate"] as const, {

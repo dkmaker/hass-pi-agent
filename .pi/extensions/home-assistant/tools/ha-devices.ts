@@ -125,15 +125,7 @@ export function registerDevicesTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_devices",
     label: "HA Devices",
-    description: `Discover, inspect, and manage Home Assistant devices.
-
-Actions:
-- list: List devices with filters. Filters: integration, area, manufacturer, model, search. Hides disabled by default. Paginated.
-- get: Full detail for one device — hardware info, integrations, area, all entities with states.
-- update: Update device properties — rename (name_by_user), move to area (area_id), set labels, disable/enable.
-- tree: Show device hierarchy — hub/bridge devices and their children via via_device_id.
-
-Uses WebSocket API for live data. Entity states come from REST API.`,
+    description: `Discover, inspect, and manage HA devices. Actions: list, get, update, tree. Use ha_tool_docs('ha_devices') for full usage.`,
 
     parameters: Type.Object({
       action: StringEnum(["list", "get", "update", "tree"] as const, {

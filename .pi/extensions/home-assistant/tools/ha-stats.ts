@@ -107,13 +107,7 @@ export function registerStatsTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_stats",
     label: "HA Statistics",
-    description: `Query Home Assistant long-term statistics for sensors with state_class.
-
-Actions:
-- list: List available statistic IDs with metadata (unit, type, source).
-- get: Get aggregated statistics over a time range with period grouping.
-
-Time can be relative (1h, 24h, 7d) or ISO datetime.`,
+    description: `Query HA long-term statistics. Actions: list, get. Use ha_tool_docs('ha_stats') for full usage.`,
 
     parameters: Type.Object({
       action: StringEnum(["list", "get"] as const, {

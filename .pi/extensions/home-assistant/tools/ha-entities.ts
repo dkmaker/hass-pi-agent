@@ -87,17 +87,7 @@ export function registerEntitiesTools(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_entities",
     label: "HA Entities",
-    description: `Discover and inspect Home Assistant entities with device and area context.
-
-Actions:
-- list: List entities with state. Filters: domain, device_id, search, state. Hides unavailable by default (reports count). Paginated.
-- get: Full detail for one entity — state, attributes, device, area.
-- domains: Overview of all domains with entity counts.
-- update: Update entity — rename, change entity_id, set area/labels, disable/enable, change icon.
-- remove: Remove an entity from the registry.
-- regenerate-ids: Preview and apply new entity IDs based on current device/entity names. Accepts entity_ids array or device_id to select all entities for a device. Shows old→new mapping AND all automations/scripts/scenes that reference the affected entities. The agent MUST review the related items before confirming the rename.
-
-Entity listings include device name and area when available.`,
+    description: `Discover and inspect HA entities with device/area context. Actions: list, get, domains, update, remove, regenerate-ids. Use ha_tool_docs('ha_entities') for full usage.`,
 
     parameters: Type.Object({
       action: StringEnum(["list", "get", "domains", "update", "remove", "regenerate-ids"] as const, {

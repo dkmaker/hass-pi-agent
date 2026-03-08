@@ -34,19 +34,7 @@ export function registerHelperTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_helpers",
     label: "HA Helpers",
-    description: `Manage Home Assistant helpers — all types, unified interface.
-
-Supported types: ${allDomains.join(", ")}
-
-Actions:
-- list-types: Show all supported helper types with field schemas
-- list: List all helpers, optionally filtered by type
-- get: Get a specific helper by type and id
-- add: Add a new helper (all types are live — no restart needed)
-- update: Update an existing helper (all types are live — no restart needed)
-- remove: Remove a helper by type and id (all types are live — no restart needed)
-Collection helpers (input_boolean, input_number, input_text, input_select, input_datetime, input_button, counter, timer, schedule) use WebSocket — changes take effect immediately.
-Config entry helpers (template, derivative, utility_meter, etc.) use the config flow API — changes take effect immediately.`,
+    description: `Manage HA helpers — all types, unified interface. Actions: list-types, list, get, add, update, remove. Use ha_tool_docs('ha_helpers') for full usage.`,
 
     parameters: Type.Object({
       action: StringEnum(

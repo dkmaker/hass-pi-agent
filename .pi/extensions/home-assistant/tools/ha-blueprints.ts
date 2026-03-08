@@ -28,14 +28,7 @@ export function registerBlueprintsTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_blueprints",
     label: "HA Blueprints",
-    description: `Manage Home Assistant blueprints.
-
-Actions:
-- list: List all blueprints, optionally filtered by domain (automation/script).
-- import: Import a blueprint from a URL (community forums, GitHub).
-- delete: Delete a blueprint by path.
-
-Blueprints are reusable automation/script templates stored in blueprints/<domain>/.`,
+    description: `Manage HA blueprints (reusable templates). Actions: list, import, delete. Use ha_tool_docs('ha_blueprints') for full usage.`,
 
     parameters: Type.Object({
       action: StringEnum(["list", "import", "delete"] as const, {

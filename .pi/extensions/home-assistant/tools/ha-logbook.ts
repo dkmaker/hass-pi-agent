@@ -67,12 +67,7 @@ export function registerLogbookTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_logbook",
     label: "HA Logbook",
-    description: `Query the Home Assistant activity log for a human-readable event timeline.
-
-Actions:
-- events: Get logbook events for entities, devices, or everything over a time range.
-
-Time can be relative (1h, 24h, 7d) or ISO datetime. Default: last 24 hours.`,
+    description: `Query HA activity log for event timeline. Actions: events. Use ha_tool_docs('ha_logbook') for full usage.`,
 
     parameters: Type.Object({
       action: StringEnum(["events"] as const, {

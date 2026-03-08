@@ -16,18 +16,7 @@ import type { Graph, GraphEdge, NodeType } from "../lib/graph/types.js";
 export function registerGraphTool(pi: ExtensionAPI) {
   pi.registerTool({
     name: "ha_graph",
-    description: `Entity & Configuration Relationship Graph engine.
-
-Actions:
-- build: Full index rebuild — parse all YAML + .storage, build graph, cache result
-- status: Show last build time, node/edge counts, any parse errors
-- query: Find all references to/from an entity, area, label, etc.
-- impact: Impact analysis — "if I rename/delete X, what breaks?"
-- orphans: Find entities registered but referenced nowhere
-- unused-labels: Find labels defined but not applied to anything
-- unused-areas: Find areas with no devices or entities assigned
-- summary: High-level overview — counts by type, most-referenced entities
-- export: Export graph as JSON`,
+    description: `Entity & configuration relationship graph engine. Actions: build, status, query, impact, orphans, unused-labels, unused-areas, summary, export. Use ha_tool_docs('ha_graph') for full usage.`,
     parameters: Type.Object({
       action: StringEnum(
         ["build", "status", "query", "impact", "orphans", "unused-labels", "unused-areas", "summary", "export"] as const,

@@ -121,16 +121,7 @@ export function registerLogsTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_logs",
     label: "HA Logs",
-    description: `View Home Assistant system logs and control logger levels.
-
-Actions:
-- get: Get raw error log text (last N lines). Useful for seeing full tracebacks.
-- list: List structured log entries with level, source, count. Filter by search.
-- set-level: Set log level for specific integrations (e.g., debug for zwave_js).
-- clear: Clear the system log.
-
-Log levels: debug, info, warning, error, critical.
-Integration format: "homeassistant.components.<domain>" (e.g., "homeassistant.components.zha").`,
+    description: `View HA system logs and control logger levels. Actions: get, list, set-level, clear. Use ha_tool_docs('ha_logs') for full usage.`,
 
     parameters: Type.Object({
       action: StringEnum(ALL_ACTIONS, { description: "Action to perform" }),
