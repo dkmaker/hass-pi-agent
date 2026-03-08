@@ -14,6 +14,9 @@ fi
 # Build pi args
 declare -a PI_ARGS=()
 
+# Load HA extension from container image
+PI_ARGS+=(--extension /opt/ha-extension)
+
 if [[ -n "${PI_DEFAULT_PROVIDER:-}" ]]; then
     PI_ARGS+=(--provider "${PI_DEFAULT_PROVIDER}")
 fi

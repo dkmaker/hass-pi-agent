@@ -62,6 +62,13 @@ jobs:
             echo "version=$(grep '^version:' addon/config.yaml | awk '{print $2}' | tr -d '\"')" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Sync extension source into addon build context
+        run: |
+          rm -rf addon/extensions/home-assistant
+          mkdir -p addon/extensions
+          cp -a .pi/extensions/home-assistant addon/extensions/home-assistant
+          rm -rf addon/extensions/home-assistant/node_modules addon/extensions/home-assistant/data
+
       - name: Build add-on
         uses: home-assistant/builder@master
         with:

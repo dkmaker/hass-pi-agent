@@ -197,7 +197,7 @@ setTimeout(() => {
 function spawnPi(question, overrides = {}) {
   activeProcesses++;
 
-  const args = ["--print"];
+  const args = ["--print", "--extension", "/opt/ha-extension"];
 
   const validStr = (s) => s && s.trim() && s.trim() !== "null";
 
