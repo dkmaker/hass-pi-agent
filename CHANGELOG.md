@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.2](https://github.com/dkmaker/hass-pi-agent/compare/v0.9.1...v0.9.2) (2026-03-08)
+
+
+### Bug Fixes
+
+* load extension from Docker image via --extension flag ([#23](https://github.com/dkmaker/hass-pi-agent/issues/23)) ([f3675ee](https://github.com/dkmaker/hass-pi-agent/commit/f3675eee9a205ef199212092828d2fec0c99d85c))
+
 ## [0.9.1](https://github.com/dkmaker/hass-pi-agent/compare/v0.9.0...v0.9.1) (2026-03-08)
 
 
