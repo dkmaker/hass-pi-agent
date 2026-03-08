@@ -24,7 +24,7 @@ import {
 } from "../lib/registry.js";
 import * as collectionWsBackend from "../lib/backends/collection-ws.js";
 import * as configEntryBackend from "../lib/backends/config-entry.js";
-import { listBackups, restoreBackup } from "../lib/backup.js";
+
 
 // ── Tool registration ────────────────────────────────────────
 
@@ -42,18 +42,15 @@ Actions:
 - list-types: Show all supported helper types with field schemas
 - list: List all helpers, optionally filtered by type
 - get: Get a specific helper by type and id
-- add: Add a new helper (collection types are live, config entry types require HA restart)
-- update: Update an existing helper (collection types are live, config entry types require HA restart)
-- remove: Remove a helper by type and id (collection types are live, config entry types require HA restart)
-- backups: List available backups for rollback
-- restore: Restore a backup file
-
+- add: Add a new helper (all types are live — no restart needed)
+- update: Update an existing helper (all types are live — no restart needed)
+- remove: Remove a helper by type and id (all types are live — no restart needed)
 Collection helpers (input_boolean, input_number, input_text, input_select, input_datetime, input_button, counter, timer, schedule) use WebSocket — changes take effect immediately.
-Config entry helpers require HA restart after add/update/remove.`,
+Config entry helpers (template, derivative, utility_meter, etc.) use the config flow API — changes take effect immediately.`,
 
     parameters: Type.Object({
       action: StringEnum(
-        ["list-types", "list", "get", "add", "update", "remove", "backups", "restore"] as const,
+        ["list-types", "list", "get", "add", "update", "remove"] as const,
         { description: "Action to perform" }
       ),
       type: Type.Optional(
@@ -71,9 +68,7 @@ Config entry helpers require HA restart after add/update/remove.`,
           description: "Helper fields for add/update. Use 'list-types' to see required fields per type.",
         })
       ),
-      backup_filename: Type.Optional(
-        Type.String({ description: "Backup filename for restore action" })
-      ),
+
     }),
 
     async execute(toolCallId, params, signal, onUpdate, ctx) {
@@ -90,9 +85,8 @@ async function executeAction(params: {
   type?: string;
   id?: string;
   fields?: Record<string, unknown>;
-  backup_filename?: string;
 }): Promise<string> {
-  const { action, type, id, fields, backup_filename } = params;
+  const { action, type, id, fields } = params;
 
   switch (action) {
     case "list-types":
@@ -113,20 +107,8 @@ async function executeAction(params: {
     case "remove":
       return handleRemove(type, id);
 
-    case "backups": {
-      const backups = listBackups(type);
-      if (backups.length === 0) return "No backups found.";
-      return `Available backups (newest first):\n${backups.map((b) => `  ${b}`).join("\n")}`;
-    }
-
-    case "restore": {
-      if (!backup_filename) return "Error: 'backup_filename' is required for restore";
-      const restoredPath = restoreBackup(backup_filename);
-      return `Restored backup to ${restoredPath}.\n\n⚠️ Run action 'restart' to apply changes.`;
-    }
-
     default:
-      return `Unknown action '${action}'. Valid: list-types, list, get, add, update, remove, backups, restore, validate, restart`;
+      return `Unknown action '${action}'. Valid: list-types, list, get, add, update, remove`;
   }
 }
 
@@ -164,7 +146,7 @@ async function handleList(type?: string): Promise<string> {
     if (typeof t === "string") return t;
     const items = t.storageType === "collection"
       ? await collectionWsBackend.listItems(t)
-      : configEntryBackend.listEntries(t);
+      : await configEntryBackend.listEntries(t);
     if (items.length === 0) return `No ${type} helpers found.\n\n${formatSchema(type)}`;
     return JSON.stringify(items, null, 2);
   }
@@ -174,7 +156,7 @@ async function handleList(type?: string): Promise<string> {
   for (const t of listTypes()) {
     const items = t.storageType === "collection"
       ? await collectionWsBackend.listItems(t)
-      : configEntryBackend.listEntries(t);
+      : await configEntryBackend.listEntries(t);
     if (items.length > 0) results[t.domain] = items;
   }
 
@@ -189,7 +171,7 @@ async function handleGet(type?: string, id?: string): Promise<string> {
 
   const item = t.storageType === "collection"
     ? await collectionWsBackend.getItem(t, id)
-    : configEntryBackend.getEntry(t, id);
+    : await configEntryBackend.getEntry(t, id);
 
   if (!item) return `Helper '${id}' not found in ${type}.\n\n${formatSchema(type)}`;
   return JSON.stringify(item, null, 2);
@@ -214,9 +196,9 @@ async function handleAdd(type?: string, fields?: Record<string, unknown>): Promi
     if (!result.success) return `Error: ${result.message}`;
     return `✅ ${result.message} (live — no restart needed)`;
   } else {
-    const result = configEntryBackend.addEntry(t, fields);
+    const result = await configEntryBackend.addEntry(t, fields);
     if (!result.success) return `Error: ${result.message}`;
-    return `${result.message}\n${result.backupMessage || ""}\n\n⚠️ Restart HA to apply changes.`;
+    return `✅ ${result.message} (live — no restart needed)`;
   }
 }
 
@@ -237,9 +219,9 @@ async function handleUpdate(type?: string, id?: string, fields?: Record<string, 
     if (!result.success) return `Error: ${result.message}`;
     return `✅ ${result.message} (live — no restart needed)`;
   } else {
-    const result = configEntryBackend.updateEntry(t, id, fields);
+    const result = await configEntryBackend.updateEntry(t, id, fields);
     if (!result.success) return `Error: ${result.message}`;
-    return `${result.message}\n${result.backupMessage || ""}\n\n⚠️ Restart HA to apply changes.`;
+    return `✅ ${result.message} (live — no restart needed)`;
   }
 }
 
@@ -253,9 +235,9 @@ async function handleRemove(type?: string, id?: string): Promise<string> {
     if (!result.success) return `Error: ${result.message}`;
     return `✅ ${result.message} (live — no restart needed)`;
   } else {
-    const result = configEntryBackend.removeEntry(t, id);
+    const result = await configEntryBackend.removeEntry(t, id);
     if (!result.success) return `Error: ${result.message}`;
-    return `${result.message}\n${result.backupMessage || ""}\n\n⚠️ Restart HA to apply changes.`;
+    return `✅ ${result.message} (live — no restart needed)`;
   }
 }
 

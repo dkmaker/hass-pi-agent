@@ -1,95 +1,56 @@
 /**
- * Config entry storage backend.
+ * Config entry API backend.
  *
- * Handles helper types stored in `.storage/core.config_entries`
- * as entries filtered by domain. User fields go into `options`,
- * `data` is always `{}`.
+ * Manages helper types that are stored as config entries (template, derivative,
+ * utility_meter, threshold, trend, tod, statistics, min_max, filter,
+ * integration, generic_thermostat, generic_hygrostat, switch_as_x, random,
+ * history_stats, mold_indicator, group).
  *
- * On removal, also cleans up `core.entity_registry` to prevent
- * orphaned entities showing as 'unavailable'.
+ * Uses the HA config flow REST API for create/update and WebSocket for list/get.
+ * Changes take effect immediately — no restart needed.
  *
- * Types: template, group, derivative, utility_meter, threshold,
- *        trend, tod, statistics, min_max, filter, integration,
- *        generic_thermostat, generic_hygrostat, switch_as_x,
- *        random, history_stats, mold_indicator
+ * Create: POST /api/config/config_entries/flow (start flow)
+ *         POST /api/config/config_entries/flow/{flowId} (submit form)
+ * Update: POST /api/config/config_entries/options/flow (start options flow)
+ *         POST /api/config/config_entries/options/flow/{flowId} (submit form)
+ * Delete: DELETE /api/config/config_entries/entry/{entryId}
+ * List:   REST GET /api/config/config_entries/entry (filtered by domain)
+ * Get:    REST GET /api/config/config_entries/entry (filtered by entry_id)
  */
-import { readStorage, writeStorage, type StorageFile } from "../storage.js";
+import { apiGet, apiPost, apiDelete } from "../api.js";
 import type { SupportedType } from "../registry.js";
-import type { BackendResult } from "./collection.js";
+
+export interface BackendResult {
+  success: boolean;
+  message: string;
+  id?: string;
+}
 
 // ── Types ────────────────────────────────────────────────────
 
-interface ConfigEntry {
-  created_at: string;
-  data: Record<string, unknown>;
-  disabled_by: string | null;
-  discovery_keys: Record<string, unknown>;
-  domain: string;
+export interface ConfigEntry {
   entry_id: string;
-  minor_version: number;
-  modified_at: string;
-  options: Record<string, unknown>;
-  pref_disable_new_entities: boolean;
-  pref_disable_polling: boolean;
-  source: string;
-  subentries: unknown[];
+  domain: string;
   title: string;
-  unique_id: string | null;
-  version: number;
+  source: string;
+  state: string;
+  supports_options: boolean;
+  disabled_by: string | null;
+  options?: Record<string, unknown>;
+  data?: Record<string, unknown>;
 }
 
-interface ConfigEntriesData {
-  entries: ConfigEntry[];
-}
-
-interface EntityRegistryData {
-  entities: EntityRegistryEntry[];
-  deleted_entities?: unknown[];
-}
-
-interface EntityRegistryEntry {
-  config_entry_id: string | null;
-  entity_id: string;
-  [key: string]: unknown;
-}
-
-// ── ULID generation ──────────────────────────────────────────
-// Crockford Base32 ULID: 10 chars timestamp + 16 chars random
-
-const CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-
-function generateUlid(): string {
-  const now = Date.now();
-  let ts = "";
-  let t = now;
-  for (let i = 0; i < 10; i++) {
-    ts = CROCKFORD[t & 31] + ts;
-    t = Math.floor(t / 32);
-  }
-  let rand = "";
-  for (let i = 0; i < 16; i++) {
-    rand += CROCKFORD[Math.floor(Math.random() * 32)];
-  }
-  return ts + rand;
-}
-
-// ── Storage access ───────────────────────────────────────────
-
-const STORAGE_KEY = "core.config_entries";
-const ENTITY_REGISTRY_KEY = "core.entity_registry";
-
-function readConfigEntries(): StorageFile<ConfigEntriesData> {
-  const existing = readStorage<ConfigEntriesData>(STORAGE_KEY);
-  if (!existing) {
-    throw new Error(
-      `Storage file '${STORAGE_KEY}' not found. Is the HA config path correct?`
-    );
-  }
-  return existing;
-}
-
-function readEntityRegistry(): StorageFile<EntityRegistryData> | null {
-  return readStorage<EntityRegistryData>(ENTITY_REGISTRY_KEY);
+interface FlowStep {
+  type: "form" | "menu" | "create_entry" | "abort" | "external" | "progress";
+  flow_id: string;
+  handler: string;
+  step_id?: string;
+  data_schema?: unknown[];
+  menu_options?: string[];
+  errors?: Record<string, string> | null;
+  result?: { entry_id: string; title: string } | null;
+  reason?: string;
+  last_step?: boolean;
 }
 
 // ── Backend operations ───────────────────────────────────────
@@ -97,142 +58,210 @@ function readEntityRegistry(): StorageFile<EntityRegistryData> | null {
 /**
  * List all config entries for a given helper domain.
  */
-export function listEntries(type: SupportedType): ConfigEntry[] {
-  const storage = readConfigEntries();
-  return storage.data.entries.filter((e) => e.domain === type.domain);
+export async function listEntries(type: SupportedType): Promise<ConfigEntry[]> {
+  const entries = await apiGet<ConfigEntry[]>("/api/config/config_entries/entry");
+  return entries.filter((e) => e.domain === type.domain);
 }
 
 /**
  * Get a single config entry by entry_id.
  */
-export function getEntry(type: SupportedType, entryId: string): ConfigEntry | null {
-  const storage = readConfigEntries();
-  return (
-    storage.data.entries.find(
-      (e) => e.entry_id === entryId && e.domain === type.domain
-    ) ?? null
-  );
+export async function getEntry(type: SupportedType, entryId: string): Promise<ConfigEntry | null> {
+  const entries = await apiGet<ConfigEntry[]>("/api/config/config_entries/entry");
+  return entries.find((e) => e.entry_id === entryId && e.domain === type.domain) ?? null;
 }
 
 /**
- * Add a new config entry. User fields go into `options`.
- * The `name` field is used as the entry title.
+ * Add a new config entry via the config flow API.
+ *
+ * Flow patterns:
+ * - Simple helpers (derivative, threshold, etc.): single "form" step
+ * - Multi-subtype helpers (template, group): "menu" step to select sub-type, then "form" step
  */
-export function addEntry(
+export async function addEntry(
   type: SupportedType,
   fields: Record<string, unknown>
-): BackendResult {
-  const storage = readConfigEntries();
-  const now = new Date().toISOString();
-  const entryId = generateUlid();
+): Promise<BackendResult> {
+  try {
+    // Step 1: Start the config flow
+    let step = await apiPost<FlowStep>("/api/config/config_entries/flow", {
+      handler: type.domain,
+      show_advanced_options: true,
+    });
 
-  const title = (fields.name as string) || type.domain;
+    // Step 2: Handle menu step (for multi-subtype helpers like template, group)
+    if (step.type === "menu" && step.menu_options) {
+      const subTypeKey = type.schema.sub_type_key;
+      const subType = subTypeKey ? (fields[subTypeKey] as string) : undefined;
 
-  const newEntry: ConfigEntry = {
-    created_at: now,
-    data: {},
-    disabled_by: null,
-    discovery_keys: {},
-    domain: type.domain,
-    entry_id: entryId,
-    minor_version: 1,
-    modified_at: now,
-    options: { ...fields },
-    pref_disable_new_entities: false,
-    pref_disable_polling: false,
-    source: "user",
-    subentries: [],
-    title,
-    unique_id: null,
-    version: 1,
-  };
+      if (!subType || !step.menu_options.includes(subType)) {
+        // Abort the flow
+        await abortFlow(step.flow_id);
+        const options = step.menu_options.join(", ");
+        return {
+          success: false,
+          message: subTypeKey
+            ? `Field '${subTypeKey}' is required and must be one of: ${options}`
+            : `This helper requires a sub-type selection. Available: ${options}`,
+        };
+      }
 
-  storage.data.entries.push(newEntry);
-  const backupMessage = writeStorage(STORAGE_KEY, storage);
+      step = await apiPost<FlowStep>(
+        `/api/config/config_entries/flow/${step.flow_id}`,
+        { next_step_id: subType }
+      );
+    }
 
-  return {
-    success: true,
-    message: `Added ${type.domain} config entry '${title}' (entry_id: ${entryId})`,
-    id: entryId,
-    backupMessage,
-  };
+    // Step 3: Submit the form
+    if (step.type === "form") {
+      // Remove sub_type_key from fields since it was used for menu selection
+      const formData = { ...fields };
+      if (type.schema.sub_type_key) {
+        delete formData[type.schema.sub_type_key];
+      }
+
+      step = await apiPost<FlowStep>(
+        `/api/config/config_entries/flow/${step.flow_id}`,
+        formData
+      );
+    }
+
+    // Check result
+    if (step.type === "create_entry" && step.result) {
+      return {
+        success: true,
+        message: `Created ${type.domain} helper '${step.result.title}' (entry_id: ${step.result.entry_id})`,
+        id: step.result.entry_id,
+      };
+    }
+
+    if (step.type === "abort") {
+      return {
+        success: false,
+        message: `Config flow aborted: ${step.reason || "unknown reason"}`,
+      };
+    }
+
+    if (step.type === "form" && step.errors) {
+      await abortFlow(step.flow_id);
+      const errorDetails = Object.entries(step.errors)
+        .map(([k, v]) => `${k}: ${v}`)
+        .join(", ");
+      return {
+        success: false,
+        message: `Validation errors: ${errorDetails}`,
+      };
+    }
+
+    // Unexpected flow state
+    await abortFlow(step.flow_id);
+    return {
+      success: false,
+      message: `Unexpected flow state: ${step.type} (step: ${step.step_id})`,
+    };
+  } catch (err) {
+    return {
+      success: false,
+      message: `Failed to create ${type.domain}: ${(err as Error).message}`,
+    };
+  }
 }
 
 /**
- * Update an existing config entry's options.
+ * Update a config entry via the options flow API.
  */
-export function updateEntry(
+export async function updateEntry(
   type: SupportedType,
   entryId: string,
   fields: Record<string, unknown>
-): BackendResult {
-  const storage = readConfigEntries();
-  const idx = storage.data.entries.findIndex(
-    (e) => e.entry_id === entryId && e.domain === type.domain
-  );
-  if (idx === -1) {
+): Promise<BackendResult> {
+  try {
+    // Step 1: Start the options flow
+    let step = await apiPost<FlowStep>("/api/config/config_entries/options/flow", {
+      handler: entryId,
+      show_advanced_options: true,
+    });
+
+    // Step 2: Submit the form
+    if (step.type === "form") {
+      step = await apiPost<FlowStep>(
+        `/api/config/config_entries/options/flow/${step.flow_id}`,
+        fields
+      );
+    }
+
+    if (step.type === "create_entry") {
+      return {
+        success: true,
+        message: `Updated ${type.domain} config entry (entry_id: ${entryId})`,
+        id: entryId,
+      };
+    }
+
+    if (step.type === "form" && step.errors) {
+      await abortOptionsFlow(step.flow_id);
+      const errorDetails = Object.entries(step.errors)
+        .map(([k, v]) => `${k}: ${v}`)
+        .join(", ");
+      return {
+        success: false,
+        message: `Validation errors: ${errorDetails}`,
+      };
+    }
+
+    if (step.type === "abort") {
+      return {
+        success: false,
+        message: `Options flow aborted: ${step.reason || "unknown reason"}`,
+      };
+    }
+
+    await abortOptionsFlow(step.flow_id);
     return {
       success: false,
-      message: `Config entry '${entryId}' not found for domain '${type.domain}'`,
+      message: `Unexpected options flow state: ${step.type}`,
+    };
+  } catch (err) {
+    return {
+      success: false,
+      message: `Failed to update ${type.domain} '${entryId}': ${(err as Error).message}`,
     };
   }
-
-  const entry = storage.data.entries[idx];
-  entry.options = { ...entry.options, ...fields };
-  entry.modified_at = new Date().toISOString();
-
-  // Update title if name changed
-  if (fields.name) {
-    entry.title = fields.name as string;
-  }
-
-  const backupMessage = writeStorage(STORAGE_KEY, storage);
-  return {
-    success: true,
-    message: `Updated ${type.domain} config entry '${entry.title}' (entry_id: ${entryId})`,
-    id: entryId,
-    backupMessage,
-  };
 }
 
 /**
- * Remove a config entry and clean up entity registry.
+ * Remove a config entry via the REST API.
  */
-export function removeEntry(type: SupportedType, entryId: string): BackendResult {
-  const storage = readConfigEntries();
-  const idx = storage.data.entries.findIndex(
-    (e) => e.entry_id === entryId && e.domain === type.domain
-  );
-  if (idx === -1) {
+export async function removeEntry(type: SupportedType, entryId: string): Promise<BackendResult> {
+  try {
+    await apiDelete(`/api/config/config_entries/entry/${entryId}`);
+    return {
+      success: true,
+      message: `Removed ${type.domain} config entry (entry_id: ${entryId})`,
+      id: entryId,
+    };
+  } catch (err) {
     return {
       success: false,
-      message: `Config entry '${entryId}' not found for domain '${type.domain}'`,
+      message: `Failed to remove ${type.domain} '${entryId}': ${(err as Error).message}`,
     };
   }
+}
 
-  const removed = storage.data.entries[idx];
-  storage.data.entries.splice(idx, 1);
-  const backupMessage = writeStorage(STORAGE_KEY, storage);
+// ── Helpers ──────────────────────────────────────────────────
 
-  // Clean up entity registry
-  let entityCleanupMsg = "";
-  const entityRegistry = readEntityRegistry();
-  if (entityRegistry) {
-    const before = entityRegistry.data.entities.length;
-    entityRegistry.data.entities = entityRegistry.data.entities.filter(
-      (e) => e.config_entry_id !== entryId
-    );
-    const removed_count = before - entityRegistry.data.entities.length;
-    if (removed_count > 0) {
-      const entityBackup = writeStorage(ENTITY_REGISTRY_KEY, entityRegistry);
-      entityCleanupMsg = `\nCleaned up ${removed_count} entity registry entry/entries. ${entityBackup}`;
-    }
+async function abortFlow(flowId: string): Promise<void> {
+  try {
+    await apiDelete(`/api/config/config_entries/flow/${flowId}`);
+  } catch {
+    // Ignore — flow may have already ended
   }
+}
 
-  return {
-    success: true,
-    message: `Removed ${type.domain} config entry '${removed.title}' (entry_id: ${entryId})${entityCleanupMsg}`,
-    id: entryId,
-    backupMessage,
-  };
+async function abortOptionsFlow(flowId: string): Promise<void> {
+  try {
+    await apiDelete(`/api/config/config_entries/options/flow/${flowId}`);
+  } catch {
+    // Ignore — flow may have already ended
+  }
 }

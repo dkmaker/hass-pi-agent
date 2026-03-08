@@ -61,6 +61,14 @@ fi
 touch /data/.bash_history
 ln -sf /data/.bash_history /root/.bash_history
 
+# --- Pi settings: disable changelog popup, quiet startup ---
+PI_SETTINGS="${PI_DIR}/settings.json"
+if [[ ! -f "${PI_SETTINGS}" ]]; then
+    echo '{}' > "${PI_SETTINGS}"
+fi
+tmp=$(mktemp)
+jq '. + {"quietStartup": true, "collapseChangelog": true}' "${PI_SETTINGS}" > "$tmp" && mv "$tmp" "${PI_SETTINGS}"
+
 # --- Convenient symlinks ---
 ln -sf /homeassistant /root/homeassistant
 ln -sf /share /root/share

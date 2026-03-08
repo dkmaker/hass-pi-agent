@@ -47,7 +47,7 @@ Actions:
 - reload-domain: Reload a specific domain's config. Domains: ${RELOADABLE_DOMAINS.join(", ")}
 - validate: Check configuration.yaml for errors before restarting.
 
-Use 'restart' after modifying .storage files (helpers, registries).
+Use 'restart' after modifying .storage files directly (rare — most operations use APIs now).
 Use 'reload-*' after modifying YAML config (faster, no downtime).`,
 
     parameters: Type.Object({

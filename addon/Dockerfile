@@ -25,8 +25,8 @@ RUN apk add --no-cache \
     tmux \
     ttyd
 
-# Install pi coding agent
-RUN npm install -g @mariozechner/pi-coding-agent
+# Install pi coding agent (pinned version)
+RUN npm install -g @mariozechner/pi-coding-agent@0.57.1
 
 # Copy HA extension into image
 COPY extensions/home-assistant /opt/ha-extension
