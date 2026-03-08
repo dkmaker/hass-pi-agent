@@ -85,6 +85,12 @@ fi
 tmp=$(mktemp)
 jq '. + {"quietStartup": true, "collapseChangelog": true}' "${PI_SETTINGS}" > "$tmp" && mv "$tmp" "${PI_SETTINGS}"
 
+# --- Clean up legacy extension copy from /homeassistant volume ---
+if [[ -d /homeassistant/.pi/extensions/home-assistant ]]; then
+    bashio::log.info 'Removing legacy extension from /homeassistant/.pi/extensions/home-assistant...'
+    rm -rf /homeassistant/.pi/extensions/home-assistant
+fi
+
 # --- Convenient symlinks ---
 ln -sf /homeassistant /root/homeassistant
 ln -sf /share /root/share
