@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.9.1](https://github.com/dkmaker/hass-pi-agent/compare/v0.9.0...v0.9.1) (2026-03-08)
+
+
+### Bug Fixes
+
+* ensure release-please triggers Docker build automatically ([#20](https://github.com/dkmaker/hass-pi-agent/issues/20)) ([89cde15](https://github.com/dkmaker/hass-pi-agent/commit/89cde15cfd74c381a4d7254d5911abcadb201ef0))
+* sync extension source into addon build context before deploy ([#22](https://github.com/dkmaker/hass-pi-agent/issues/22)) ([53a6f51](https://github.com/dkmaker/hass-pi-agent/commit/53a6f516965039c24c89667f167cab33c3147890))
+
 ## [0.9.0](https://github.com/dkmaker/hass-pi-agent/compare/v0.8.0...v0.9.0) (2026-03-08)
 
 
