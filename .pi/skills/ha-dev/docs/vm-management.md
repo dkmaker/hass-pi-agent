@@ -19,28 +19,28 @@ No mDNS/SSDP/UPnP from the real LAN reaches the VM. HA cannot discover real devi
 
 ## VM Control
 
-CLI tool: `.pi/skills/ha-dev/scripts/vm-ctl`
+CLI tool: `tools/vm-ctl`
 
 ```bash
-.pi/skills/ha-dev/scripts/vm-ctl start       # Boot the VM
-.pi/skills/ha-dev/scripts/vm-ctl stop        # Graceful ACPI shutdown
-.pi/skills/ha-dev/scripts/vm-ctl kill        # Force stop
-.pi/skills/ha-dev/scripts/vm-ctl status      # VM info + IP address
-.pi/skills/ha-dev/scripts/vm-ctl ip          # Just the HA URL
-.pi/skills/ha-dev/scripts/vm-ctl ssh [cmd]   # SSH into HAOS (runs command if given)
-.pi/skills/ha-dev/scripts/vm-ctl console     # VNC display info
-.pi/skills/ha-dev/scripts/vm-ctl destroy     # DELETE VM + disk (interactive confirm)
-.pi/skills/ha-dev/scripts/vm-ctl logs        # How to view add-on logs
+tools/vm-ctl start       # Boot the VM
+tools/vm-ctl stop        # Graceful ACPI shutdown
+tools/vm-ctl kill        # Force stop
+tools/vm-ctl status      # VM info + IP address
+tools/vm-ctl ip          # Just the HA URL
+tools/vm-ctl ssh [cmd]   # SSH into HAOS (runs command if given)
+tools/vm-ctl console     # VNC display info
+tools/vm-ctl destroy     # DELETE VM + disk (interactive confirm)
+tools/vm-ctl logs        # How to view add-on logs
 ```
 
 ### Common SSH commands via vm-ctl
 
 ```bash
-.pi/skills/ha-dev/scripts/vm-ctl ssh 'ha os info'          # HAOS version, boot slots
-.pi/skills/ha-dev/scripts/vm-ctl ssh 'ha core info'         # HA Core version, state
-.pi/skills/ha-dev/scripts/vm-ctl ssh 'ha supervisor info'   # Supervisor version
-.pi/skills/ha-dev/scripts/vm-ctl ssh 'ha addons'            # List add-ons
-.pi/skills/ha-dev/scripts/vm-ctl ssh 'ha host reboot'       # Reboot VM
+tools/vm-ctl ssh 'ha os info'          # HAOS version, boot slots
+tools/vm-ctl ssh 'ha core info'         # HA Core version, state
+tools/vm-ctl ssh 'ha supervisor info'   # Supervisor version
+tools/vm-ctl ssh 'ha addons'            # List add-ons
+tools/vm-ctl ssh 'ha host reboot'       # Reboot VM
 ```
 
 ## Setup From Scratch
@@ -48,7 +48,7 @@ CLI tool: `.pi/skills/ha-dev/scripts/vm-ctl`
 If the VM needs to be recreated:
 
 ```bash
-.pi/skills/ha-dev/scripts/setup-vm
+tools/setup-vm
 ```
 
 This is idempotent and will:
@@ -61,7 +61,7 @@ After setup:
 1. Complete onboarding at http://10.99.0.13:8123
 2. Install "Terminal & SSH" add-on, configure authorized_keys, map port 22
 3. Create a long-lived access token (Profile → Security → Long-lived tokens)
-4. Update the token in `.pi/skills/ha-dev/scripts/ha-api`
+4. Update the token in `tools/ha-api`
 
 ## Network Details
 
