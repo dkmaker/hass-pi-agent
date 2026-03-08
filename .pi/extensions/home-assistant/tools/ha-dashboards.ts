@@ -49,27 +49,7 @@ export function registerDashboardsTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_dashboards",
     label: "HA Dashboards",
-    description: `Manage Home Assistant dashboards (Lovelace UI).
-
-Actions:
-- list: List all dashboards with view counts.
-- get: Get full dashboard config (all views and cards). Use url_path (null for default).
-- create: Create a new dashboard (title + url_path required).
-- update: Update dashboard metadata (title, icon, sidebar, require_admin).
-- delete: Delete a dashboard by dashboard_id.
-- get-view: Get a specific view config by index or path.
-- add-view: Add a new view to a dashboard.
-- update-view: Update a view's config (merges with existing).
-- remove-view: Remove a view by index.
-- move-view: Move a view to a new position.
-- add-card: Add a card to a view.
-- update-card: Update a card's config at a specific index.
-- remove-card: Remove a card from a view by index.
-- move-card: Move a card to a different position or view.
-- list-card-types: Show available built-in card types with field schemas.
-
-Dashboard content is atomic — views/cards are fetched, modified in memory, and saved back as a whole config.
-Custom cards use "custom:" prefix (e.g., type: "custom:mushroom-entity-card") with freeform config fields.`,
+    description: `Manage HA dashboards (Lovelace UI) — views and cards. Actions: list, get, create, update, delete, get-view, add-view, update-view, remove-view, move-view, add-card, update-card, remove-card, move-card, list-card-types. Use ha_tool_docs('ha_dashboards') for full usage.`,
 
     parameters: Type.Object({
       action: StringEnum([...ALL_ACTIONS], {

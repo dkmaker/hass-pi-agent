@@ -37,18 +37,7 @@ export function registerRestartTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_restart",
     label: "HA Restart",
-    description: `Restart or reload Home Assistant configuration.
-
-Actions:
-- restart: Full Home Assistant restart (~30-60s). Required after storage file changes.
-- reload-all: Reload all YAML-based configuration without restarting.
-- reload-core: Reload core config (name, location, units, customize).
-- reload-templates: Reload custom Jinja2 templates from custom_templates/.
-- reload-domain: Reload a specific domain's config. Domains: ${RELOADABLE_DOMAINS.join(", ")}
-- validate: Check configuration.yaml for errors before restarting.
-
-Use 'restart' after modifying .storage files directly (rare — most operations use APIs now).
-Use 'reload-*' after modifying YAML config (faster, no downtime).`,
+    description: `Restart or reload HA configuration. Actions: restart, reload-all, reload-core, reload-templates, reload-domain, validate. Use ha_tool_docs('ha_restart') for full usage.`,
 
     parameters: Type.Object({
       action: StringEnum(

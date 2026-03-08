@@ -27,17 +27,7 @@ export function registerZonesTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_zones",
     label: "HA Zones",
-    description: `Manage Home Assistant zones.
-
-Actions:
-- list: List all zones.
-- get: Get zone details by id.
-- create: Create a new zone (name, latitude, longitude required).
-- update: Update a zone by id.
-- delete: Delete a zone by id.
-
-Zones define geographic areas used for presence detection and automations.
-The "home" zone is managed in Settings > General and cannot be modified here.`,
+    description: `Manage HA zones (presence detection areas). Actions: list, get, create, update, delete. Use ha_tool_docs('ha_zones') for full usage.`,
 
     parameters: Type.Object({
       action: StringEnum(["list", "get", "create", "update", "delete"] as const, {

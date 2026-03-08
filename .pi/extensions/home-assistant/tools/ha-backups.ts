@@ -30,16 +30,7 @@ export function registerBackupsTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_backups",
     label: "HA Backups",
-    description: `Manage Home Assistant backups via the Supervisor API.
-
-Actions:
-- list: List all backups with date, type, and size.
-- get: Get detailed backup info (add-ons, folders, HA version).
-- create-full: Create a full backup (all config, add-ons, folders).
-- create-partial: Create a partial backup (specify add-ons/folders).
-- restore-full: Restore a full backup.
-- restore-partial: Restore specific parts of a backup.
-- delete: Delete a backup.`,
+    description: `Manage HA backups. Actions: list, get, create-full, create-partial, restore-full, restore-partial, delete. Use ha_tool_docs('ha_backups') for full usage.`,
 
     parameters: Type.Object({
       action: StringEnum(

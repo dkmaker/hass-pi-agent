@@ -50,20 +50,7 @@ export function registerAreasTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_areas",
     label: "HA Areas",
-    description: `Manage Home Assistant areas and floors.
-
-Actions:
-- list: List all areas grouped by floor, with device/entity counts.
-- get: Get area details with devices and entities.
-- create-area: Create a new area (name required, optional: floor_id, icon, labels, aliases).
-- update-area: Update an area.
-- delete-area: Delete an area.
-- list-floors: List all floors.
-- create-floor: Create a new floor (name required, optional: level, icon, aliases).
-- update-floor: Update a floor.
-- delete-floor: Delete a floor.
-
-All changes take effect immediately via WebSocket.`,
+    description: `Manage HA areas and floors. Actions: list, get, create-area, update-area, delete-area, list-floors, create-floor, update-floor, delete-floor. Use ha_tool_docs('ha_areas') for full usage.`,
 
     parameters: Type.Object({
       action: StringEnum(

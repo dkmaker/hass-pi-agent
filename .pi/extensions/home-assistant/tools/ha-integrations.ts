@@ -33,18 +33,7 @@ export function registerIntegrationsTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_integrations",
     label: "HA Integrations",
-    description: `Manage Home Assistant integrations (config entries).
-
-Actions:
-- list: List all config entries. Optional: domain filter, search.
-- get: Get full details for a config entry by entry_id.
-- disable: Disable a config entry.
-- enable: Enable a disabled config entry.
-- reload: Reload a config entry.
-- remove: Remove a config entry.
-
-Config entries represent configured integrations (e.g., Hue bridge, MQTT, Weather).
-Does NOT support adding new integrations (use the UI for config flow wizards).`,
+    description: `Manage HA integrations (config entries). Actions: list, get, disable, enable, reload, remove. Use ha_tool_docs('ha_integrations') for full usage.`,
 
     parameters: Type.Object({
       action: StringEnum(["list", "get", "disable", "enable", "reload", "remove"] as const, {

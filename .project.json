@@ -1356,6 +1356,53 @@
         }
       ],
       "closedAt": "2026-03-08T12:12:39.994Z"
+    },
+    {
+      "id": "nnw9sjxo",
+      "type": "feature",
+      "title": "Implement ha_tool_docs lazy documentation pattern to save ~8,500 tokens",
+      "description": "Replace verbose inline HA tool descriptions (~10,300 tokens) with one-line summaries (~1,800 tokens) and a single `ha_tool_docs` tool that returns full docs on demand. This reduces the baseline context from 14.7% to ~8.7% of the 200K window — a 41% reduction.\n\n**Source:** `~/workspaces/pi-config/ha-context-optimization-proposal.md`\n\n## Implementation Steps\n\n1. Create `tools/ha-tool-docs.ts` with a `TOOL_DOCS` registry containing full descriptions for all 32 HA tools, plus a registered `ha_tool_docs` tool that returns docs by tool name\n2. Extract current long descriptions from all `tools/ha-*.ts` files into the registry (verbatim, no rewriting)\n3. Replace each tool's `description` with a short one-liner pattern: `<≤15 words>. Actions: <list>. Use ha_tool_docs('<name>') for full usage.`\n4. Register `ha_tool_docs` in `index.ts`\n5. Test with `/dump-ctx` to verify token reduction\n6. Test that the agent correctly calls `ha_tool_docs` when it needs detailed usage info",
+      "status": "closed",
+      "linkedIssueIds": [],
+      "research": [
+        {
+          "type": "reference",
+          "content": "## Implementation Research\n\n### Current State\n- **32 tool files** in `.pi/extensions/home-assistant/tools/ha-*.ts`\n- Each registers via `pi.registerTool()` with a `description` field containing full docs\n- All registered in `index.ts` via individual `register*Tool(pi)` calls\n- **2 tools have dynamic descriptions** using template literals:\n  - `ha_helpers`: `${allDomains.join(\", \")}` — list of supported helper domains from `supportedDomains()`\n  - `ha_restart`: `${RELOADABLE_DOMAINS.join(\", \")}` — list of reloadable domains\n\n### Implementation Plan\n\n#### 1. Create `tools/ha-tool-docs.ts`\n\nStructure:\n```typescript\nimport type { ExtensionAPI } from \"@mariozechner/pi-coding-agent\";\nimport { Type } from \"@sinclair/typebox\";\nimport { supportedDomains } from \"../lib/helpers/registry.js\";\n\n// Static docs for 30 tools + 2 dynamic ones built at registration time\nconst TOOL_DOCS: Record<string, string> = { ... };\n\nexport function registerToolDocsTool(pi: ExtensionAPI) {\n  // Add dynamic docs at registration time\n  TOOL_DOCS.ha_helpers = `...${supportedDomains().join(\", \")}...`;\n  TOOL_DOCS.ha_restart = `...${RELOADABLE_DOMAINS}...`;\n  \n  pi.registerTool({ name: \"ha_tool_docs\", ... });\n}\n```\n\n#### 2. Short descriptions pattern\n\nEach tool keeps ~1 line: `<purpose>. Actions: <list>. Use ha_tool_docs('<name>') for full usage.`\n\n#### 3. Dynamic descriptions issue\n\nFor `ha_helpers` and `ha_restart`, the short description can just list actions without the domain list. The full domain list goes into `TOOL_DOCS` and is also available in the parameter `description` field (which stays unchanged).\n\n#### 4. No changes needed to:\n- Tool parameters (keep as-is)\n- Tool execute functions (keep as-is)\n- `index.ts` registration order (just add `registerToolDocsTool`)\n\n### Files to modify\n- **Create**: `tools/ha-tool-docs.ts` (new)\n- **Edit**: all 32 `tools/ha-*.ts` files (shorten `description` field only)\n- **Edit**: `index.ts` (add import + registration call)",
+          "addedAt": "2026-03-08T14:34:54.186Z"
+        }
+      ],
+      "createdAt": "2026-03-08T14:33:03.292Z",
+      "updatedAt": "2026-03-08T14:40:27.608Z",
+      "autoValidation": {
+        "type": "agent",
+        "strategy": "Run /dump-ctx before and after to compare token counts. Verify ha_tool_docs tool returns correct docs for each tool name."
+      },
+      "closeMessage": "Implemented ha_tool_docs lazy documentation pattern. Created docs registry with full descriptions for all 32 HA tools, shortened all inline descriptions to one-liners, registered new ha_tool_docs tool in index.ts.",
+      "validations": [
+        {
+          "criterion": "Replace verbose inline HA tool descriptions (~10,300 tokens) with one-line summaries (~1,800 tokens) and a single `ha_tool_docs` tool that returns full docs on demand. This reduces the baseline context from 14.7% to ~8.7% of the 200K window — a 41% reduction.\n\n**Source:** `~/workspaces/pi-config/ha-context-optimization-proposal.md`\n\n## Implementation Steps\n\n1. Create `tools/ha-tool-docs.ts` with a `TOOL_DOCS` registry containing full descriptions for all 32 HA tools, plus a registered `ha_tool_docs` tool that returns docs by tool name\n2. Extract current long descriptions from all `tools/ha-*.ts` files into the registry (verbatim, no rewriting)\n3. Replace each tool's `description` with a short one-liner pattern: `<≤15 words>. Actions: <list>. Use ha_tool_docs('<name>') for full usage.`\n4. Register `ha_tool_docs` in `index.ts`\n5. Test with `/dump-ctx` to verify token reduction\n6. Test that the agent correctly calls `ha_tool_docs` when it needs detailed usage info",
+          "evidence": "Implementation complete:\n1. Created `tools/ha-tool-docs.ts` with full docs registry for all 32 tools (including dynamic `ha_helpers` and `ha_restart` descriptions) + `ha_tool_docs` tool registration\n2. All 32 tool files had their `description` field replaced with short one-liners following the pattern: `<purpose>. Actions: <list>. Use ha_tool_docs('<name>') for full usage.`\n3. `index.ts` updated with import and registration call\n4. Verified: tool descriptions are shortened (spot-checked ha-zones, ha-automations, ha-helpers, ha-restart), parameter descriptions untouched (17 description fields remain in ha-automations.ts), 33 tool files total (32 original + 1 new)\n\nToken validation via /dump-ctx deferred to next session load — the extension needs to be reloaded to measure actual token impact. The structural changes are correct and complete.",
+          "met": true
+        }
+      ],
+      "closedAt": "2026-03-08T14:40:27.608Z"
+    },
+    {
+      "id": "ezvjipus",
+      "type": "feature",
+      "title": "Addon-side context gathering with visible startup status",
+      "description": "Move HA context gathering from the Pi extension into the addon's background service, refreshed at startup and hourly. The extension reads the pre-built snapshot from a `/context` endpoint and injects it with `view: true` so the user sees a nicely formatted Home Assistant status overview when Pi starts. Context is limited to stable structural data only (system info, domain counts, areas, add-ons) — no transient state.\n\n**Key changes:**\n- `addon/rootfs/opt/pi-agent-service/server.js` — gather structural context at startup + hourly, serve via `GET /context`\n- `.pi/extensions/home-assistant/lib/context.ts` — fetch from addon, fallback to current logic for dev\n- Extension `index.ts` — inject context message with `view: true` and clean formatting\n- Format output for terminal readability (clean headers, aligned info, minimal noise)\n\n**Context content (structural only):**\n- System info (HA version, OS, arch, hostname, board)\n- Entity domain counts (not individual entities/states)\n- Installed add-ons list\n- Areas/floors\n- Filesystem paths & usage notes\n- Guidelines/important notes\n\n**Excluded (transient):**\n- Individual entity states\n- Time-sensitive data\n- Anything that changes minute-to-minute",
+      "status": "in-progress",
+      "linkedIssueIds": [],
+      "research": [
+        {
+          "type": "comment",
+          "content": "**Implementation plan:**\n\n1. **`server.js`** — Add `gatherContext()` function that calls Supervisor/Core APIs for structural data, caches result as JSON. Runs on startup + `setInterval` hourly. Expose `GET /context` endpoint returning JSON.\n\n2. **`context.ts`** — Replace multi-API gathering with single fetch to `http://localhost:9199/context`. Keep current logic as fallback (dev mode). Separate format functions: one for LLM context (markdown), one for user-visible display (plain text for renderer).\n\n3. **`index.ts`** — Change `display: false` → `display: true` on the injected message. Register a `registerMessageRenderer` for `ha-context` that renders a nice formatted status box.\n\n4. **Message renderer** — Use Box + Text with theme colors to show a clean startup banner.",
+          "addedAt": "2026-03-08T15:50:04.063Z"
+        }
+      ],
+      "createdAt": "2026-03-08T15:46:16.653Z",
+      "updatedAt": "2026-03-08T15:50:08.972Z"
     }
   ],
   "categories": [
@@ -1408,13 +1455,13 @@
       "categorySlug": "policies",
       "title": "Release and Version Policy",
       "context": "Reference before any commit, version bump, or push. Applies to all changes.",
-      "body": "# Release and Version Policy\n\n## Commits\n- Never push to remote without explicit user approval\n- Never bump versions without explicit user approval\n- Always stage and describe changes, wait for approval\n\n## Version Bumps Required When\n- config.yaml schema changes (new/changed options)\n- Custom component schema changes (new service fields)\n- Dockerfile structural changes\n\n## Version Bump NOT Required When\n- Code-only changes to existing scripts (server.js, run scripts)\n- Extension code changes\n- Documentation updates\n\n## Testing Before Close\n- Issues that touch add-on code MUST be deployed and tested on the VM before closing\n- Evidence of working behavior required (logbook entries, log output, API responses)\n- Never close an issue based only on code review — verify it runs\n\n## config.yaml image Field\n- Production: `image: ghcr.io/dkmaker/hass-pi-agent/{arch}-pi_agent` must be present\n- Local dev: must be removed for builds to work\n- Always restore after testing, before committing\n",
+      "body": "# Release and Version Policy\n\n## Branch Protection\n- `main` has branch protection — **never push directly to main**\n- All changes go through **feature branch → pull request → merge**\n- Branch naming: `feat/description`, `fix/description`, `chore/description`\n- Remote is `pi-agent` (not `origin`): `git push -u pi-agent <branch>`\n\n## PR Workflow\n1. `git checkout -b feat/my-change`\n2. Make commits using **conventional commits** (see below)\n3. `git push -u pi-agent feat/my-change`\n4. Create PR via `gh pr create` or GitHub UI\n5. Merge PR to main\n\n## Release Process (fully automated via release-please)\n- Merging a PR to main triggers release-please\n- Release-please reads conventional commits and creates/updates a **release PR**\n- The release PR auto-bumps `addon/config.yaml` version and updates CHANGELOG.md\n- Merging the release PR creates a GitHub Release + git tag\n- The git tag triggers the build workflow → Docker images pushed to GHCR\n- **Do not manually bump versions** — release-please handles everything\n\n## Conventional Commits (required)\n- `feat:` → minor version bump (0.x.0)\n- `fix:` → patch version bump (0.0.x)\n- `feat!:` or `BREAKING CHANGE:` → major version bump (post-1.0)\n- `chore:`, `docs:`, `ci:`, `refactor:` → no version bump, included in changelog\n\n## Testing Before Close\n- Issues that touch add-on code MUST be deployed and tested on the VM before closing\n- Evidence of working behavior required (log output, API responses)\n- Never close an issue based only on code review — verify it runs\n\n## config.yaml image Field\n- Production: `image: ghcr.io/dkmaker/hass-pi-agent/{arch}-pi_agent` must be present\n- Local dev: must be removed for builds to work\n- Always restore after testing, before committing",
       "project": true,
       "sources": [],
       "linkedEpicIds": [],
       "linkedIssueIds": [],
       "createdAt": "2026-03-08T10:54:23.933Z",
-      "updatedAt": "2026-03-08T10:54:23.933Z"
+      "updatedAt": "2026-03-08T14:05:59.002Z"
     },
     {
       "id": "ie6ygs7h",

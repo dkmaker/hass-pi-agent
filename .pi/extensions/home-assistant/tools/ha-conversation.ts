@@ -32,13 +32,7 @@ export function registerConversationTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_conversation",
     label: "HA Conversation",
-    description: `Interact with Home Assistant's conversation/assist system.
-
-Actions:
-- process: Send text to the conversation agent and get a response (like talking to Assist).
-- agents: List available conversation agents.
-
-Useful for testing voice/assist commands and verifying intent handling.`,
+    description: `Interact with HA conversation/assist system. Actions: process, agents. Use ha_tool_docs('ha_conversation') for full usage.`,
 
     parameters: Type.Object({
       action: StringEnum(["process", "agents"] as const, {

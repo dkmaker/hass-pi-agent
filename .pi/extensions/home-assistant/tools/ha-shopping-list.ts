@@ -23,16 +23,7 @@ export function registerShoppingListTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_shopping_list",
     label: "HA Shopping List",
-    description: `Manage Home Assistant shopping list.
-
-Actions:
-- list: List all shopping list items.
-- add: Add an item to the shopping list.
-- update: Update an item (rename or mark complete/incomplete).
-- remove: Remove an item from the list.
-- clear: Clear all completed items.
-
-Requires the Shopping List integration to be configured.`,
+    description: `Manage HA shopping list. Actions: list, add, update, remove, clear. Use ha_tool_docs('ha_shopping_list') for full usage.`,
 
     parameters: Type.Object({
       action: StringEnum(["list", "add", "update", "remove", "clear"] as const, {

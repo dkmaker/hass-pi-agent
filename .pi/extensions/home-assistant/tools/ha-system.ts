@@ -12,14 +12,7 @@ export function registerSystemTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_system",
     label: "HA System",
-    description: `View Home Assistant system information via the Supervisor API.
-
-Actions:
-- info: Supervisor info (version, channel, arch, supported, healthy).
-- host: Host info (hostname, OS, kernel, disk usage, features).
-- os: HAOS info (version, update available, board, boot slot).
-- network: Network interfaces and configuration.
-- resolution: System health issues and suggestions from the resolution center.`,
+    description: `View HA system information. Actions: info, host, os, network, resolution. Use ha_tool_docs('ha_system') for full usage.`,
 
     parameters: Type.Object({
       action: StringEnum(

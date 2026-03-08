@@ -178,18 +178,7 @@ export function registerScenesTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_scenes",
     label: "HA Scenes",
-    description: `Manage Home Assistant scenes — CRUD, activate, and snapshot.
-
-Actions:
-- list: List all scenes. Filter by search.
-- get: Get full scene config + state.
-- create: Create a new scene (scene_id, name, and entities required).
-- update: Update an existing scene config.
-- delete: Delete a scene.
-- activate: Activate a scene (restore saved entity states).
-- snapshot: Create a scene by capturing current states of specified entities.
-
-Scenes store entity state snapshots. When activated, all entities are restored to their saved states.`,
+    description: `Manage HA scenes — CRUD, activate, snapshot. Actions: list, get, create, update, delete, activate, snapshot. Use ha_tool_docs('ha_scenes') for full usage.`,
 
     parameters: Type.Object({
       action: StringEnum(ALL_ACTIONS, { description: "Action to perform" }),

@@ -35,14 +35,7 @@ export function registerServicesTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_services",
     label: "HA Services",
-    description: `Discover and call Home Assistant services (actions).
-
-Actions:
-- list: List all available services, optionally filtered by domain. Shows service names grouped by domain.
-- get: Get full schema for a specific service — fields, selectors, targets, required params.
-- call: Call a service with optional data and target entity.
-
-Service schemas come directly from Home Assistant and include field types, selectors, and valid targets.`,
+    description: `Discover and call HA services. Actions: list, get, call. Use ha_tool_docs('ha_services') for full usage.`,
 
     parameters: Type.Object({
       action: StringEnum(["list", "get", "call"] as const, {

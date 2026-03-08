@@ -74,12 +74,7 @@ export function registerHistoryTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_history",
     label: "HA History",
-    description: `Query entity state history over a time range.
-
-Actions:
-- states: Get state changes for one or more entities. Shows when states changed and to what values.
-
-Time can be relative (1h, 24h, 7d, 2w) or ISO datetime. Default: last 24 hours.`,
+    description: `Query entity state history over a time range. Actions: states. Use ha_tool_docs('ha_history') for full usage.`,
 
     parameters: Type.Object({
       action: StringEnum(["states"] as const, {

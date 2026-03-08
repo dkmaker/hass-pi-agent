@@ -80,15 +80,7 @@ export function registerNotificationsTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_notifications",
     label: "HA Notifications",
-    description: `Manage Home Assistant persistent notifications.
-
-Actions:
-- list: List all persistent notifications.
-- create: Create a persistent notification (message required, title and notification_id optional).
-- dismiss: Dismiss a specific notification by ID.
-- dismiss_all: Dismiss all persistent notifications.
-
-Persistent notifications appear in the HA UI notification panel and persist until dismissed.`,
+    description: `Manage HA persistent notifications. Actions: list, create, dismiss, dismiss_all. Use ha_tool_docs('ha_notifications') for full usage.`,
 
     parameters: Type.Object({
       action: StringEnum(ALL_ACTIONS, { description: "Action to perform" }),

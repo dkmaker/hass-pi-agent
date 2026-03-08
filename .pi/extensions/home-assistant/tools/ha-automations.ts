@@ -50,44 +50,7 @@ export function registerAutomationsTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_automations",
     label: "HA Automations",
-    description: `Manage Home Assistant automations — full CRUD, enable/disable, trigger, and trace debugging.
-
-Actions:
-- list: List all automations with state and last triggered time. Filters: state (on/off), search.
-- get: Get full automation config + current state.
-- create: Create a new automation (alias and at least one trigger+action required). Auto-reloads.
-- update: Update an existing automation config. Auto-reloads.
-- delete: Delete an automation. Auto-cleans entity registry.
-- trigger: Manually trigger an automation.
-- enable: Enable a disabled automation.
-- disable: Disable an automation.
-- traces: List recent execution traces for an automation.
-- trace: Get detailed trace for a specific run.
-
-Builder actions (step-by-step automation construction):
-- new: Start a new draft automation (requires alias, description).
-- load: Load an existing automation into a draft for editing.
-- list-drafts: List all in-progress drafts.
-- show: Show draft state as JSON.
-- yaml: Show draft state as YAML.
-- save: Save draft to HA (validates + auto-reloads). Removes draft on success.
-- discard: Delete a draft.
-- list-trigger-types: Show available trigger types with fields.
-- add-trigger: Add a trigger to a draft.
-- update-trigger: Update a trigger at index.
-- remove-trigger: Remove a trigger at index.
-- list-condition-types: Show available condition types with fields.
-- add-condition: Add a condition to a draft.
-- update-condition: Update a condition at index.
-- remove-condition: Remove a condition at index.
-- list-action-types: Show available action types with fields.
-- add-action: Add an action to a draft.
-- update-action: Update an action at index.
-- remove-action: Remove an action at index.
-- get-service-schema: Get service fields from HA (for building service call actions).
-- import-yaml: Import YAML string into a draft.
-
-All changes take effect immediately — HA auto-reloads after writes.`,
+    description: `Manage HA automations — CRUD, builder, enable/disable, trigger, traces. Actions: list, get, create, update, delete, trigger, enable, disable, traces, trace + builder actions (new, load, save, add-trigger, add-condition, add-action, etc). Use ha_tool_docs('ha_automations') for full usage.`,
 
     parameters: Type.Object({
       action: StringEnum(ALL_ACTIONS, { description: "Action to perform" }),

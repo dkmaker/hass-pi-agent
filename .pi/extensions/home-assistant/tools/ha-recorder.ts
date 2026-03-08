@@ -16,16 +16,7 @@ export function registerRecorderTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_recorder",
     label: "HA Recorder",
-    description: `Manage Home Assistant recorder and statistics.
-
-Actions:
-- adjust: Adjust a statistic value (add/subtract from sum-based statistics).
-- change-unit: Change the unit of measurement for a statistic.
-- clear: Clear all statistics for a statistic_id.
-- purge: Purge old data from the recorder database.
-- info: Get recorder info (running, thread_running, migration).
-
-Statistics management is useful for correcting utility meter readings or fixing unit mismatches.`,
+    description: `Manage HA recorder and statistics. Actions: adjust, change-unit, clear, purge, info. Use ha_tool_docs('ha_recorder') for full usage.`,
 
     parameters: Type.Object({
       action: StringEnum(["adjust", "change-unit", "clear", "purge", "info"] as const, {

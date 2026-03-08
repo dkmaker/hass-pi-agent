@@ -25,15 +25,7 @@ export function registerLabelsTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_labels",
     label: "HA Labels",
-    description: `Manage Home Assistant labels.
-
-Actions:
-- list: List all labels.
-- create: Create a new label (name required, optional: color, icon, description).
-- update: Update a label.
-- delete: Delete a label.
-
-All changes take effect immediately via WebSocket.`,
+    description: `Manage HA labels. Actions: list, create, update, delete. Use ha_tool_docs('ha_labels') for full usage.`,
 
     parameters: Type.Object({
       action: StringEnum(["list", "create", "update", "delete"] as const, {
