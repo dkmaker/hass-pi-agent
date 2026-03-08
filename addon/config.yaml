@@ -1,5 +1,5 @@
 name: Pi Agent for Home Assistant
-version: 0.9.2
+version: 0.9.6
 slug: pi_agent
 image: ghcr.io/dkmaker/hass-pi-agent/{arch}-pi_agent
 description: >-
