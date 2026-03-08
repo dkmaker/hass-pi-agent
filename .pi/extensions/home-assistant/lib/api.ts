@@ -20,12 +20,13 @@ export function requireToken(): void {
 /**
  * GET request to the HA REST API.
  */
-export async function apiGet<T>(path: string): Promise<T> {
+export async function apiGet<T>(path: string, raw?: boolean): Promise<T> {
   requireToken();
   const resp = await fetch(`${HA_URL}${path}`, {
     headers: { Authorization: `Bearer ${HA_TOKEN}` },
   });
   if (!resp.ok) throw new Error(`HA API ${resp.status}: ${await resp.text()}`);
+  if (raw) return resp.text() as Promise<T>;
   return resp.json() as Promise<T>;
 }
 

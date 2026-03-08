@@ -18,6 +18,19 @@ import { registerHistoryTool } from "./tools/ha-history.js";
 import { registerLogbookTool } from "./tools/ha-logbook.js";
 import { registerStatsTool } from "./tools/ha-stats.js";
 import { registerEventsTool } from "./tools/ha-events.js";
+import { registerScriptsTool } from "./tools/ha-scripts.js";
+import { registerScenesTool } from "./tools/ha-scenes.js";
+import { registerNotificationsTool } from "./tools/ha-notifications.js";
+import { registerLogsTool } from "./tools/ha-logs.js";
+import { registerIntegrationsTool } from "./tools/ha-integrations.js";
+import { registerZonesTool } from "./tools/ha-zones.js";
+import { registerPeopleTool } from "./tools/ha-people.js";
+import { registerTagsTool } from "./tools/ha-tags.js";
+import { registerRecorderTool } from "./tools/ha-recorder.js";
+import { registerBlueprintsTool } from "./tools/ha-blueprints.js";
+import { registerCategoriesTool } from "./tools/ha-categories.js";
+import { registerConversationTool } from "./tools/ha-conversation.js";
+import { registerShoppingListTool } from "./tools/ha-shopping-list.js";
 import { wsClose } from "./lib/ws.js";
 import { gatherContext, getContext } from "./lib/context.js";
 import { readFileSync } from "fs";
@@ -56,6 +69,19 @@ export default function (pi: ExtensionAPI) {
   registerLogbookTool(pi);
   registerStatsTool(pi);
   registerEventsTool(pi);
+  registerScriptsTool(pi);
+  registerScenesTool(pi);
+  registerNotificationsTool(pi);
+  registerLogsTool(pi);
+  registerIntegrationsTool(pi);
+  registerZonesTool(pi);
+  registerPeopleTool(pi);
+  registerTagsTool(pi);
+  registerRecorderTool(pi);
+  registerBlueprintsTool(pi);
+  registerCategoriesTool(pi);
+  registerConversationTool(pi);
+  registerShoppingListTool(pi);
 
   // Gather HA installation context at session start
   pi.on("session_start", async () => {

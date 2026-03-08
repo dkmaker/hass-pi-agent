@@ -1,0 +1,124 @@
+/**
+ * Home Assistant category management tool.
+ *
+ * CRUD for categories that organize automations, scripts, and scenes.
+ * Uses WebSocket API.
+ */
+import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import { Type } from "@sinclair/typebox";
+import { StringEnum } from "@mariozechner/pi-ai";
+import { wsCommand } from "../lib/ws.js";
+
+// ── Types ────────────────────────────────────────────────────
+
+interface WSCategory {
+  category_id: string;
+  name: string;
+  icon: string | null;
+}
+
+// ── Tool registration ────────────────────────────────────────
+
+export function registerCategoriesTool(pi: ExtensionAPI): void {
+  pi.registerTool({
+    name: "ha_categories",
+    label: "HA Categories",
+    description: `Manage Home Assistant categories for organizing automations, scripts, and scenes.
+
+Actions:
+- list: List all categories for a scope (automation, script, scene).
+- create: Create a new category (scope and name required).
+- update: Update a category by category_id.
+- delete: Delete a category by category_id.
+
+Categories help organize large numbers of automations/scripts/scenes in the UI.`,
+
+    parameters: Type.Object({
+      action: StringEnum(["list", "create", "update", "delete"] as const, {
+        description: "Action to perform",
+      }),
+      scope: Type.Optional(
+        Type.String({ description: "Category scope: automation, script, or scene" })
+      ),
+      category_id: Type.Optional(
+        Type.String({ description: "Category ID (for update/delete)" })
+      ),
+      name: Type.Optional(Type.String({ description: "Category name" })),
+      icon: Type.Optional(Type.String({ description: "Category icon (e.g., mdi:lightbulb)" })),
+    }),
+
+    async execute(toolCallId, params, signal, onUpdate, ctx) {
+      const result = await executeAction(params);
+      return { content: [{ type: "text" as const, text: result }] };
+    },
+  });
+}
+
+// ── Action dispatch ──────────────────────────────────────────
+
+async function executeAction(params: Record<string, unknown>): Promise<string> {
+  switch (params.action as string) {
+    case "list": return handleList(params.scope as string | undefined);
+    case "create": return handleCreate(params);
+    case "update": return handleUpdate(params);
+    case "delete": return handleDelete(params);
+    default: throw new Error(`Unknown action '${params.action}'`);
+  }
+}
+
+// ── Handlers ─────────────────────────────────────────────────
+
+async function handleList(scope?: string): Promise<string> {
+  if (!scope) throw new Error("'scope' is required (automation, script, or scene)");
+
+  const categories = await wsCommand<WSCategory[]>("config/category_registry/list", { scope });
+  if (categories.length === 0) return `No categories defined for ${scope}.`;
+
+  categories.sort((a, b) => a.name.localeCompare(b.name));
+  const lines = categories.map((c) => {
+    const parts = [c.name];
+    if (c.icon) parts.push(c.icon);
+    return `${parts.join(" — ")} (id: ${c.category_id})`;
+  });
+
+  lines.push("");
+  lines.push(`${categories.length} ${scope} categories`);
+  return lines.join("\n");
+}
+
+async function handleCreate(params: Record<string, unknown>): Promise<string> {
+  const scope = params.scope as string | undefined;
+  const name = params.name as string | undefined;
+  if (!scope) throw new Error("'scope' is required (automation, script, or scene)");
+  if (!name) throw new Error("'name' is required for create");
+
+  const data: Record<string, unknown> = { scope, name };
+  if (params.icon !== undefined) data.icon = params.icon;
+
+  const result = await wsCommand<WSCategory>("config/category_registry/create", data);
+  return `✅ Created ${scope} category '${result.name}' (id: ${result.category_id})`;
+}
+
+async function handleUpdate(params: Record<string, unknown>): Promise<string> {
+  const scope = params.scope as string | undefined;
+  const categoryId = params.category_id as string | undefined;
+  if (!scope) throw new Error("'scope' is required for update");
+  if (!categoryId) throw new Error("'category_id' is required for update");
+
+  const data: Record<string, unknown> = { scope, category_id: categoryId };
+  if (params.name !== undefined) data.name = params.name;
+  if (params.icon !== undefined) data.icon = params.icon;
+
+  const result = await wsCommand<WSCategory>("config/category_registry/update", data);
+  return `✅ Updated category '${result.name}' (id: ${result.category_id})`;
+}
+
+async function handleDelete(params: Record<string, unknown>): Promise<string> {
+  const scope = params.scope as string | undefined;
+  const categoryId = params.category_id as string | undefined;
+  if (!scope) throw new Error("'scope' is required for delete");
+  if (!categoryId) throw new Error("'category_id' is required for delete");
+
+  await wsCommand("config/category_registry/delete", { scope, category_id: categoryId });
+  return `✅ Deleted category '${categoryId}'`;
+}
