@@ -1,5 +1,5 @@
 name: Pi Agent for Home Assistant
-version: 0.2.0
+version: 0.3.0
 slug: pi_agent
 image: ghcr.io/dkmaker/hass-pi-agent/{arch}-pi_agent
 description: >-
@@ -29,12 +29,14 @@ map:
 options:
   default_provider: anthropic
   default_model: ''
+  install_integration: true
   environment: []
   additional_packages: []
 schema:
   default_provider: >-
     list(anthropic|openai|google|openrouter|groq|xai|mistral|cerebras|huggingface|github-copilot|amazon-bedrock|google-vertex|azure-openai-responses)
   default_model: str?
+  install_integration: bool?
   environment:
     - str
   additional_packages:

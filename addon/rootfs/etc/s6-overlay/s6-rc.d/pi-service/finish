@@ -1,0 +1,3 @@
+#!/command/with-contenv bashio
+# shellcheck shell=bash
+bashio::log.warning "Pi Agent HTTP service stopped (exit code: ${1})"

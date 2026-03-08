@@ -1,0 +1,49 @@
+#!/command/with-contenv bashio
+# shellcheck shell=bash
+# ==============================================================================
+# Pi Agent Add-on: Deploy custom component to Home Assistant
+# Version-stamped — only updates when a newer version is shipped.
+# ==============================================================================
+
+COMPONENT_SRC="/opt/pi-agent-component/pi_agent"
+COMPONENT_DEST="/homeassistant/custom_components/pi_agent"
+CONFIG_FILE="/homeassistant/configuration.yaml"
+
+# Check if install_integration is enabled (default: true)
+install_integration=$(bashio::config 'install_integration' 'true')
+if [[ "${install_integration}" == "false" ]]; then
+    bashio::log.info "Custom component installation disabled by config."
+
+    # If component exists and user disabled it, remove it
+    if [[ -d "${COMPONENT_DEST}" ]]; then
+        bashio::log.info "Removing custom component..."
+        rm -rf "${COMPONENT_DEST}"
+        bashio::log.warning "Removed pi_agent component. Remove 'pi_agent:' from configuration.yaml and restart HA."
+    fi
+    exit 0
+fi
+
+# Check version — skip if already up to date
+NEW_VERSION=$(cat "${COMPONENT_SRC}/VERSION" 2>/dev/null || echo "0.0.0")
+CURRENT_VERSION=$(cat "${COMPONENT_DEST}/VERSION" 2>/dev/null || echo "0.0.0")
+
+if [[ "${NEW_VERSION}" == "${CURRENT_VERSION}" ]] && [[ -d "${COMPONENT_DEST}" ]]; then
+    bashio::log.info "Custom component already up to date (v${CURRENT_VERSION})."
+else
+    bashio::log.info "Installing custom component v${NEW_VERSION} (was: v${CURRENT_VERSION})..."
+    mkdir -p "${COMPONENT_DEST}"
+    cp -r "${COMPONENT_SRC}"/* "${COMPONENT_DEST}/"
+    bashio::log.info "Custom component installed to ${COMPONENT_DEST}"
+
+    # If this is a fresh install, we need to add it to configuration.yaml
+    if [[ "${CURRENT_VERSION}" == "0.0.0" ]]; then
+        # Check if pi_agent: is already in configuration.yaml
+        if ! grep -q '^pi_agent:' "${CONFIG_FILE}" 2>/dev/null; then
+            bashio::log.info "Adding 'pi_agent:' to configuration.yaml..."
+            echo "" >> "${CONFIG_FILE}"
+            echo "# Pi Agent custom component — enables pi_agent.ask service" >> "${CONFIG_FILE}"
+            echo "pi_agent:" >> "${CONFIG_FILE}"
+            bashio::log.warning "Added pi_agent to configuration.yaml. Home Assistant restart required to load the component."
+        fi
+    fi
+fi

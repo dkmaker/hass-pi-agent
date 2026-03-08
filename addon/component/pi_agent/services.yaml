@@ -1,0 +1,12 @@
+ask:
+  name: Ask Pi Agent
+  description: Send a question to the Pi Agent for processing. Pi will act on it — results appear as state changes and service calls in the logbook.
+  fields:
+    question:
+      name: Question
+      description: The question or instruction for the Pi Agent.
+      required: true
+      example: "Turn off all lights in the living room"
+      selector:
+        text:
+          multiline: true

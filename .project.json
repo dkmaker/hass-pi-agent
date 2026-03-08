@@ -1,0 +1,567 @@
+{
+  "version": 4,
+  "epics": [
+    {
+      "id": "w521kzvd",
+      "title": "Build Pi Agent Docker Add-on",
+      "description": "Build a working Docker add-on that installs pi, exposes it via ttyd/tmux in the HA web UI (ingress), persists credentials across restarts, and loads the HA extension with all custom tools.",
+      "body": "",
+      "priority": 1,
+      "status": "closed",
+      "relevantFiles": [],
+      "todos": [
+        {
+          "text": "Create Dockerfile (Alpine + nodejs + npm + python3 + ripgrep + tmux + ttyd + pi)",
+          "done": true
+        },
+        {
+          "text": "Create build.yaml (base image per arch)",
+          "done": true
+        },
+        {
+          "text": "Create config.yaml (ingress, options)",
+          "done": true
+        },
+        {
+          "text": "Create init-pi s6 service",
+          "done": true
+        },
+        {
+          "text": "Create init-extension s6 service",
+          "done": true
+        },
+        {
+          "text": "Create ttyd s6 longrun service",
+          "done": true
+        },
+        {
+          "text": "Create pi-entrypoint.sh",
+          "done": true
+        },
+        {
+          "text": "Create s6 service dependency chain",
+          "done": true
+        },
+        {
+          "text": "Copy HA extension source into addon/extensions/",
+          "done": true
+        },
+        {
+          "text": "Deploy to dev VM and test build",
+          "done": true
+        },
+        {
+          "text": "Verify ingress works",
+          "done": true
+        },
+        {
+          "text": "Verify all ha_* tools work inside container",
+          "done": true
+        },
+        {
+          "text": "Verify credentials persist across rebuilds",
+          "done": true
+        },
+        {
+          "text": "Verify sessions survive container restart",
+          "done": true
+        }
+      ],
+      "successCriteria": [
+        "Add-on builds and starts on dev VM",
+        "Pi accessible via HA sidebar (ingress/ttyd)",
+        "All ha_* tools functional",
+        "API keys persist across rebuilds",
+        "SUPERVISOR_TOKEN available to extension"
+      ],
+      "research": [],
+      "createdAt": "2026-03-08T09:03:44.671Z",
+      "updatedAt": "2026-03-08T09:05:18.652Z",
+      "closeMessage": "Add-on built and verified working. S6 services (init-pi, init-extension, init-packages, init-docs, ttyd) all start correctly. Ingress/ttyd/tmux terminal works, all ha_* tools functional, credentials persist, docs index fetches on startup.",
+      "closedAt": "2026-03-08T09:05:18.652Z",
+      "validations": []
+    },
+    {
+      "id": "wjb9ym6m",
+      "title": "GitHub Actions CI — Build & Push Docker to GHCR",
+      "description": "Set up GitHub Actions to build the add-on Docker image on push/tag and publish to GitHub Container Registry (ghcr.io). Pre-built images instead of building locally on the user's device.",
+      "body": "",
+      "priority": 2,
+      "status": "closed",
+      "relevantFiles": [],
+      "todos": [
+        {
+          "text": "Create .github/workflows/build.yaml with multi-arch build + GHCR push",
+          "done": true
+        },
+        {
+          "text": "Add image field to addon/config.yaml pointing to GHCR",
+          "done": true
+        },
+        {
+          "text": "Add build.yaml to addon/ for HA builder args",
+          "done": true
+        },
+        {
+          "text": "Test workflow on push to main",
+          "done": true
+        },
+        {
+          "text": "Test workflow on version tag (build + push)",
+          "done": true
+        },
+        {
+          "text": "Verify image pulls correctly on HA install",
+          "done": true
+        },
+        {
+          "text": "Add workflow status badge to README",
+          "done": true
+        }
+      ],
+      "successCriteria": [
+        "Docker image builds successfully for amd64 and aarch64",
+        "Image is pushed to ghcr.io on version tag",
+        "HA add-on installs by pulling pre-built image",
+        "PRs trigger build-only (no push) for validation"
+      ],
+      "research": [],
+      "createdAt": "2026-03-08T09:03:56.737Z",
+      "updatedAt": "2026-03-08T09:05:23.182Z",
+      "closeMessage": "CI workflow working. Both amd64 and aarch64 build and push to GHCR on push to main. config.yaml has image field for pre-built pulls. README has build badge.",
+      "closedAt": "2026-03-08T09:05:23.182Z",
+      "validations": []
+    },
+    {
+      "id": "vtq54xvb",
+      "title": "Release Flow — Semantic Versioning & Changelog",
+      "description": "Add a proper release workflow using conventional commits, automated version bumping, changelog generation, and GitHub Releases. Pipeline: commit → PR → merge → auto-release → auto-build → published.",
+      "body": "## Overview\n\nAutomate releases using **release-please** (Google's official tool) with **conventional commits**. On every push to `main`, release-please analyzes commits and either creates/updates a Release PR with changelog + version bump, or does nothing if no releasable changes exist. Merging the Release PR creates a GitHub Release + git tag, which triggers the existing `build.yaml` to build and push Docker images.\n\n## Current State\n\n- **`addon/config.yaml`** has `version: \"0.1.13\"` — this is the source of truth for the add-on version\n- **`.github/workflows/build.yaml`** already exists and triggers on `v*.*.*` tags — it extracts version from the tag and builds with `home-assistant/builder@master`\n- **No changelog**, no release automation, no commit convention enforcement\n- **`repository.yaml`** exists for the HA add-on repo manifest\n\n## Architecture\n\n```\nconventional commit → push to main\n       ↓\nrelease-please analyzes commits\n       ↓\ncreates/updates Release PR (changelog + version bump in addon/config.yaml)\n       ↓\nhuman merges Release PR\n       ↓\nrelease-please creates GitHub Release + tag (v1.2.3)\n       ↓\nbuild.yaml triggers on v*.*.* tag → Docker build + GHCR push\n```\n\n## Key Design Decisions\n\n### release-please config\n- **`release-type: \"simple\"`** — we're not a node/python package, just a versioned project\n- **`extra-files`** with `type: yaml` to bump `addon/config.yaml` version field\n- **`bump-minor-pre-major: true`** — while pre-1.0, breaking changes bump minor not major\n- **Initial version** in `.release-please-manifest.json`: `\"0.1.13\"` (current)\n\n### Version bumping in addon/config.yaml\nrelease-please supports YAML extra-files natively:\n```json\n{\n  \"extra-files\": [\n    {\n      \"type\": \"yaml\",\n      \"path\": \"addon/config.yaml\",\n      \"jsonpath\": \"$.version\"\n    }\n  ]\n}\n```\n\n### PR title validation\nUse **`amannn/action-semantic-pull-request@v5`** — lightweight, no node setup needed, validates PR titles against conventional commit format. This is simpler than full commitlint and sufficient since we squash-merge PRs.\n\n### Commit convention\nStandard conventional commits:\n- `feat:` → minor bump, appears in \"Features\" section\n- `fix:` → patch bump, appears in \"Bug Fixes\" section  \n- `feat!:` or `BREAKING CHANGE:` → minor bump (pre-1.0) or major bump (post-1.0)\n- `chore:`, `docs:`, `ci:`, `refactor:` → no release, but tracked in changelog\n\n## Files to Create/Modify\n\n| File | Action | Purpose |\n|------|--------|---------|\n| `.github/workflows/release.yaml` | Create | release-please action on push to main |\n| `release-please-config.json` | Create | Release config with extra-files for addon/config.yaml |\n| `.release-please-manifest.json` | Create | Current version tracker: `{\".\": \"0.1.13\"}` |\n| `.github/workflows/lint-pr.yaml` | Create | PR title conventional commit validation |\n| `CHANGELOG.md` | Create | Initial empty changelog (release-please will populate) |\n| `CONTRIBUTING.md` | Create | Document commit convention and release process |\n| `.github/workflows/build.yaml` | No change | Already triggers on `v*.*.*` tags ✓ |",
+      "priority": 3,
+      "status": "closed",
+      "relevantFiles": [
+        {
+          "file": ".github/workflows/build.yaml",
+          "reason": "Existing build workflow — triggers on v*.*.* tags, no changes needed"
+        },
+        {
+          "file": "addon/config.yaml",
+          "reason": "Contains version field that release-please will auto-bump"
+        },
+        {
+          "file": "repository.yaml",
+          "reason": "HA add-on repo manifest"
+        }
+      ],
+      "todos": [
+        {
+          "text": "Create `.release-please-manifest.json` with current version `{\".\": \"0.1.13\"}`",
+          "done": true
+        },
+        {
+          "text": "Create `release-please-config.json` with simple release-type + extra-files for addon/config.yaml",
+          "done": true
+        },
+        {
+          "text": "Create `.github/workflows/release.yaml` with release-please-action@v4",
+          "done": true
+        },
+        {
+          "text": "Create `.github/workflows/lint-pr.yaml` with action-semantic-pull-request@v5",
+          "done": true
+        },
+        {
+          "text": "Create initial `CHANGELOG.md`",
+          "done": true
+        },
+        {
+          "text": "Create `CONTRIBUTING.md` documenting commit convention and release flow",
+          "done": true
+        },
+        {
+          "text": "Verify build.yaml tag trigger is compatible (already triggers on v*.*.* ✓)",
+          "done": true
+        },
+        {
+          "text": "Test full flow: conventional commit → release PR → merge → GitHub Release → Docker build",
+          "done": true
+        }
+      ],
+      "successCriteria": [
+        "Conventional commits auto-generate changelog entries",
+        "release-please creates Release PRs with version bumps",
+        "Merging Release PR creates GitHub Release + git tag",
+        "Git tag triggers Docker build + GHCR push automatically",
+        "addon/config.yaml version is auto-bumped via YAML extra-files",
+        "PR titles are validated against conventional commit format",
+        "CONTRIBUTING.md documents the commit convention"
+      ],
+      "research": [
+        {
+          "type": "reference",
+          "content": "### release-please YAML extra-files\n\nrelease-please natively supports bumping versions in YAML files via `extra-files` with `type: yaml`. The `jsonpath` field uses JSONPath syntax to target the specific key:\n\n```json\n{\n  \"release-type\": \"simple\",\n  \"packages\": {\n    \".\": {\n      \"extra-files\": [\n        {\n          \"type\": \"yaml\",\n          \"path\": \"addon/config.yaml\",\n          \"jsonpath\": \"$.version\"\n        }\n      ]\n    }\n  }\n}\n```\n\nSource: [release-please docs](https://github.com/googleapis/release-please/blob/main/docs/customizing.md)",
+          "addedAt": "2026-03-08T09:10:59.164Z"
+        },
+        {
+          "type": "reference",
+          "content": "### PR title validation with action-semantic-pull-request\n\nLightweight alternative to full commitlint — validates PR titles only, perfect for squash-merge workflows:\n\n```yaml\n- uses: amannn/action-semantic-pull-request@v5\n  env:\n    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n```\n\nTriggers on: `pull_request: [opened, edited, reopened, synchronize]`\n\nSource: [amannn/action-semantic-pull-request](https://github.com/amannn/action-semantic-pull-request)",
+          "addedAt": "2026-03-08T09:10:59.166Z"
+        },
+        {
+          "type": "comment",
+          "content": "### Compatibility note\n\nThe existing `build.yaml` already handles the tag-based trigger perfectly:\n```yaml\non:\n  push:\n    tags:\n      - \"v*.*.*\"\n```\nAnd extracts version from the tag ref:\n```yaml\nif [[ \"${GITHUB_REF}\" == refs/tags/v* ]]; then\n  echo \"version=${GITHUB_REF#refs/tags/v}\" >> \"$GITHUB_OUTPUT\"\nfi\n```\n\nNo changes needed to build.yaml — release-please creates tags in `v1.2.3` format which matches exactly.",
+          "addedAt": "2026-03-08T09:10:59.174Z"
+        }
+      ],
+      "createdAt": "2026-03-08T09:04:07.907Z",
+      "updatedAt": "2026-03-08T09:17:41.956Z",
+      "closeMessage": "All 8 todos complete. Release-please is live and working — PR #1 (release 0.2.0) is open with auto-generated changelog from all conventional commits. PR title linting workflow also deployed. Full flow verified: push → release-please analyzes → creates Release PR → ready for merge → will create tag → triggers build.yaml.",
+      "closedAt": "2026-03-08T09:17:41.956Z",
+      "validations": []
+    },
+    {
+      "id": "0y5i5uus",
+      "title": "Audit all tools for direct .storage writes",
+      "description": "Audit every tool and ensure all state changes go through proper HA APIs (WebSocket/REST) instead of writing directly to .storage files.",
+      "body": "",
+      "priority": 4,
+      "status": "closed",
+      "relevantFiles": [],
+      "todos": [
+        {
+          "text": "Audit ha-helpers.ts — collection and config-entry backends",
+          "done": true
+        },
+        {
+          "text": "Audit ha-entities.ts — update/remove paths",
+          "done": true
+        },
+        {
+          "text": "Audit ha-areas.ts — create/update/delete",
+          "done": true
+        },
+        {
+          "text": "Audit ha-labels.ts — create/update/delete",
+          "done": true
+        },
+        {
+          "text": "Audit ha-automations — create/update/delete",
+          "done": true
+        },
+        {
+          "text": "Audit ha-dashboards — all card/view mutations",
+          "done": true
+        },
+        {
+          "text": "Audit ha-devices.ts — update path",
+          "done": true
+        },
+        {
+          "text": "Remove any direct .storage read/write if API alternatives exist",
+          "done": true
+        },
+        {
+          "text": "Verify backup.ts and storage.ts usage is limited to read-only or removed",
+          "done": true
+        }
+      ],
+      "successCriteria": [],
+      "research": [],
+      "createdAt": "2026-03-08T09:04:18.995Z",
+      "updatedAt": "2026-03-08T09:05:27.091Z",
+      "closeMessage": "Full audit completed. config-entry backend rewritten to use config flow REST API. All tools now use WebSocket/REST APIs exclusively. No direct .storage writes remain.",
+      "closedAt": "2026-03-08T09:05:27.091Z",
+      "validations": []
+    },
+    {
+      "id": "0y0dosyj",
+      "title": "Historical Data & Event Tools",
+      "description": "Add tools for querying entity state history, logbook events, long-term statistics, and live event listening. Enables troubleshooting, monitoring, and answering questions about what happened.",
+      "body": "## Overview\n\nAdd four tools for querying historical data and live events from Home Assistant. All use WebSocket API.\n\n## Tools\n\n### 1. `ha_history` — Entity State History\nQuery state changes for entities over a time range. Uses `history/history_during_period` WS command.\n\n**Actions:**\n- `states` — Get state changes for one or more entities over a time range\n\n**Parameters:** `entity_ids` (required), `start_time` (required, ISO or relative like \"1h\", \"24h\", \"7d\"), `end_time` (optional), `significant_changes_only` (default true), `no_attributes` (default false), `limit` (max results per entity)\n\n**Output:** Formatted table of state changes with timestamps.\n\n### 2. `ha_logbook` — Activity Log\nQuery human-readable activity events. Uses `logbook/get_events` WS command.\n\n**Actions:**\n- `events` — Get logbook events for entities/devices over a time range\n\n**Parameters:** `entity_ids` (optional), `device_ids` (optional), `start_time` (required), `end_time` (optional), `context_id` (optional, for tracing related events), `limit` (max events)\n\n**Output:** Chronological list of activity events.\n\n### 3. `ha_stats` — Long-Term Statistics\nQuery aggregated statistics for sensors with state_class. Uses `recorder/statistics_during_period` + `recorder/list_statistic_ids`.\n\n**Actions:**\n- `list` — List available statistic IDs (with optional type filter)\n- `get` — Get statistics for one or more statistic IDs over a time range with period aggregation\n\n**Parameters for get:** `statistic_ids` (required), `start_time`, `end_time`, `period` (\"5minute\"|\"hour\"|\"day\"|\"week\"|\"month\"|\"year\"), `types` (max/mean/min/change/sum/state)\n\n**Output:** Formatted statistics table with period aggregation.\n\n### 4. `ha_events` — Live Event Capture\nSubscribe to events for a limited time to capture what's happening. Uses `subscribe_events` WS command.\n\n**Actions:**\n- `capture` — Subscribe to events for N seconds and return captured events\n\n**Parameters:** `event_type` (optional, defaults to all), `timeout` (seconds, default 10, max 60), `limit` (max events to capture)\n\n**Output:** List of captured events with timestamps.\n\n## Shared Utility: Relative Time Parsing\n\nAdd `parseRelativeTime(input: string): string` to `lib/format.ts` that converts relative time expressions to ISO datetime strings:\n- `1h` / `1 hour` → 1 hour ago\n- `24h` / `1d` / `1 day` → 24 hours ago  \n- `7d` / `1w` / `1 week` → 7 days ago\n- ISO strings passed through unchanged\n\n## Implementation Notes\n\n- All tools use WebSocket API via `lib/ws.ts`\n- History returns compressed state format (keys: `s`, `a`, `lu`, `lc`) — needs decompression\n- Statistics timestamps are in milliseconds\n- Events capture needs a timeout mechanism — subscribe, collect events, unsubscribe after N seconds\n- Keep tools under 300 lines each — most are straightforward single-file tools",
+      "priority": 5,
+      "status": "closed",
+      "relevantFiles": [],
+      "todos": [
+        {
+          "text": "Add relative time parsing utility to lib/format.ts",
+          "done": true
+        },
+        {
+          "text": "Implement ha_history tool (state history + sensor stats)",
+          "done": true
+        },
+        {
+          "text": "Implement ha_logbook tool (event timeline)",
+          "done": true
+        },
+        {
+          "text": "Implement ha_stats tool (long-term statistics)",
+          "done": true
+        },
+        {
+          "text": "Implement ha_events tool (live event listener)",
+          "done": true
+        }
+      ],
+      "successCriteria": [
+        "Can query state changes for any entity over any time range",
+        "Logbook shows human-readable activity timeline",
+        "Long-term statistics queryable with period aggregation",
+        "Live event capture works for troubleshooting workflow"
+      ],
+      "research": [
+        {
+          "type": "reference",
+          "content": "## WebSocket API Research\n\n### History (`history/history_during_period`)\n- **WS command**: `history/history_during_period`\n- **Required**: `type`, `start_time` (ISO string), `entity_ids` (list of strings)\n- **Optional**: `end_time`, `include_start_time_state` (default true), `significant_changes_only` (default true), `minimal_response` (default false), `no_attributes` (default false)\n- **Returns**: `{entity_id: [{s: state, a: attrs, lu: last_updated_ts, lc: last_changed_ts}, ...], ...}`\n- **Note**: Uses compressed state format (keys: `s`, `a`, `lu`, `lc`)\n- **Also has**: `history/stream` for live streaming (same params + subscription model)\n- **Source**: `ha-core/homeassistant/components/history/websocket_api.py`\n\n### Logbook (`logbook/get_events`)\n- **WS command**: `logbook/get_events`\n- **Required**: `type`, `start_time` (ISO string)\n- **Optional**: `end_time`, `entity_ids` (list), `device_ids` (list), `context_id`\n- **Returns**: List of event objects with `when` timestamp + human-readable event data\n- **Also has**: `logbook/event_stream` for live streaming\n- **Source**: `ha-core/homeassistant/components/logbook/websocket_api.py`\n\n### Statistics (`recorder/statistics_during_period`)\n- **WS command**: `recorder/statistics_during_period`\n- **Required**: `type`, `start_time`, `statistic_ids` (list, min 1), `period` (\"5minute\" | \"hour\" | \"day\" | \"week\" | \"month\" | \"year\")\n- **Optional**: `end_time`, `units` (unit conversion schema), `types` (set of \"change\" | \"last_reset\" | \"max\" | \"mean\" | \"min\" | \"state\" | \"sum\")\n- **Returns**: `{statistic_id: [{start: ms, end: ms, mean, min, max, sum, state, ...}, ...]}`\n- **Timestamps**: start/end in milliseconds since epoch\n\n### Statistics Metadata (`recorder/list_statistic_ids`)\n- **WS command**: `recorder/list_statistic_ids`\n- **Optional**: `statistic_type` (\"sum\" | \"mean\")\n- **Returns**: List of statistic metadata objects\n\n### Single Statistic (`recorder/statistic_during_period`)\n- **WS command**: `recorder/statistic_during_period`\n- **Required**: `statistic_id`\n- **Optional**: `types` (max/mean/min/change), `units`, period params (start_time/end_time OR duration+offset)\n- **Returns**: Single aggregated result\n\n### Events (`subscribe_events`)\n- **WS command**: `subscribe_events`\n- **Optional**: `event_type` (string, defaults to all events)\n- **Returns**: Subscription — events streamed as they occur\n- **Unsubscribe**: `unsubscribe_events` with subscription ID\n- **Source**: `ha-core/homeassistant/components/websocket_api/commands.py`\n\n### Key Design Decisions\n1. **Use WS not REST** for all — more capable, supports streaming\n2. **History tool**: One-shot query via `history/history_during_period` (simpler than stream for agent use)\n3. **Logbook tool**: One-shot query via `logbook/get_events` (has context_id for tracing related events)\n4. **Stats tool**: `recorder/statistics_during_period` + `recorder/list_statistic_ids` for discovery\n5. **Events tool**: `subscribe_events` with timeout — agent can't hold persistent subscriptions, so capture events for N seconds then return",
+          "addedAt": "2026-03-08T09:28:12.942Z"
+        }
+      ],
+      "createdAt": "2026-03-08T09:04:43.956Z",
+      "updatedAt": "2026-03-08T09:34:14.566Z",
+      "closeMessage": "All 4 tools implemented and registered: ha_history (state changes), ha_logbook (activity timeline), ha_stats (long-term statistics), ha_events (live event capture). Added relative time parser to lib/format.ts and wsSubscribe() to lib/ws.ts for subscription support. All 5 todos complete, all 4 issues closed.",
+      "closedAt": "2026-03-08T09:34:14.566Z",
+      "validations": []
+    },
+    {
+      "id": "15biab7g",
+      "title": "Custom Component — pi_agent Service Registration",
+      "description": "Allow the Pi Agent add-on to register a native HA service (pi_agent.ask) that can be called from automations, scripts, and the UI to start a Pi process with a question.",
+      "body": "## Approach\n\nSelf-deploying custom component — the add-on bundles a small Python integration and drops it into `/homeassistant/custom_components/pi_agent/` on startup.\n\n## Communication\n\nSmall HTTP server in the add-on. The custom component calls it via `aiohttp.ClientSession`.\n\n## Files to Create\n\n- `__init__.py` — registers `pi_agent.ask` service, calls add-on HTTP endpoint\n- `manifest.json` — integration metadata\n- `services.yaml` — service schema for UI\n- `VERSION` — version stamp for update detection",
+      "priority": 6,
+      "status": "in-progress",
+      "relevantFiles": [],
+      "todos": [
+        {
+          "text": "Create custom component Python files (__init__.py, manifest.json, services.yaml, VERSION)",
+          "done": true
+        },
+        {
+          "text": "Add install_integration config option to add-on",
+          "done": true
+        },
+        {
+          "text": "Add startup deployment logic (version-stamped copy to custom_components)",
+          "done": true
+        },
+        {
+          "text": "Add HTTP listener in add-on to receive service calls",
+          "done": true
+        },
+        {
+          "text": "Spawn pi process from HTTP handler with question",
+          "done": true
+        },
+        {
+          "text": "Test service call from automation",
+          "done": true
+        },
+        {
+          "text": "Handle uninstall (toggle off removes component)",
+          "done": true
+        }
+      ],
+      "successCriteria": [
+        "pi_agent.ask service appears in HA developer tools",
+        "Service can be called from automations and scripts",
+        "Pi processes question and returns result",
+        "Component auto-deploys on add-on startup",
+        "Version-stamped: only updates when newer version shipped"
+      ],
+      "research": [
+        {
+          "type": "reference",
+          "content": "## Architecture Research\n\n### Custom Component Structure\nMinimum files needed in `/homeassistant/custom_components/pi_agent/`:\n\n1. **`manifest.json`** — integration metadata\n   ```json\n   {\n     \"domain\": \"pi_agent\",\n     \"name\": \"Pi Agent\",\n     \"version\": \"0.1.0\",\n     \"documentation\": \"https://github.com/dkmaker/hass-claude-code\",\n     \"codeowners\": [],\n     \"dependencies\": [],\n     \"iot_class\": \"local_push\"\n   }\n   ```\n   - `version` key is required for custom components (not for core)\n\n2. **`__init__.py`** — service registration\n   - Use `async_setup(hass, config)` (not `async_setup_entry`) so service registers without config entry\n   - Register via `hass.services.async_register(DOMAIN, \"ask\", handler, schema=SCHEMA, supports_response=SupportsResponse.OPTIONAL)`\n   - `SupportsResponse.OPTIONAL` allows both fire-and-forget and response-returning calls\n   - Must be loaded via `configuration.yaml`: `pi_agent:`\n\n3. **`services.yaml`** — service schema for Developer Tools UI\n   ```yaml\n   ask:\n     fields:\n       question:\n         required: true\n         selector:\n           text:\n   ```\n\n4. **`VERSION`** — version stamp for update detection\n\n### Add-on ↔ Custom Component Communication\n\n**Internal hostname**: Local add-ons are accessible at `local_pi_agent` (or `local-pi-agent` — need to verify exact format). The hostname is the Supervisor slug with hyphens.\n\n**HTTP endpoint in add-on**: Add a small HTTP server (Node.js or shell-based) listening on a port inside the add-on container. The custom component calls it via `aiohttp.ClientSession`:\n```python\nasync with aiohttp.ClientSession() as session:\n    async with session.post(f\"http://local-pi-agent:{PORT}/ask\", json={\"question\": question}) as resp:\n        return await resp.json()\n```\n\n**No auth needed**: Internal Docker network communication doesn't require authentication.\n\n### Deployment Strategy\n\nThe add-on already has a pattern for deploying files (see `init-extension/run`):\n1. Bundle Python files in the Docker image under `/opt/pi-agent-component/`\n2. On startup, copy to `/homeassistant/custom_components/pi_agent/`\n3. Use VERSION file to detect if update needed (only overwrite if newer)\n4. Add `pi_agent:` to `configuration.yaml` if not present\n5. Trigger a reload/restart if component was updated\n\n### config.yaml Changes Needed\n- No port mapping needed — internal Docker network communication only\n- Add `install_integration` option (boolean, default true)\n\n### Process Spawning\nPi runs inside tmux via ttyd currently. For service calls, we need a separate mechanism:\n- HTTP handler receives question\n- Spawns `pi --non-interactive` or uses pi SDK\n- Returns result when complete\n- Consider timeout for long-running questions\n\n### Key Decisions Needed\n1. **HTTP server tech**: Node.js (since pi is Node) vs simple shell script? Node is more robust.\n2. **Sync vs async**: Should `pi_agent.ask` wait for completion or return immediately? Probably sync with timeout.\n3. **configuration.yaml auto-edit**: Should the add-on auto-add `pi_agent:` line? Risk of breaking user's config.\n4. **Port number**: Choose an internal-only port (e.g., 9199) for the HTTP server.\n5. **Response format**: What does the service return? `{\"response\": \"text result\"}`",
+          "addedAt": "2026-03-08T09:39:15.510Z"
+        },
+        {
+          "type": "example",
+          "content": "## Example: Minimal Custom Component with Service\n\n```python\n# custom_components/pi_agent/__init__.py\n\"\"\"Pi Agent integration — registers pi_agent.ask service.\"\"\"\nimport asyncio\nimport logging\nfrom typing import Any\n\nimport aiohttp\nimport voluptuous as vol\n\nfrom homeassistant.core import HomeAssistant, ServiceCall, ServiceResponse, SupportsResponse\nfrom homeassistant.helpers import config_validation as cv\nfrom homeassistant.helpers.typing import ConfigType\n\n_LOGGER = logging.getLogger(__name__)\n\nDOMAIN = \"pi_agent\"\nADDON_URL = \"http://local-pi-agent:9199\"  # Internal Docker network\nSERVICE_ASK = \"ask\"\nDEFAULT_TIMEOUT = 120\n\nSERVICE_SCHEMA = vol.Schema({\n    vol.Required(\"question\"): cv.string,\n    vol.Optional(\"timeout\", default=DEFAULT_TIMEOUT): cv.positive_int,\n})\n\nasync def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:\n    \"\"\"Set up Pi Agent integration.\"\"\"\n\n    async def handle_ask(call: ServiceCall) -> ServiceResponse:\n        \"\"\"Handle pi_agent.ask service call.\"\"\"\n        question = call.data[\"question\"]\n        timeout = call.data.get(\"timeout\", DEFAULT_TIMEOUT)\n\n        try:\n            async with aiohttp.ClientSession() as session:\n                async with session.post(\n                    f\"{ADDON_URL}/ask\",\n                    json={\"question\": question},\n                    timeout=aiohttp.ClientTimeout(total=timeout),\n                ) as resp:\n                    if resp.status == 200:\n                        result = await resp.json()\n                        return {\"response\": result.get(\"response\", \"\")}\n                    else:\n                        error = await resp.text()\n                        _LOGGER.error(\"Pi Agent error: %s\", error)\n                        return {\"error\": error}\n        except asyncio.TimeoutError:\n            _LOGGER.error(\"Pi Agent request timed out after %ds\", timeout)\n            return {\"error\": f\"Timeout after {timeout}s\"}\n        except aiohttp.ClientError as err:\n            _LOGGER.error(\"Pi Agent connection error: %s\", err)\n            return {\"error\": str(err)}\n\n    hass.services.async_register(\n        DOMAIN,\n        SERVICE_ASK,\n        handle_ask,\n        schema=SERVICE_SCHEMA,\n        supports_response=SupportsResponse.OPTIONAL,\n    )\n\n    return True\n```\n\n## Example: services.yaml\n```yaml\nask:\n  name: Ask Pi Agent\n  description: Send a question to the Pi Agent for processing.\n  fields:\n    question:\n      name: Question\n      description: The question or instruction for the Pi Agent.\n      required: true\n      example: \"Turn off all lights in the living room\"\n      selector:\n        text:\n          multiline: true\n    timeout:\n      name: Timeout\n      description: Maximum seconds to wait for a response.\n      default: 120\n      selector:\n        number:\n          min: 10\n          max: 600\n          unit_of_measurement: seconds\n```\n\n## Example: HTTP Server in Add-on (Node.js)\n```javascript\n// Simple HTTP server for receiving service calls\nconst http = require('http');\nconst { spawn } = require('child_process');\n\nconst PORT = 9199;\n\nconst server = http.createServer(async (req, res) => {\n  if (req.method === 'POST' && req.url === '/ask') {\n    let body = '';\n    req.on('data', chunk => body += chunk);\n    req.on('end', () => {\n      const { question } = JSON.parse(body);\n      // Spawn pi process with question\n      const pi = spawn('pi', ['--non-interactive', '-m', question]);\n      let output = '';\n      pi.stdout.on('data', data => output += data);\n      pi.stderr.on('data', data => output += data);\n      pi.on('close', code => {\n        res.writeHead(200, {'Content-Type': 'application/json'});\n        res.end(JSON.stringify({ response: output, exit_code: code }));\n      });\n    });\n  } else {\n    res.writeHead(404);\n    res.end();\n  }\n});\n\nserver.listen(PORT, '0.0.0.0');\n```",
+          "addedAt": "2026-03-08T09:39:31.898Z"
+        },
+        {
+          "type": "comment",
+          "content": "## Open Questions / Risks\n\n1. **Internal hostname verification**: Need to verify the exact hostname for local add-ons. It could be `local-pi-agent` or `local_pi_agent` or another format. Test by SSH'ing into HA and doing `ping local-pi-agent` from HA Core container. May need to check Supervisor API for the correct hostname.\n\n2. **Auto-adding `pi_agent:` to configuration.yaml**: This is risky — the user's config may use `!include` directives, custom formatting, or comments. Safer approach: just deploy the files and tell the user to add `pi_agent:` manually (or use a persistent notification).\n\n3. **Pi CLI non-interactive mode**: Need to verify `pi` supports `--non-interactive` or similar flag. Check `pi --help` for headless execution options. Alternative: use the pi SDK directly from Node.js.\n\n4. **Restart requirement**: After deploying the custom component for the first time, HA needs a restart to load it. Subsequent updates may or may not need a restart depending on what changed. The add-on should detect first-time install and prompt/trigger a restart.\n\n5. **Cleanup on uninstall**: If the user disables `install_integration`, the add-on should remove the custom component from `custom_components/pi_agent/`. But if HA has `pi_agent:` in config, removing the component will cause a startup error. Need to handle gracefully.",
+          "addedAt": "2026-03-08T09:39:45.258Z"
+        }
+      ],
+      "createdAt": "2026-03-08T09:04:35.476Z",
+      "updatedAt": "2026-03-08T09:57:01.217Z",
+      "validations": []
+    }
+  ],
+  "issues": [
+    {
+      "id": "n914940j",
+      "type": "feature",
+      "title": "ha_history — Entity State History Tool",
+      "description": "Query historical state changes for entities. REST API: `GET /api/history/period/<timestamp>`. Smart summarization: state changes get count/duration, sensors get min/max/mean, binary sensors get trigger count/on-time.",
+      "status": "closed",
+      "epicId": "0y0dosyj",
+      "research": [
+        {
+          "type": "reference",
+          "content": "## API: `history/history_during_period`\n- **Required**: `start_time` (ISO), `entity_ids` (list)\n- **Optional**: `end_time`, `include_start_time_state` (true), `significant_changes_only` (true), `minimal_response` (false), `no_attributes` (false)\n- **Response format**: `{entity_id: [{s: \"on\", a: {}, lu: 1234567.89, lc: 1234567.89}, ...]}` — compressed keys\n- **Decompression**: `s` = state, `a` = attributes, `lu` = last_updated (timestamp), `lc` = last_changed (timestamp)\n- Single action tool, needs relative time parsing (\"1h\", \"24h\", \"7d\" → ISO)",
+          "addedAt": "2026-03-08T09:28:49.434Z"
+        }
+      ],
+      "createdAt": "2026-03-08T09:04:56.096Z",
+      "updatedAt": "2026-03-08T09:34:10.047Z",
+      "closeMessage": "Implemented ha_history tool using history/history_during_period WS command. Supports relative time parsing, compressed state decompression, and per-entity result limiting.",
+      "closedAt": "2026-03-08T09:34:10.047Z",
+      "validations": []
+    },
+    {
+      "id": "upf6zss9",
+      "type": "feature",
+      "title": "ha_logbook — Event Logbook Tool",
+      "description": "Query the HA logbook for human-readable activity entries. REST API: `GET /api/logbook/<timestamp>`. Filter by entity, time range, with limit. Timeline format output.",
+      "status": "closed",
+      "epicId": "0y0dosyj",
+      "research": [
+        {
+          "type": "reference",
+          "content": "## API: `logbook/get_events`\n- **Required**: `start_time` (ISO)\n- **Optional**: `end_time`, `entity_ids` (list), `device_ids` (list), `context_id`\n- **Returns**: List of event dicts with `when` (timestamp), plus entity/name/state/message fields\n- Simpler than history — already human-readable output from EventProcessor",
+          "addedAt": "2026-03-08T09:28:49.435Z"
+        }
+      ],
+      "createdAt": "2026-03-08T09:05:00.847Z",
+      "updatedAt": "2026-03-08T09:34:10.048Z",
+      "closeMessage": "Implemented ha_logbook tool using logbook/get_events WS command. Supports entity/device filtering, context_id tracing, and human-readable formatting.",
+      "closedAt": "2026-03-08T09:34:10.048Z",
+      "validations": []
+    },
+    {
+      "id": "7pwzd9is",
+      "type": "feature",
+      "title": "ha_stats — Long-Term Statistics Tool",
+      "description": "Query long-term statistics database for sensor data (hourly/daily/monthly aggregates). WebSocket: `recorder/statistics_during_period`. Actions: get (statistics), list (entities with stats).",
+      "status": "closed",
+      "epicId": "0y0dosyj",
+      "research": [
+        {
+          "type": "reference",
+          "content": "## APIs\n1. **`recorder/list_statistic_ids`** — list action, optional `statistic_type` (\"sum\"|\"mean\")\n2. **`recorder/statistics_during_period`** — get action\n   - Required: `start_time`, `statistic_ids` (list), `period` (\"5minute\"|\"hour\"|\"day\"|\"week\"|\"month\"|\"year\")\n   - Optional: `end_time`, `units` (conversion), `types` (set of \"change\"|\"last_reset\"|\"max\"|\"mean\"|\"min\"|\"state\"|\"sum\")\n   - Response: `{statistic_id: [{start: ms, end: ms, mean, min, max, ...}, ...]}` — timestamps in milliseconds",
+          "addedAt": "2026-03-08T09:28:49.444Z"
+        }
+      ],
+      "createdAt": "2026-03-08T09:05:05.252Z",
+      "updatedAt": "2026-03-08T09:34:10.057Z",
+      "closeMessage": "Implemented ha_stats tool with list (recorder/list_statistic_ids) and get (recorder/statistics_during_period) actions. Supports 6 aggregation periods and dynamic column display.",
+      "closedAt": "2026-03-08T09:34:10.057Z",
+      "validations": []
+    },
+    {
+      "id": "w29olc6m",
+      "type": "feature",
+      "title": "ha_events — Live Event Listener Tool",
+      "description": "Subscribe to the HA event bus via WebSocket, capture events during a window, then query/filter results. Troubleshooting loop: start listening → do the thing → see what happened. Actions: listen, stop, get, types.",
+      "status": "closed",
+      "epicId": "0y0dosyj",
+      "research": [
+        {
+          "type": "reference",
+          "content": "## API: `subscribe_events`\n- **Optional**: `event_type` (string, defaults to all)\n- Returns subscription — events stream in as `event` messages\n- Unsubscribe via `unsubscribe_events` with subscription ID\n- **Design**: Subscribe, collect for N seconds (max 60), unsubscribe, return collected events\n- Need to handle WS subscription lifecycle carefully — current `ws.ts` `sendCommand` may not support subscriptions natively. May need a `subscribe` helper that returns events over time.",
+          "addedAt": "2026-03-08T09:28:49.445Z"
+        },
+        {
+          "type": "comment",
+          "content": "## ws.ts Subscription Gap\n\nCurrent `ws.ts` only handles `type: \"result\"` messages — it resolves/rejects pending promises on result. It does NOT handle `type: \"event\"` messages which are how subscriptions deliver data.\n\n**Needed**: Add a `wsSubscribe()` function to `lib/ws.ts` that:\n1. Sends the subscribe command\n2. Registers an event handler for messages with matching `id` and `type: \"event\"`\n3. Returns collected events after timeout\n4. Sends unsubscribe command\n\nThis is a prerequisite for `ha_events` and could also benefit `ha_history` (stream mode) and `ha_logbook` (event_stream mode), though we'll use one-shot queries for those.",
+          "addedAt": "2026-03-08T09:29:16.381Z"
+        }
+      ],
+      "createdAt": "2026-03-08T09:05:09.341Z",
+      "updatedAt": "2026-03-08T09:34:10.058Z",
+      "closeMessage": "Implemented ha_events tool using subscribe_events WS command. Added wsSubscribe() to lib/ws.ts for subscription lifecycle management with timeout and max event limits.",
+      "closedAt": "2026-03-08T09:34:10.058Z",
+      "validations": []
+    },
+    {
+      "id": "7e869jm8",
+      "type": "feature",
+      "title": "Create custom component Python files",
+      "description": "Create the Python custom component files that will be deployed to `/homeassistant/custom_components/pi_agent/`: `__init__.py` (service registration + HTTP call to add-on), `manifest.json` (integration metadata with version), `services.yaml` (UI schema for Developer Tools), and `VERSION` (update detection stamp).",
+      "status": "draft",
+      "epicId": "15biab7g",
+      "research": [],
+      "createdAt": "2026-03-08T09:40:57.894Z",
+      "updatedAt": "2026-03-08T09:40:57.894Z"
+    },
+    {
+      "id": "5h8xge77",
+      "type": "feature",
+      "title": "Add install_integration config option to add-on",
+      "description": "Add an `install_integration` boolean option (default: true) to `addon/config.yaml` so users can opt out of the custom component deployment.",
+      "status": "draft",
+      "epicId": "15biab7g",
+      "research": [],
+      "createdAt": "2026-03-08T09:40:57.896Z",
+      "updatedAt": "2026-03-08T09:40:57.896Z"
+    },
+    {
+      "id": "pjlzjvpe",
+      "type": "feature",
+      "title": "Add startup deployment logic for custom component",
+      "description": "Create an s6 init script that copies the custom component to `/homeassistant/custom_components/pi_agent/` on add-on startup. Use VERSION file for update detection — only overwrite when a newer version is shipped. Handle first-time install (notify user to add `pi_agent:` to configuration.yaml and restart HA).",
+      "status": "draft",
+      "epicId": "15biab7g",
+      "research": [],
+      "createdAt": "2026-03-08T09:40:57.905Z",
+      "updatedAt": "2026-03-08T09:40:57.905Z"
+    },
+    {
+      "id": "3i7vul29",
+      "type": "feature",
+      "title": "Add HTTP listener in add-on for service calls",
+      "description": "Add a Node.js HTTP server (port 9199) inside the add-on that listens for POST requests from the custom component. Runs as an s6 long-running service. Endpoint: `POST /ask` with JSON body `{\"question\": \"...\"}`. No auth needed (internal Docker network only).",
+      "status": "draft",
+      "epicId": "15biab7g",
+      "research": [],
+      "createdAt": "2026-03-08T09:40:57.906Z",
+      "updatedAt": "2026-03-08T09:40:57.906Z"
+    },
+    {
+      "id": "7tv315r4",
+      "type": "feature",
+      "title": "Spawn pi process from HTTP handler",
+      "description": "When the HTTP handler receives a question, spawn a `pi` process in non-interactive/headless mode, capture output, and return the result as JSON. Need to verify pi CLI supports non-interactive execution. Handle timeouts and errors gracefully.",
+      "status": "draft",
+      "epicId": "15biab7g",
+      "research": [],
+      "createdAt": "2026-03-08T09:40:57.907Z",
+      "updatedAt": "2026-03-08T09:40:57.907Z"
+    },
+    {
+      "id": "gxly5gu5",
+      "type": "chore",
+      "title": "Handle uninstall — remove component when toggled off",
+      "description": "When `install_integration` is set to false, the startup script should remove `/homeassistant/custom_components/pi_agent/`. Must handle the case where `pi_agent:` is still in `configuration.yaml` (would cause HA startup error). Consider leaving a stub or notifying the user to remove the config line.",
+      "status": "draft",
+      "epicId": "15biab7g",
+      "research": [],
+      "createdAt": "2026-03-08T09:40:57.908Z",
+      "updatedAt": "2026-03-08T09:40:57.908Z"
+    },
+    {
+      "id": "vrsmgc6h",
+      "type": "spike",
+      "title": "Verify add-on internal hostname and pi non-interactive mode",
+      "description": "Two unknowns to resolve before implementation: (1) Verify the exact internal Docker hostname for local add-ons — is it `local-pi-agent`, `local_pi_agent`, or something else? Test via SSH/ping from HA Core container. (2) Check if `pi` CLI supports a non-interactive/headless execution mode for processing questions without a TTY. Check `pi --help`.",
+      "status": "draft",
+      "epicId": "15biab7g",
+      "research": [],
+      "createdAt": "2026-03-08T09:40:57.909Z",
+      "updatedAt": "2026-03-08T09:40:57.909Z"
+    },
+    {
+      "id": "mq72ge34",
+      "type": "feature",
+      "title": "Configurable provider/model for pi_agent.ask service",
+      "description": "Allow configuring an optional provider and model for the `pi_agent.ask` service, separate from the interactive session defaults. This lets users pick a cheaper/faster model for automation-triggered Pi calls (e.g., a small model for simple \"turn off lights\" tasks vs the full model for interactive use).\n\nOptions could be:\n- Add-on config: `service_provider` and `service_model` fields\n- Or per-call: `pi_agent.ask` service fields for `provider` and `model`\n- Or both (add-on config as defaults, per-call as overrides)",
+      "status": "draft",
+      "epicId": "15biab7g",
+      "research": [],
+      "createdAt": "2026-03-08T09:48:34.569Z",
+      "updatedAt": "2026-03-08T09:48:34.569Z"
+    }
+  ]
+}

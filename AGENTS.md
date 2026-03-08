@@ -298,6 +298,12 @@ The Pi extension follows single-responsibility file structure for AI-friendly de
 2. Output to `schemas/` directory
 3. Document in this file under Schema Extraction
 
+## Release Policy
+
+- **NEVER push commits or bump versions unless explicitly approved by the user**
+- Always stage and describe changes first, then wait for approval before `git commit` / `git push`
+- Version bumps require explicit user confirmation
+
 ## Conventions
 
 - Use "Home Assistant" in full — never "HA" or "HASS" in user-facing text

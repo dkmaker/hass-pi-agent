@@ -47,12 +47,15 @@ fi
 
 # --- User-defined environment variables (API keys, provider config, etc.) ---
 if bashio::config.has_value 'environment'; then
-    for entry in $(bashio::config 'environment'); do
+    env_count=$(bashio::config 'environment | length')
+    for (( i=0; i<env_count; i++ )); do
+        entry=$(bashio::config "environment[${i}]")
         key="${entry%%=*}"
         value="${entry#*=}"
         if [[ -n "${key}" ]]; then
             printf '%s' "${value}" > "/var/run/s6/container_environment/${key}"
             echo "export ${key}=\"${value}\"" >> /etc/profile.d/pi-agent.sh
+            bashio::log.info "Set environment variable: ${key}"
         fi
     done
 fi

@@ -50,6 +50,37 @@ export function getActionType(action: Record<string, unknown>): string {
   return "unknown";
 }
 
+/**
+ * Parse a relative time string (e.g., "1h", "24h", "7d", "2w") into an ISO datetime string.
+ * If the input is already an ISO datetime string, it's returned as-is.
+ * Returns an ISO string representing that duration ago from now.
+ */
+export function parseRelativeTime(input: string): string {
+  const trimmed = input.trim();
+
+  // If it looks like an ISO datetime, pass through
+  if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) return trimmed;
+
+  // Parse relative patterns: "1h", "30m", "7d", "2w", "1 hour", "3 days", etc.
+  const match = trimmed.match(/^(\d+)\s*(s|sec|second|seconds|m|min|minute|minutes|h|hr|hour|hours|d|day|days|w|week|weeks)$/i);
+  if (!match) {
+    throw new Error(`Invalid time format: "${input}". Use relative (1h, 24h, 7d, 2w) or ISO datetime.`);
+  }
+
+  const amount = parseInt(match[1], 10);
+  const unit = match[2].toLowerCase();
+
+  let ms: number;
+  if (unit.startsWith("s")) ms = amount * 1000;
+  else if (unit.startsWith("mi") || unit === "m") ms = amount * 60_000;
+  else if (unit.startsWith("h")) ms = amount * 3_600_000;
+  else if (unit.startsWith("d")) ms = amount * 86_400_000;
+  else if (unit.startsWith("w")) ms = amount * 604_800_000;
+  else throw new Error(`Unknown time unit: ${unit}`);
+
+  return new Date(Date.now() - ms).toISOString();
+}
+
 /** Produce a short one-line summary of an automation element */
 export function summarizeElement(el: Record<string, unknown>, _type: string): string {
   const skip = new Set(["trigger", "platform", "condition", "alias", "id", "enabled", "variables", "options", "continue_on_error"]);

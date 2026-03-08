@@ -14,6 +14,10 @@ import { registerDocsTool } from "./tools/ha-docs.js";
 import { registerBackupsTool } from "./tools/ha-backups.js";
 import { registerSystemTool } from "./tools/ha-system.js";
 import { registerGraphTool } from "./tools/ha-graph.js";
+import { registerHistoryTool } from "./tools/ha-history.js";
+import { registerLogbookTool } from "./tools/ha-logbook.js";
+import { registerStatsTool } from "./tools/ha-stats.js";
+import { registerEventsTool } from "./tools/ha-events.js";
 import { wsClose } from "./lib/ws.js";
 import { gatherContext, getContext } from "./lib/context.js";
 import { readFileSync } from "fs";
@@ -48,6 +52,10 @@ export default function (pi: ExtensionAPI) {
   registerBackupsTool(pi);
   registerSystemTool(pi);
   registerGraphTool(pi);
+  registerHistoryTool(pi);
+  registerLogbookTool(pi);
+  registerStatsTool(pi);
+  registerEventsTool(pi);
 
   // Gather HA installation context at session start
   pi.on("session_start", async () => {

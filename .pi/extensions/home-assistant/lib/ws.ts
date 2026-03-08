@@ -42,6 +42,7 @@ let authenticated = false;
 let connecting: Promise<void> | null = null;
 let msgId = 0;
 const pending = new Map<number, PendingCommand>();
+const subscriptions = new Map<number, (event: unknown) => void>();
 
 // ── WebSocket URL ────────────────────────────────────────────
 
@@ -137,6 +138,12 @@ function connect(): Promise<void> {
           }
         }
       }
+
+      // Subscription event messages
+      if (msg.type === "event" && msg.id !== undefined) {
+        const handler = subscriptions.get(msg.id);
+        if (handler) handler(msg.event);
+      }
     });
 
     socket.on("error", (err: Error) => {
@@ -210,6 +217,64 @@ export async function wsCommand<T = unknown>(
         clearTimeout(timeout);
         reject(err);
       },
+    });
+
+    ws!.send(JSON.stringify(msg));
+  });
+}
+
+/**
+ * Subscribe to events and collect them for a duration.
+ * Returns collected events after the timeout expires.
+ */
+export async function wsSubscribe<T = unknown>(
+  type: string,
+  data: Record<string, unknown> = {},
+  timeoutMs: number = 10_000,
+  maxEvents: number = 200
+): Promise<T[]> {
+  await connect();
+  if (!ws || !authenticated) throw new Error("WebSocket not connected");
+
+  const id = ++msgId;
+  const msg = { id, type, ...data };
+  const collected: T[] = [];
+
+  return new Promise<T[]>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      subscriptions.delete(id);
+      // Unsubscribe
+      if (ws && authenticated) {
+        const unsubId = ++msgId;
+        ws.send(JSON.stringify({ id: unsubId, type: "unsubscribe_events", subscription: id }));
+      }
+      resolve(collected);
+    }, timeoutMs);
+
+    // Handle subscription result (success/failure)
+    pending.set(id, {
+      resolve: () => {
+        // Subscription confirmed — events will come via the handler
+      },
+      reject: (err) => {
+        clearTimeout(timer);
+        subscriptions.delete(id);
+        reject(err);
+      },
+    });
+
+    // Handle incoming events
+    subscriptions.set(id, (event: unknown) => {
+      collected.push(event as T);
+      if (collected.length >= maxEvents) {
+        clearTimeout(timer);
+        subscriptions.delete(id);
+        if (ws && authenticated) {
+          const unsubId = ++msgId;
+          ws.send(JSON.stringify({ id: unsubId, type: "unsubscribe_events", subscription: id }));
+        }
+        resolve(collected);
+      }
     });
 
     ws!.send(JSON.stringify(msg));

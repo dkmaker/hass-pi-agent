@@ -31,6 +31,9 @@ RUN npm install -g @mariozechner/pi-coding-agent@0.57.1
 # Copy HA extension into image
 COPY extensions/home-assistant /opt/ha-extension
 
+# Copy custom component for pi_agent.ask service
+COPY component/pi_agent /opt/pi-agent-component/pi_agent
+
 # Install extension dependencies
 RUN cd /opt/ha-extension && npm install --omit=dev
 

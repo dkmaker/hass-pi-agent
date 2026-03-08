@@ -1,0 +1,9 @@
+#!/command/with-contenv bashio
+# shellcheck shell=bash
+# ==============================================================================
+# Pi Agent Add-on: HTTP service for pi_agent.ask
+# ==============================================================================
+
+bashio::log.info 'Starting Pi Agent HTTP service...'
+
+exec node /opt/pi-agent-service/server.js

@@ -1,0 +1,9 @@
+{
+  "domain": "pi_agent",
+  "name": "Pi Agent",
+  "version": "0.1.0",
+  "documentation": "https://github.com/dkmaker/hass-claude-code",
+  "codeowners": ["@dkmaker"],
+  "dependencies": [],
+  "iot_class": "local_push"
+}
