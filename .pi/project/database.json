@@ -666,6 +666,192 @@
         }
       ],
       "closedAt": "2026-03-08T12:12:45.953Z"
+    },
+    {
+      "id": "udakjg7q",
+      "title": "Tool output formatting alignment",
+      "description": "Ensure all 34 HA tools use consistent markdown formatting — tables for lists, property tables for details, code blocks for config, and meaningful messages for empty/action results.",
+      "body": "",
+      "priority": 10,
+      "status": "closed",
+      "relevantFiles": [],
+      "todos": [
+        {
+          "text": "ha-addons — audit ALL actions against formatting policy",
+          "done": true
+        },
+        {
+          "text": "ha-areas — audit ALL actions against formatting policy",
+          "done": true
+        },
+        {
+          "text": "ha-automations — audit ALL actions against formatting policy",
+          "done": true
+        },
+        {
+          "text": "ha-backups — audit ALL actions against formatting policy",
+          "done": true
+        },
+        {
+          "text": "ha-blueprints — audit ALL actions against formatting policy",
+          "done": true
+        },
+        {
+          "text": "ha-categories — audit ALL actions against formatting policy",
+          "done": true
+        },
+        {
+          "text": "ha-conversation — audit ALL actions against formatting policy",
+          "done": true
+        },
+        {
+          "text": "ha-dashboards — audit ALL actions against formatting policy",
+          "done": true
+        },
+        {
+          "text": "ha-devices — audit ALL actions against formatting policy",
+          "done": true
+        },
+        {
+          "text": "ha-docs — audit ALL actions against formatting policy",
+          "done": true
+        },
+        {
+          "text": "ha-entities — audit ALL actions against formatting policy",
+          "done": true
+        },
+        {
+          "text": "ha-events — audit ALL actions against formatting policy",
+          "done": true
+        },
+        {
+          "text": "ha-graph — audit ALL actions against formatting policy",
+          "done": true
+        },
+        {
+          "text": "ha-helpers — audit ALL actions against formatting policy",
+          "done": true
+        },
+        {
+          "text": "ha-history — audit ALL actions against formatting policy",
+          "done": true
+        },
+        {
+          "text": "ha-integrations — audit ALL actions against formatting policy",
+          "done": true
+        },
+        {
+          "text": "ha-labels — audit ALL actions against formatting policy",
+          "done": true
+        },
+        {
+          "text": "ha-logbook — audit ALL actions against formatting policy",
+          "done": true
+        },
+        {
+          "text": "ha-logs — audit ALL actions against formatting policy",
+          "done": true
+        },
+        {
+          "text": "ha-notifications — audit ALL actions against formatting policy",
+          "done": true
+        },
+        {
+          "text": "ha-people — audit ALL actions against formatting policy",
+          "done": true
+        },
+        {
+          "text": "ha-policies — audit ALL actions against formatting policy",
+          "done": true
+        },
+        {
+          "text": "ha-recorder — audit ALL actions against formatting policy",
+          "done": true
+        },
+        {
+          "text": "ha-restart — audit ALL actions against formatting policy",
+          "done": true
+        },
+        {
+          "text": "ha-scenes — audit ALL actions against formatting policy",
+          "done": true
+        },
+        {
+          "text": "ha-scripts — audit ALL actions against formatting policy",
+          "done": true
+        },
+        {
+          "text": "ha-services — audit ALL actions against formatting policy",
+          "done": true
+        },
+        {
+          "text": "ha-shopping-list — audit ALL actions against formatting policy",
+          "done": true
+        },
+        {
+          "text": "ha-stats — audit ALL actions against formatting policy",
+          "done": true
+        },
+        {
+          "text": "ha-system — audit ALL actions against formatting policy",
+          "done": true
+        },
+        {
+          "text": "ha-tags — audit ALL actions against formatting policy",
+          "done": true
+        },
+        {
+          "text": "ha-template — audit ALL actions against formatting policy",
+          "done": true
+        },
+        {
+          "text": "ha-tool-docs — audit ALL actions against formatting policy",
+          "done": true
+        },
+        {
+          "text": "ha-zones — audit ALL actions against formatting policy",
+          "done": true
+        }
+      ],
+      "successCriteria": [
+        "All 34 tools use markdown tables for list outputs",
+        "All detail/get outputs use property tables",
+        "All action confirmations use ✅/❌ format",
+        "No empty string returns anywhere",
+        "User confirms formatting looks consistent across all tools"
+      ],
+      "research": [],
+      "createdAt": "2026-03-08T20:22:10.398Z",
+      "updatedAt": "2026-03-08T20:53:28.927Z",
+      "closeMessage": "All 34 HA tools aligned to the Tool Output Formatting Standard. Tables for lists, property tables for details, ✅/❌ for actions, meaningful empty messages, code blocks for config. User validated.",
+      "validations": [
+        {
+          "criterion": "All 34 tools use markdown tables for list outputs",
+          "evidence": "All 34 list actions converted to markdown tables. Verified live: ha_entities, ha_automations, ha_helpers, ha_system, ha_history, ha_entities domains.",
+          "met": true
+        },
+        {
+          "criterion": "All detail/get outputs use property tables",
+          "evidence": "All get/detail actions use ## heading + property table. Verified: ha_entities get, ha_system info/host, ha_backups get, ha_integrations get.",
+          "met": true
+        },
+        {
+          "criterion": "All action confirmations use ✅/❌ format",
+          "evidence": "All action confirmations use ✅/⚠️/❌ prefix. Grep confirmed no plain-text confirmations remain.",
+          "met": true
+        },
+        {
+          "criterion": "No empty string returns anywhere",
+          "evidence": "Grep for empty string returns found none. All empty results return meaningful messages like 'No labels defined.'",
+          "met": true
+        },
+        {
+          "criterion": "User confirms formatting looks consistent across all tools",
+          "evidence": "User confirmed 'All is accepted' after reviewing live tool output.",
+          "met": true
+        }
+      ],
+      "closedAt": "2026-03-08T20:53:28.927Z"
     }
   ],
   "issues": [
@@ -1516,7 +1702,7 @@
       "type": "bug",
       "title": "Tool outputs don't render markdown and lack human-friendly formatting",
       "description": "## Problem\n\nTwo related issues across all ~35 HA tools:\n\n### 1. No markdown rendering in TUI ✅ DONE\nAll tools now have `renderResult` and `renderCall` using shared helpers in `lib/format.ts`.\n\n### 2. Output quality — raw JSON dumps and silent responses\nMany tools still return raw `JSON.stringify` dumps or empty strings instead of human-readable output. Known offenders from audit:\n\n**Raw JSON dumps (no formatting):**\n- `ha-entities.ts:334` — regenerate-ids returns raw JSON\n- `ha-graph.ts:293` — export returns raw JSON\n- `ha-scripts.ts:121,237` — get and trace return raw JSON\n- `ha-scenes.ts:95` — get returns raw JSON\n- `ha-helpers.ts:152,165,178` — list/get return raw JSON\n- `ha-areas.ts:208` — get returns raw JSON\n- `ha-devices.ts:410` — get returns raw JSON\n- `ha-policies.ts:139` — get returns raw JSON\n- `ha-automations/crud.ts:136` — get returns raw JSON\n- `ha-automations/traces.ts:53` — trace returns raw JSON\n- `ha-automations/builder.ts:137` — show dumps JSON\n- `ha-dashboards/views.ts:27` — get-view dumps raw JSON\n\n**Empty/silent output:**\n- `ha-events.ts:30` — returns empty string when no data\n\n## Closure Conditions\n1. No tool returns raw `JSON.stringify` as user-facing output — all must be formatted as readable markdown (tables, lists, key-value pairs)\n2. No tool returns empty string — always return a meaningful message (e.g., \"No events captured\" instead of \"\")\n3. User validates by calling several of the fixed tools and confirming the output looks good",
-      "status": "in-progress",
+      "status": "closed",
       "linkedIssueIds": [
         "k4ww3xmm"
       ],
@@ -1529,18 +1715,46 @@
         }
       ],
       "createdAt": "2026-03-08T18:59:02.368Z",
-      "updatedAt": "2026-03-08T19:51:37.651Z",
+      "updatedAt": "2026-03-08T20:19:11.244Z",
       "autoValidation": {
         "type": "human",
         "strategy": "User confirms tool outputs render as formatted markdown and all tools produce meaningful human-readable feedback"
       },
       "validations": [
         {
-          "criterion": "## Problem\n\nTwo related issues across all ~35 HA tools:\n\n### 1. No markdown rendering in TUI\nAll tools return markdown-formatted text (headings, tables, bold, bullets) but **none** define `renderResult`, so the TUI shows raw markdown characters instead of formatted output. Only the `questionnaire` tool has proper rendering.\n\n### 2. Inconsistent and unhelpful output\nMany tools produce output that is:\n- **Raw JSON** dumps instead of human-readable summaries\n- **Empty or silent** — tools run with no visible feedback, leaving the user wondering what happened\n- **Inconsistent** — some tools format nicely, others dump data structures\n\n**Every tool call should produce meaningful, human-readable output** that tells the user what happened, what changed, or what was found. No silent executions, no raw JSON.\n\n## Fix\n\n### Shared markdown renderer\nCreate a shared `renderMarkdownResult` helper in `lib/format.ts` using `Markdown` from `@mariozechner/pi-tui` with `getMarkdownTheme()`. Add `renderResult` (and optionally `renderCall`) to all tool registrations.\n\n### Output quality audit\nReview every tool's `execute` output and ensure:\n1. **Always produces output** — even simple confirmations like \"✅ Done: renamed entity X to Y\"\n2. **Human-readable** — no raw JSON, no data dumps. Format as readable text/tables/lists\n3. **Consistent style** — aligned formatting across all tools (success ✅, warnings ⚠️, errors ❌, info headers)\n4. **Contextual** — shows what was done, what changed, counts, summaries\n\n### Scope\nAll tools in `tools/` need:\n- `renderResult` using the shared markdown helper\n- Output text audit — ensure every action path returns meaningful human-readable text\n- `renderCall` for compact display of what the tool is doing while it runs",
-          "evidence": "User confirmed \"they look good so they are approved\". Tool calls (ha_entities, ha_areas, ha_automations) executed successfully with markdown rendering visible in the TUI. All 34 ha-*.ts tools have renderCall and renderResult wired up.",
+          "criterion": "## Problem\n\nTwo related issues across all ~35 HA tools:\n\n### 1. No markdown rendering in TUI ✅ DONE\nAll tools now have `renderResult` and `renderCall` using shared helpers in `lib/format.ts`.\n\n### 2. Output quality — raw JSON dumps and silent responses\nMany tools still return raw `JSON.stringify` dumps or empty strings instead of human-readable output. Known offenders from audit:\n\n**Raw JSON dumps (no formatting):**\n- `ha-entities.ts:334` — regenerate-ids returns raw JSON\n- `ha-graph.ts:293` — export returns raw JSON\n- `ha-scripts.ts:121,237` — get and trace return raw JSON\n- `ha-scenes.ts:95` — get returns raw JSON\n- `ha-helpers.ts:152,165,178` — list/get return raw JSON\n- `ha-areas.ts:208` — get returns raw JSON\n- `ha-devices.ts:410` — get returns raw JSON\n- `ha-policies.ts:139` — get returns raw JSON\n- `ha-automations/crud.ts:136` — get returns raw JSON\n- `ha-automations/traces.ts:53` — trace returns raw JSON\n- `ha-automations/builder.ts:137` — show dumps JSON\n- `ha-dashboards/views.ts:27` — get-view dumps raw JSON\n\n**Empty/silent output:**\n- `ha-events.ts:30` — returns empty string when no data\n\n## Closure Conditions\n1. No tool returns raw `JSON.stringify` as user-facing output — all must be formatted as readable markdown (tables, lists, key-value pairs)\n2. No tool returns empty string — always return a meaningful message (e.g., \"No events captured\" instead of \"\")\n3. User validates by calling several of the fixed tools and confirming the output looks good",
+          "evidence": "User confirmed \"Perfect it looks nice\" after testing ha_helpers list, ha_automations get/list, ha_entities get, and ha_areas get — all showing formatted markdown tables instead of raw JSON. All 34 tools have renderResult/renderCall. Verified zero remaining `return JSON.stringify` or `return \"\"` in tool code via grep.",
           "met": true
         }
-      ]
+      ],
+      "closeMessage": "All tools now render markdown properly and return human-readable formatted output. No raw JSON dumps or empty responses remain.",
+      "closedAt": "2026-03-08T20:19:11.244Z"
+    },
+    {
+      "id": "9su1lzd2",
+      "type": "chore",
+      "title": "Align output formatting across all HA tools",
+      "description": "## Problem\n\nTool outputs use inconsistent formatting. ALL 34 tools must be audited against the **Tool Output Formatting Standard** asset [r3p3ooha].\n\n## Process — For EVERY tool\n\n1. Read asset [r3p3ooha] for the formatting rules\n2. Read the tool's source code — check EVERY action/code path\n3. Compare each output against the policy rules\n4. Fix any output that doesn't comply\n5. Mark the tool's todo as done on the epic\n\n**No tool gets a pass.** Even tools that were recently updated must be validated — read the code and verify every return statement.\n\n## Rules Summary (see asset for full details)\n- **List actions** → markdown table with 3-5 columns + count summary\n- **Detail/get actions** → `## Name` heading + property table + sub-sections\n- **Action confirmations** → single line with ✅/⚠️/❌ prefix + what changed\n- **Empty results** → meaningful message, NEVER empty string\n- **Config/schema** → YAML or JSON code blocks\n- **Counts** → always show total at the bottom\n- **No raw JSON.stringify** in any return\n\n## Validation\nUser reloads extension, calls tools, and confirms output matches the policy.",
+      "status": "closed",
+      "linkedIssueIds": [],
+      "questions": [],
+      "research": [],
+      "createdAt": "2026-03-08T20:21:35.908Z",
+      "updatedAt": "2026-03-08T20:53:18.617Z",
+      "autoValidation": {
+        "type": "human",
+        "strategy": "User calls each tool and confirms the output formatting is consistent and readable"
+      },
+      "epicId": "udakjg7q",
+      "closeMessage": "All 34 tools aligned to formatting standard. User validated and accepted.",
+      "validations": [
+        {
+          "criterion": "## Problem\n\nTool outputs use inconsistent formatting. ALL 34 tools must be audited against the **Tool Output Formatting Standard** asset [r3p3ooha].\n\n## Process — For EVERY tool\n\n1. Read asset [r3p3ooha] for the formatting rules\n2. Read the tool's source code — check EVERY action/code path\n3. Compare each output against the policy rules\n4. Fix any output that doesn't comply\n5. Mark the tool's todo as done on the epic\n\n**No tool gets a pass.** Even tools that were recently updated must be validated — read the code and verify every return statement.\n\n## Rules Summary (see asset for full details)\n- **List actions** → markdown table with 3-5 columns + count summary\n- **Detail/get actions** → `## Name` heading + property table + sub-sections\n- **Action confirmations** → single line with ✅/⚠️/❌ prefix + what changed\n- **Empty results** → meaningful message, NEVER empty string\n- **Config/schema** → YAML or JSON code blocks\n- **Counts** → always show total at the bottom\n- **No raw JSON.stringify** in any return\n\n## Validation\nUser reloads extension, calls tools, and confirms output matches the policy.",
+          "evidence": "User confirmed \"All is accepted\" after live testing of reformatted tool outputs across ha_entities, ha_automations, ha_system, ha_helpers, ha_history, ha_labels, ha_logbook, ha_areas.",
+          "met": true
+        }
+      ],
+      "closedAt": "2026-03-08T20:53:18.616Z"
     }
   ],
   "categories": [
@@ -1690,6 +1904,23 @@
       "linkedIssueIds": [],
       "createdAt": "2026-03-08T11:55:38.014Z",
       "updatedAt": "2026-03-08T11:55:38.014Z"
+    },
+    {
+      "id": "r3p3ooha",
+      "categorySlug": "policies",
+      "title": "Tool Output Formatting Standard",
+      "context": "When implementing or modifying any HA tool output in .pi/extensions/home-assistant/tools/. Apply these rules to every action's return string.",
+      "body": "## Tool Output Formatting Standard\n\nAll HA tools must follow these formatting rules for consistent, readable output in the TUI markdown renderer.\n\n### 1. List Actions → Markdown Table\n\nEvery `list` action must return a markdown table. Pick 3-5 most useful columns.\n\n```\n| Name | Entity | State | Last triggered |\n|------|--------|-------|----------------|\n| My automation | automation.my_auto | 🟢 on | 5m ago |\n```\n\n- Always include a **summary line** after the table: `X items` or `Showing X-Y of Z items`\n- Empty lists: return a meaningful message like `No automations found.`\n- Use status icons inline in cells: 🟢 on, 🔴 off, ⚪ unknown\n\n### 2. Detail/Get Actions → Property Table + Sections\n\n```\n## Item Name\n\n| Property | Value |\n|----------|-------|\n| Entity | entity_id |\n| State | on |\n| Area | Kitchen |\n\n### Sub-section (e.g. Attributes, Entities, Config)\n\nEither another table or a YAML/JSON code block.\n```\n\n- Heading with item name\n- Property table for key fields (skip null/empty values)\n- Sub-sections for nested data (attributes, entities, config)\n- Config/schema → YAML code block (```yaml)\n- Never dump raw JSON objects\n\n### 3. Action Confirmations (create/update/delete/call)\n\n```\n✅ Created automation 'Kitchen lights' (id: abc123)\n✅ Updated entity sensor.temp — name: 'Temperature', area: kitchen\n✅ Deleted label 'old-label'\n⚠️ Warning: 3 automations reference this entity\n❌ Failed: entity not found\n```\n\n- Single line with ✅/⚠️/❌ prefix\n- Include what was done + key identifiers\n- For destructive actions with `confirm: false` (preview): describe what WOULD happen\n\n### 4. Time-Series Data (history/stats/logbook/events)\n\n```\n**sensor.temperature** (12 state changes):\n\n| Time | State | Changed |\n|------|-------|---------|\n| 14:30 | 21.5°C | attributes |\n```\n\n- Group by entity with bold header\n- Table with time, state, and relevant columns\n- Summary count per entity\n\n### 5. Tree/Hierarchical Data (graph, dashboard views, device tree)\n\nUse indented lists or nested sections:\n\n```\n📁 Floor: Ground\n  Køkken — 3 devices, 12 entities\n  Stue — 2 devices, 8 entities\n```\n\n### 6. Documentation/Help Output (tool-docs, docs)\n\nPlain text or light markdown is fine — these are reference docs, not data.\n\n### 7. Universal Rules\n\n| Rule | Example |\n|------|---------|\n| Never return empty string | Return `No items found.` or `(no data)` |\n| Never return raw JSON.stringify | Wrap in code block or format as table |\n| Always show counts | `5 automations` / `Showing 1-10 of 42` |\n| Skip null/empty values in tables | Don't show `| area | null |` |\n| Use relative times | `5m ago` not ISO timestamps (except in detail views) |\n| Icons for status | 🟢 on/started, 🔴 off/stopped, ⚪ unknown/unavailable |\n| Bold for names/titles in lists | `**My Item**` in table cells or list items |\n| Code blocks for config | ```yaml for YAML, ```json for JSON |\n\n### 8. Imports\n\nAll tools should use the shared helpers from `lib/format.ts`:\n- `renderMarkdownResult(result)` — for `renderResult`\n- `renderToolCall(label, args, theme)` — for `renderCall`\n- `timeSince(iso)` — for relative time display\n- `formatTrace(domain, id, runId, trace)` — for automation/script traces",
+      "project": false,
+      "sources": [],
+      "linkedEpicIds": [
+        "udakjg7q"
+      ],
+      "linkedIssueIds": [
+        "9su1lzd2"
+      ],
+      "createdAt": "2026-03-08T20:23:41.706Z",
+      "updatedAt": "2026-03-08T20:23:45.605Z"
     }
   ]
 }
