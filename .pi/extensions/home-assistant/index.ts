@@ -147,6 +147,22 @@ ${addonLines || "No add-ons installed"}${areaLine}`;
       { triggerTurn: false },
     );
 
+    // Persistent status line in TUI footer
+    const dim = (s: string) => ctx.ui.theme.fg("dim", s);
+    const accent = (s: string) => ctx.ui.theme.fg("accent", s);
+    const areaCount = haCtx.areas?.length || 0;
+    const runningAddons = haCtx.addons.filter((a) => a.running).length;
+    const ver = sys.ha_version.replace(/^(\d+\.\d+).*/, "$1");
+
+    const statusParts = [
+      `🏠 HA ${accent(ver)}`,
+      `${accent(String(haCtx.entities.total))} entities`,
+      `${accent(String(automationCount))} automations`,
+      `${accent(String(areaCount))} areas`,
+      `${accent(String(runningAddons))} add-ons`,
+    ];
+    ctx.ui.setStatus("ha", statusParts.join(dim(" · ")));
+
     // First-run: suggest policy setup if no policies file exists
     if (!policiesExist()) {
       pi.sendMessage(
