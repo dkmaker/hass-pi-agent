@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.10.0](https://github.com/dkmaker/hass-pi-agent/compare/v0.9.2...v0.10.0) (2026-03-09)
+
+
+### Features
+
+* add HA status line in TUI footer and MQTT client tools ([#28](https://github.com/dkmaker/hass-pi-agent/issues/28)) ([25e8bc7](https://github.com/dkmaker/hass-pi-agent/commit/25e8bc754f343b06d9bf96d898ed3d3438391f29))
+
+
+### Bug Fixes
+
+* clean up legacy extension copy from volume on startup ([#25](https://github.com/dkmaker/hass-pi-agent/issues/25)) ([61cba5a](https://github.com/dkmaker/hass-pi-agent/commit/61cba5a15bc65e60980e35d3d7d92c3c59b6251b))
+* policy [object Object] rendering and entity update undefined ([#27](https://github.com/dkmaker/hass-pi-agent/issues/27)) ([51a1268](https://github.com/dkmaker/hass-pi-agent/commit/51a126841e36efc6541eee5c0c7f006134e35cd5))
+
 ## [0.9.2](https://github.com/dkmaker/hass-pi-agent/compare/v0.9.1...v0.9.2) (2026-03-08)
 
 
