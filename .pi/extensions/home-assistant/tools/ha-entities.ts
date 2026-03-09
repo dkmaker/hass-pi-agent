@@ -447,10 +447,11 @@ async function handleUpdate(params: Record<string, unknown>): Promise<string> {
     );
   }
 
-  const updated = await wsCommand<WSEntityRegistryEntry>(
+  const result = await wsCommand<{ entity_entry: WSEntityRegistryEntry }>(
     "config/entity_registry/update",
     updateData
   );
+  const updated = result.entity_entry;
 
   const changes: string[] = [];
   if ("name" in params) changes.push(`name: ${updated.name ?? "(cleared)"}`);
