@@ -23,7 +23,8 @@ RUN apk add --no-cache \
     fd \
     ripgrep \
     tmux \
-    ttyd
+    ttyd \
+    mosquitto-clients
 
 # Install pi coding agent (pinned version)
 RUN npm install -g @mariozechner/pi-coding-agent@0.57.1
