@@ -1663,7 +1663,8 @@
       "description": "Allow users to define policies (naming conventions, organization preferences, etc.) that the AI follows when managing their Home Assistant. Policies are stored in `/homeassistant/pi-agent/policies.yaml`, loaded at startup, and injected into the system prompt.\n\n## Behavior\n\n### First-run detection\nWhen no policies file exists, the AI **proactively suggests** running `/setup` at session start (via `session_start` event message). This is a gentle suggestion, not blocking — the user can ignore it.\n\n### `/setup` wizard (via `ha_policies` tool `init` action)\nInteractive interview that proposes best-practice defaults based on HA community conventions. The wizard:\n\n1. **Scans existing entities** to detect current naming patterns (location-first vs device-first, separators, etc.)\n2. **Asks targeted questions** with smart defaults:\n   - Entity ID pattern: `domain.location_device` vs `domain.device_location` (default: location-first)\n   - Friendly name pattern: `[Area] [Device]` or `[Device] [Area]`\n   - Area/floor structure preference\n   - Label strategy (suggest common categories: energy, security, monitored)\n   - Automation naming: `[Location]: [Action]` prefix convention\n   - Voice assistant optimization (yes/no)\n3. **Shows proposed policies** for confirmation before saving\n4. Saves to `/homeassistant/pi-agent/policies.yaml`\n\n### Policy storage\n- Path: `/homeassistant/pi-agent/policies.yaml` (inside HA config dir, survives backups/restores)\n- Human-readable and user-editable\n- Loaded once at startup, injected into system prompt via `before_agent_start`\n\n### `ha_policies` tool actions\n- `list` — show all current policies\n- `get` — get a specific policy category\n- `set` — set/update a policy\n- `remove` — remove a policy\n- `init` — run the setup wizard (interactive)\n- `check` — validate current entities against policies, report violations\n\n## Key files\n- New: `tools/ha-policies.ts` — tool registration and dispatch\n- New: `lib/policies.ts` — load/save/validate policies, pattern detection\n- Modified: `index.ts` — load policies at startup, inject into system prompt, first-run suggestion",
       "status": "closed",
       "linkedIssueIds": [
-        "ekb99xsp"
+        "ekb99xsp",
+        "pns7pqk2"
       ],
       "research": [
         {
@@ -1683,7 +1684,7 @@
         }
       ],
       "createdAt": "2026-03-08T16:40:40.731Z",
-      "updatedAt": "2026-03-08T18:59:06.366Z",
+      "updatedAt": "2026-03-08T22:07:15.909Z",
       "autoValidation": {
         "type": "human",
         "strategy": "User confirms policies are loaded, injected into prompt, and respected by the AI during operations"
@@ -1828,6 +1829,94 @@
         }
       ],
       "closedAt": "2026-03-08T21:37:28.995Z"
+    },
+    {
+      "id": "pns7pqk2",
+      "type": "bug",
+      "title": "Policy format shows [object Object] for complex values",
+      "description": "When policy values are objects (e.g. metric_suffixes, floors), `formatPoliciesForPrompt` interpolates them directly into template literals, producing `[object Object]`. Fixed by adding `fmtVal()` helper that JSON-stringifies non-string values.",
+      "status": "closed",
+      "linkedIssueIds": [
+        "k4ww3xmm"
+      ],
+      "questions": [],
+      "research": [],
+      "createdAt": "2026-03-08T22:07:11.610Z",
+      "updatedAt": "2026-03-08T22:07:39.649Z",
+      "autoValidation": {
+        "type": "agent",
+        "strategy": "Check lib/policies.ts uses fmtVal for all policy value interpolations"
+      },
+      "closeMessage": "Added fmtVal() helper that JSON-stringifies object values. Applied to all 18 policy value interpolations.",
+      "validations": [
+        {
+          "criterion": "When policy values are objects (e.g. metric_suffixes, floors), `formatPoliciesForPrompt` interpolates them directly into template literals, producing `[object Object]`. Fixed by adding `fmtVal()` helper that JSON-stringifies non-string values.",
+          "evidence": "```\\n$ grep -c 'fmtVal(' .pi/extensions/home-assistant/lib/policies.ts\\n18\\n$ grep -n '\\\\${[a-z]\\\\.' .pi/extensions/home-assistant/lib/policies.ts | grep -v 'fmtVal\\\\|technical_language\\\\|display_language\\\\|\\\\.enabled\\\\|\\\\.strategy\\\\|entries(map'\\n(empty — no unprotected interpolations)\\n```",
+          "met": true
+        }
+      ],
+      "closedAt": "2026-03-08T22:07:39.649Z"
+    },
+    {
+      "id": "etwzd4vp",
+      "type": "bug",
+      "title": "Entity update shows 'undefined' — WS response wrapped in entity_entry",
+      "description": "The `config/entity_registry/update` WS command returns `{entity_entry: {...}}` but the code expected the entry directly, so `updated.entity_id` was `undefined`. Fixed by unwrapping `result.entity_entry`.",
+      "status": "closed",
+      "linkedIssueIds": [
+        "g64zxxmb"
+      ],
+      "questions": [],
+      "research": [],
+      "createdAt": "2026-03-08T22:31:58.903Z",
+      "updatedAt": "2026-03-08T22:32:52.612Z",
+      "autoValidation": {
+        "type": "agent",
+        "strategy": "Check ha-entities.ts unwraps entity_entry from update response"
+      },
+      "closeMessage": "Fixed by typing WS response as {entity_entry: WSEntityRegistryEntry} and unwrapping.",
+      "validations": [
+        {
+          "criterion": "The `config/entity_registry/update` WS command returns `{entity_entry: {...}}` but the code expected the entry directly, so `updated.entity_id` was `undefined`. Fixed by unwrapping `result.entity_entry`.",
+          "evidence": "$ grep -B1 -A4 \"entity_registry/update\" .pi/extensions/home-assistant/tools/ha-entities.ts | head -8 shows: `const result = await wsCommand<{ entity_entry: WSEntityRegistryEntry }>(...); const updated = result.entity_entry;`",
+          "met": true
+        }
+      ],
+      "closedAt": "2026-03-08T22:32:12.830Z"
+    },
+    {
+      "id": "g64zxxmb",
+      "type": "bug",
+      "title": "Audit all WS command responses for wrapped return values",
+      "description": "The `config/entity_registry/update` WS command returned `{entity_entry: {...}}` but the code expected the unwrapped entry, causing `undefined` fields. This pattern likely exists in other tool WS calls. Need to audit every `wsCommand<>` that expects a typed response and verify the return shape matches the HA WebSocket API.",
+      "status": "closed",
+      "linkedIssueIds": [
+        "etwzd4vp"
+      ],
+      "questions": [],
+      "research": [
+        {
+          "type": "reference",
+          "content": "## All wsCommand<> calls requiring audit\n\nEach needs verification that the expected return type matches the actual HA WebSocket API response shape.\n\n### ha-entities.ts\n- [x] `config/entity_registry/update` → **CONFIRMED BUG** — wraps in `{entity_entry: ...}` (fixed)\n- [ ] `config/entity_registry/get_automatic_entity_ids` → returns `Record<string, string | null>`\n- [ ] `search/related` → returns `RelatedResult`\n\n### ha-devices.ts\n- [ ] `config/device_registry/update` → returns `WSDevice` — likely wraps in `{device_entry: ...}`\n\n### ha-areas.ts\n- [ ] `config/area_registry/create` → returns `WSArea`\n- [ ] `config/area_registry/update` → returns `WSArea`\n- [ ] `config/floor_registry/create` → returns `WSFloor`\n- [ ] `config/floor_registry/update` → returns `WSFloor`\n\n### ha-labels.ts\n- [ ] `config/label_registry/create` → returns `WSLabel`\n- [ ] `config/label_registry/update` → returns `WSLabel`\n\n### ha-zones.ts\n- [ ] `zone/create` → returns `WSZone`\n- [ ] `zone/update` → returns `WSZone`\n\n### ha-people.ts\n- [ ] `person/create` → returns `WSPerson`\n- [ ] `person/update` → returns `WSPerson`\n\n### ha-tags.ts\n- [ ] `tag/create` → returns `WSTag`\n- [ ] `tag/update` → returns `WSTag`\n\n### ha-categories.ts\n- [ ] `config/category_registry/create` → returns `WSCategory`\n- [ ] `config/category_registry/update` → returns `WSCategory`\n\n### ha-dashboards.ts\n- [ ] `lovelace/dashboards/create` → returns `DashboardInfo`\n- [ ] `lovelace/dashboards/update` → returns `DashboardInfo`\n- [ ] `lovelace/config` → returns `LovelaceConfig`\n\n### ha-shopping-list.ts\n- [ ] `shopping_list/items/add` → returns `ShoppingItem`\n- [ ] `shopping_list/items/update` → returns `ShoppingItem`\n\n### ha-conversation.ts\n- [ ] `conversation/process` → returns `ConversationResult`\n\n### ha-blueprints.ts\n- [ ] `blueprint/list` → returns `Record<string, BlueprintInfo | null>`\n\n### ha-automations/crud.ts\n- [ ] `automation/config` → returns `{ config: AutomationConfig }` (already wrapped correctly)",
+          "addedAt": "2026-03-08T22:33:02.605Z"
+        },
+        {
+          "type": "comment",
+          "content": "## Audit Results\n\n**Only `config/entity_registry/update` wraps its response** in `{entity_entry: ...}`. All others return the entry directly:\n\n- **Registry APIs** (device, area, floor, label, category): `send_result(msg_id, entry)` — direct\n- **Collection APIs** (person, zone, tag, lovelace dashboards, shopping_list): `StorageCollectionWebsocket.ws_create_item/ws_update_item` → `send_result(msg_id, item)` — direct  \n- **conversation/process**: `send_result(msg_id, result.as_dict())` — direct\n- **blueprint/list**: returns dict directly\n\nThe entity_registry is a special case because its update handler builds a custom result dict with `{\"entity_entry\": entry.extended_dict}` plus optional reload info.\n\n**No additional fixes needed.** The fix in `etwzd4vp` covers the only affected call.",
+          "addedAt": "2026-03-08T22:43:06.716Z"
+        }
+      ],
+      "createdAt": "2026-03-08T22:32:49.578Z",
+      "updatedAt": "2026-03-08T22:43:19.378Z",
+      "closeMessage": "Audit complete. Only entity_registry/update wraps its response — already fixed in etwzd4vp. All 25 other WS calls return entries directly.",
+      "validations": [
+        {
+          "criterion": "The `config/entity_registry/update` WS command returned `{entity_entry: {...}}` but the code expected the unwrapped entry, causing `undefined` fields. This pattern likely exists in other tool WS calls. Need to audit every `wsCommand<>` that expects a typed response and verify the return shape matches the HA WebSocket API.",
+          "evidence": "Verified all 26 wsCommand calls against HA core Python source:\\n- device_registry.py: `send_result(msg_id, entry.dict_repr)` — direct\\n- area_registry.py: `send_result(msg_id, entry.json_fragment)` — direct\\n- floor_registry.py: `send_result(msg_id, _entry_dict(entry))` — direct\\n- label_registry.py: `send_result(msg_id, _entry_dict(entry))` — direct\\n- category_registry.py: `send_result(msg_id, _entry_dict(entry))` — direct\\n- collection.py (person/zone/tag/dashboards/shopping): `send_result(msg_id, item)` — direct\\n- conversation: `send_result(msg_id, result.as_dict())` — direct\\n- entity_registry.py: `result = {\"entity_entry\": entity_entry.extended_dict}` — WRAPPED (already fixed)",
+          "met": true
+        }
+      ],
+      "closedAt": "2026-03-08T22:43:19.378Z"
     }
   ],
   "categories": [

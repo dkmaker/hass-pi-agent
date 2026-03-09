@@ -185,6 +185,13 @@ export function removePolicy(category: PolicyCategory, key?: string): Policies {
 
 // ── System prompt formatting ─────────────────────────────────
 
+/** Safely format a policy value — stringify objects instead of [object Object] */
+function fmtVal(v: unknown): string {
+  if (v === null || v === undefined) return "";
+  if (typeof v === "string") return v;
+  return JSON.stringify(v);
+}
+
 /** Format policies as a system prompt section for LLM injection */
 export function formatPoliciesForPrompt(policies: Policies): string {
   const sections: string[] = [];
@@ -192,41 +199,41 @@ export function formatPoliciesForPrompt(policies: Policies): string {
   if (policies.naming) {
     const n = policies.naming;
     const lines = ["## Naming Conventions (User Policy)"];
-    if (n.entity_id_pattern) lines.push(`- **Entity ID pattern:** ${n.entity_id_pattern}`);
-    if (n.friendly_name_pattern) lines.push(`- **Friendly names:** ${n.friendly_name_pattern}`);
-    if (n.metric_suffixes) lines.push(`- **Metric sensors:** ${n.metric_suffixes}`);
-    if (n.voice_assistant) lines.push(`- **Voice assistant:** ${n.voice_assistant}`);
-    if (n.notes) lines.push(`- **Notes:** ${n.notes}`);
+    if (n.entity_id_pattern) lines.push(`- **Entity ID pattern:** ${fmtVal(n.entity_id_pattern)}`);
+    if (n.friendly_name_pattern) lines.push(`- **Friendly names:** ${fmtVal(n.friendly_name_pattern)}`);
+    if (n.metric_suffixes) lines.push(`- **Metric sensors:** ${fmtVal(n.metric_suffixes)}`);
+    if (n.voice_assistant) lines.push(`- **Voice assistant:** ${fmtVal(n.voice_assistant)}`);
+    if (n.notes) lines.push(`- **Notes:** ${fmtVal(n.notes)}`);
     sections.push(lines.join("\n"));
   }
 
   if (policies.organization) {
     const o = policies.organization;
     const lines = ["## Organization Conventions (User Policy)"];
-    if (o.areas) lines.push(`- **Areas:** ${o.areas}`);
-    if (o.floors) lines.push(`- **Floors:** ${o.floors}`);
-    if (o.labels) lines.push(`- **Labels:** ${o.labels}`);
-    if (o.devices) lines.push(`- **Devices:** ${o.devices}`);
-    if (o.notes) lines.push(`- **Notes:** ${o.notes}`);
+    if (o.areas) lines.push(`- **Areas:** ${fmtVal(o.areas)}`);
+    if (o.floors) lines.push(`- **Floors:** ${fmtVal(o.floors)}`);
+    if (o.labels) lines.push(`- **Labels:** ${fmtVal(o.labels)}`);
+    if (o.devices) lines.push(`- **Devices:** ${fmtVal(o.devices)}`);
+    if (o.notes) lines.push(`- **Notes:** ${fmtVal(o.notes)}`);
     sections.push(lines.join("\n"));
   }
 
   if (policies.automations) {
     const a = policies.automations;
     const lines = ["## Automation Conventions (User Policy)"];
-    if (a.naming) lines.push(`- **Naming:** ${a.naming}`);
-    if (a.categories) lines.push(`- **Categories:** ${a.categories}`);
-    if (a.scripts) lines.push(`- **Scripts:** ${a.scripts}`);
-    if (a.notes) lines.push(`- **Notes:** ${a.notes}`);
+    if (a.naming) lines.push(`- **Naming:** ${fmtVal(a.naming)}`);
+    if (a.categories) lines.push(`- **Categories:** ${fmtVal(a.categories)}`);
+    if (a.scripts) lines.push(`- **Scripts:** ${fmtVal(a.scripts)}`);
+    if (a.notes) lines.push(`- **Notes:** ${fmtVal(a.notes)}`);
     sections.push(lines.join("\n"));
   }
 
   if (policies.dashboards) {
     const d = policies.dashboards;
     const lines = ["## Dashboard Conventions (User Policy)"];
-    if (d.organization) lines.push(`- **Organization:** ${d.organization}`);
-    if (d.cards) lines.push(`- **Cards:** ${d.cards}`);
-    if (d.notes) lines.push(`- **Notes:** ${d.notes}`);
+    if (d.organization) lines.push(`- **Organization:** ${fmtVal(d.organization)}`);
+    if (d.cards) lines.push(`- **Cards:** ${fmtVal(d.cards)}`);
+    if (d.notes) lines.push(`- **Notes:** ${fmtVal(d.notes)}`);
     sections.push(lines.join("\n"));
   }
 
