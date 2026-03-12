@@ -1,5 +1,5 @@
 {
-  "version": 7,
+  "version": 9,
   "epics": [
     {
       "id": "w521kzvd",
@@ -1792,16 +1792,31 @@
       "type": "feature",
       "title": "Install MQTT client tools in add-on container",
       "description": "Add `mosquitto-clients` to the Dockerfile `apk add` list so `mosquitto_pub` and `mosquitto_sub` are available via bash for MQTT testing/debugging.",
-      "status": "draft",
+      "status": "closed",
       "linkedIssueIds": [],
       "questions": [],
-      "research": [],
+      "research": [
+        {
+          "type": "reference",
+          "content": "Alpine package `mosquitto-clients` provides `mosquitto_pub` and `mosquitto_sub`. Added to `addon/Dockerfile` apk add list. Single-line change, no config needed.",
+          "addedAt": "2026-03-09T07:45:41.274Z"
+        }
+      ],
       "createdAt": "2026-03-08T21:25:53.483Z",
-      "updatedAt": "2026-03-08T21:25:53.483Z",
+      "updatedAt": "2026-03-09T07:45:56.382Z",
       "autoValidation": {
         "type": "agent",
         "strategy": "Check Dockerfile contains mosquitto-clients in apk add line"
-      }
+      },
+      "closeMessage": "Added mosquitto-clients to addon/Dockerfile. Available after next rebuild/deploy.",
+      "validations": [
+        {
+          "criterion": "Add `mosquitto-clients` to the Dockerfile `apk add` list so `mosquitto_pub` and `mosquitto_sub` are available via bash for MQTT testing/debugging.",
+          "evidence": "Validated: `grep 'mosquitto-clients' addon/Dockerfile` returns `    mosquitto-clients` — package is present in the apk add list.",
+          "met": true
+        }
+      ],
+      "closedAt": "2026-03-09T07:45:56.382Z"
     },
     {
       "id": "bzmea2de",
@@ -1917,6 +1932,59 @@
         }
       ],
       "closedAt": "2026-03-08T22:43:19.378Z"
+    },
+    {
+      "id": "hys5yl6s",
+      "type": "feature",
+      "title": "Home Assistant status line in TUI footer",
+      "description": "Add a persistent status line using `ctx.ui.setStatus()` that shows a compact, at-a-glance HA overview in the Pi TUI footer. This makes the agent feel native to Home Assistant with an always-visible indicator.\n\n**Status line format:** `🏠 HA 2025.1 · 847 entities · 23 automations · 12 areas · 4 add-ons`\n\n**Implementation:**\n- In `index.ts` `session_start` handler, call `ctx.ui.setStatus(\"ha\", ...)` with themed compact line\n- Use `ctx.ui.theme.fg()` for color accents (dim separators, accent for counts)\n- Uses already-gathered `HAContext` — no extra API calls\n- **File:** `.pi/extensions/home-assistant/index.ts` (small addition in existing handler)",
+      "status": "closed",
+      "linkedIssueIds": [],
+      "questions": [],
+      "research": [
+        {
+          "type": "comment",
+          "content": "Uses `ctx.ui.setStatus(\"ha\", ...)` with theme colors. Added in `session_start` handler after the existing chat message. Shows: HA version, entity count, automation count, area count, running add-on count. Dim `·` separators, accent-colored numbers.",
+          "addedAt": "2026-03-09T07:50:42.704Z"
+        }
+      ],
+      "createdAt": "2026-03-09T07:49:48.734Z",
+      "updatedAt": "2026-03-09T07:51:00.011Z",
+      "autoValidation": {
+        "type": "agent",
+        "strategy": "Check that index.ts contains a setStatus call with HA metrics in the session_start handler"
+      },
+      "closeMessage": "Implemented persistent HA status line in TUI footer showing key metrics with themed colors.",
+      "validations": [
+        {
+          "criterion": "Add a persistent status line using `ctx.ui.setStatus()` that shows a compact, at-a-glance HA overview in the Pi TUI footer. This makes the agent feel native to Home Assistant with an always-visible indicator.\n\n**Status line format:** `🏠 HA 2025.1 · 847 entities · 23 automations · 12 areas · 4 add-ons`\n\n**Implementation:**\n- In `index.ts` `session_start` handler, call `ctx.ui.setStatus(\"ha\", ...)` with themed compact line\n- Use `ctx.ui.theme.fg()` for color accents (dim separators, accent for counts)\n- Uses already-gathered `HAContext` — no extra API calls\n- **File:** `.pi/extensions/home-assistant/index.ts` (small addition in existing handler)",
+          "evidence": "Line 164: `ctx.ui.setStatus(\"ha\", statusParts.join(dim(\" · \")));` — within the session_start handler, preceded by HA version, entity count, automation count, area count, and running add-on count construction.",
+          "met": true
+        }
+      ],
+      "closedAt": "2026-03-09T07:51:00.011Z"
+    },
+    {
+      "id": "05ci9ioy",
+      "type": "feature",
+      "title": "Automatic pre-mutation backups with JSONL changelog",
+      "description": "Before any write/update/delete action in HA tools, automatically snapshot the current state of the affected resource via the HA API and save it to `/homeassistant/.pi-backups/mutations/`. Append every mutation to a JSONL changelog file with timestamp, tool, action, target, and backup file reference — enabling rollback and full audit trail.\n\n**Key changes:**\n\n### 1. Core backup module — `lib/mutation-log.ts`\n- `backupBeforeMutation(tool, action, target, snapshotFn)` — fetches current state, writes snapshot JSON, appends to `changelog.jsonl`\n- Config constants in `lib/config.ts` for backup dir and rotation\n- Backup rotation (configurable max count)\n\n### 2. Instrument ~15 tool files\nAdd pre-mutation backup call before update/delete/remove actions in: ha-entities, ha-devices, ha-areas, ha-labels, ha-automations, ha-dashboards, ha-helpers, ha-scenes, ha-scripts, ha-zones, ha-people, ha-tags, ha-integrations, ha-categories, ha-recorder\n\n### 3. New tool — `ha_mutations`\nDedicated tool for the agent to query and manage mutation history:\n| Action | Description |\n|--------|-------------|\n| `log` | Show recent changelog entries (filterable by tool, target, date range) |\n| `list` | List backup snapshot files (filterable by tool/target) |\n| `show` | Show contents of a specific backup snapshot |\n| `restore` | Restore a snapshot (call appropriate HA API to revert) |\n| `purge` | Clean old backups beyond retention limit |\n\n### 4. Slash commands for the user\n- `/ha-log` — rich TUI view of recent mutations (timestamps, tool, action, target, summary)\n- `/ha-backups` — browse backup snapshots with filtering, see what was changed",
+      "status": "in-progress",
+      "linkedIssueIds": [],
+      "questions": [],
+      "research": [
+        {
+          "type": "reference",
+          "content": "## Implementation Plan\n\n### `lib/mutation-log.ts`\n- `MUTATION_BACKUP_DIR` = `/homeassistant/.pi-backups/mutations/`\n- `MUTATION_CHANGELOG` = `/homeassistant/.pi-backups/mutations/changelog.jsonl`\n- `backupBeforeMutation(tool, action, targetId, currentState)` — write snapshot JSON, append JSONL line\n- JSONL schema: `{ts, tool, action, target, backupFile, summary}`\n- `readChangelog(opts)` — read/filter JSONL, `listMutationBackups()`, `showBackup()`, `purgeBackups()`\n\n### Instrumentation pattern\nEach tool's update/delete handler gets ~3 lines before the mutation:\n```ts\nimport { backupBeforeMutation } from \"../lib/mutation-log.js\";\n// Before wsCommand/apiPost that mutates:\nconst currentState = await wsCommand(\"config/entity_registry/get\", { entity_id });\nawait backupBeforeMutation(\"ha_entities\", \"update\", entityId, currentState);\n```\n\n### Tool: `ha_mutations` (new file `tools/ha-mutations.ts`)\nActions: log, list, show, restore, purge. Registered in index.ts.\n\n### Slash commands (registered in index.ts)\n- `/ha-log` — overlay with recent changelog entries, scrollable, ESC to close\n- `/ha-backups` — overlay listing backup files with filtering\n\n### Tools to instrument (mutating actions):\n| Tool | Actions |\n|------|---------|\n| ha-entities | update, remove, regenerate-ids |\n| ha-devices | update |\n| ha-areas | update-area, delete-area, update-floor, delete-floor |\n| ha-labels | update, delete |\n| ha-automations | update, delete, enable, disable |\n| ha-dashboards | update, delete, update-view, remove-view, update-card, remove-card |\n| ha-helpers | update, remove |\n| ha-scenes | update, delete |\n| ha-scripts | update, delete |\n| ha-zones | update, delete |\n| ha-people | update, delete |\n| ha-tags | update, delete |\n| ha-integrations | disable, enable, remove |\n| ha-categories | update, delete |\n| ha-recorder | adjust, change-unit, clear |",
+          "addedAt": "2026-03-12T05:10:58.720Z"
+        }
+      ],
+      "createdAt": "2026-03-12T05:02:18.349Z",
+      "updatedAt": "2026-03-12T05:11:11.089Z",
+      "autoValidation": {
+        "type": "agent",
+        "strategy": "Deploy to VM, trigger a mutating action (e.g. entity update), verify backup file and changelog.jsonl entry are created in /homeassistant/.pi-backups/mutations/"
+      }
     }
   ],
   "categories": [
@@ -2084,5 +2152,6 @@
       "createdAt": "2026-03-08T20:23:41.706Z",
       "updatedAt": "2026-03-08T20:23:45.605Z"
     }
-  ]
+  ],
+  "config": {}
 }

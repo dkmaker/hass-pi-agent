@@ -9,6 +9,7 @@ import { Type } from "@sinclair/typebox";
 import { StringEnum } from "@mariozechner/pi-ai";
 import { wsCommand } from "../lib/ws.js";
 import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
+import { backupBeforeMutation } from "../lib/mutation-log.js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -110,6 +111,12 @@ async function handleUpdate(params: Record<string, unknown>): Promise<string> {
   if (params.name !== undefined) data.name = params.name;
   if (params.icon !== undefined) data.icon = params.icon;
 
+  try {
+    const cats = await wsCommand<WSCategory[]>("config/category_registry/list", { scope });
+    const current = cats.find((c) => c.category_id === categoryId);
+    if (current) backupBeforeMutation("ha_categories", "update", `${scope}.${categoryId}`, current);
+  } catch { /* best-effort */ }
+
   const result = await wsCommand<WSCategory>("config/category_registry/update", data);
   return `✅ Updated category '${result.name}' (id: ${result.category_id})`;
 }
@@ -122,6 +129,12 @@ async function handleDelete(params: Record<string, unknown>): Promise<string> {
   if (!params.confirm) {
     return `⚠️ **Confirm delete**: category \`${categoryId}\` (scope: ${scope})\n\nCall again with \`confirm: true\` to proceed.`;
   }
+
+  try {
+    const cats = await wsCommand<WSCategory[]>("config/category_registry/list", { scope });
+    const current = cats.find((c) => c.category_id === categoryId);
+    if (current) backupBeforeMutation("ha_categories", "delete", `${scope}.${categoryId}`, current);
+  } catch { /* best-effort */ }
 
   await wsCommand("config/category_registry/delete", { scope, category_id: categoryId });
   return `✅ Deleted category '${categoryId}'`;

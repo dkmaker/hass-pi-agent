@@ -9,6 +9,7 @@ import { timeSince } from "../../lib/format.js";
 import { validateAutomationConfig } from "../../lib/validation.js";
 import type { HAState, AutomationConfig } from "../../lib/types.js";
 import { toYaml } from "../../lib/yaml.js";
+import { backupBeforeMutation } from "../../lib/mutation-log.js";
 
 // ── Helpers ──────────────────────────────────────────────────
 
@@ -186,6 +187,9 @@ export async function handleUpdate(params: Record<string, unknown>): Promise<str
     throw new Error(`Automation '${automationId}' not found`);
   }
 
+  // Snapshot before mutation
+  backupBeforeMutation("ha_automations", "update", automationId, existing);
+
   const { id: _id, ...existingWithoutId } = existing;
   const merged = { ...existingWithoutId, ...config };
 
@@ -207,6 +211,13 @@ export async function handleDelete(params: Record<string, unknown>): Promise<str
   if (!params.confirm) {
     return `⚠️ **Confirm delete**: automation \`${automationId}\`\n\nCall again with \`confirm: true\` to proceed.`;
   }
+
+  // Snapshot before deletion
+  try {
+    const existing = await apiGet(`/api/config/automation/config/${automationId}`);
+    backupBeforeMutation("ha_automations", "delete", automationId, existing);
+  } catch { /* best-effort */ }
+
   await apiDelete(`/api/config/automation/config/${automationId}`);
   return `✅ Deleted automation '${automationId}'\nEntity registry cleaned up automatically.`;
 }

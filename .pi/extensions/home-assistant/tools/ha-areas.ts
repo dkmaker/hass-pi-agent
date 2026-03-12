@@ -9,6 +9,7 @@ import { Type } from "@sinclair/typebox";
 import { StringEnum } from "@mariozechner/pi-ai";
 import { wsCommand } from "../lib/ws.js";
 import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
+import { backupBeforeMutation } from "../lib/mutation-log.js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -261,6 +262,13 @@ async function handleUpdateArea(params: Record<string, unknown>): Promise<string
   if (params.labels !== undefined) data.labels = params.labels;
   if (params.aliases !== undefined) data.aliases = params.aliases;
 
+  // Snapshot current state before mutation
+  try {
+    const areas = await wsCommand<WSArea[]>("config/area_registry/list");
+    const current = areas.find((a) => a.area_id === areaId);
+    if (current) backupBeforeMutation("ha_areas", "update-area", areaId, current);
+  } catch { /* best-effort */ }
+
   const result = await wsCommand<WSArea>("config/area_registry/update", data);
   return `✅ Updated area '${result.name}' (id: ${result.area_id})`;
 }
@@ -270,6 +278,14 @@ async function handleDeleteArea(areaId?: string, confirm?: boolean): Promise<str
   if (!confirm) {
     return `⚠️ **Confirm delete**: area \`${areaId}\`\n\nCall again with \`confirm: true\` to proceed.`;
   }
+
+  // Snapshot current state before deletion
+  try {
+    const areas = await wsCommand<WSArea[]>("config/area_registry/list");
+    const current = areas.find((a) => a.area_id === areaId);
+    if (current) backupBeforeMutation("ha_areas", "delete-area", areaId, current);
+  } catch { /* best-effort */ }
+
   await wsCommand("config/area_registry/delete", { area_id: areaId });
   return `✅ Deleted area '${areaId}'`;
 }
@@ -314,6 +330,12 @@ async function handleUpdateFloor(params: Record<string, unknown>): Promise<strin
   if (params.icon !== undefined) data.icon = params.icon;
   if (params.aliases !== undefined) data.aliases = params.aliases;
 
+  try {
+    const floors = await wsCommand<WSFloor[]>("config/floor_registry/list");
+    const current = floors.find((f) => f.floor_id === floorId);
+    if (current) backupBeforeMutation("ha_areas", "update-floor", floorId, current);
+  } catch { /* best-effort */ }
+
   const result = await wsCommand<WSFloor>("config/floor_registry/update", data);
   return `✅ Updated floor '${result.name}' (id: ${result.floor_id})`;
 }
@@ -323,6 +345,13 @@ async function handleDeleteFloor(floorId?: string, confirm?: boolean): Promise<s
   if (!confirm) {
     return `⚠️ **Confirm delete**: floor \`${floorId}\`\n\nCall again with \`confirm: true\` to proceed.`;
   }
+
+  try {
+    const floors = await wsCommand<WSFloor[]>("config/floor_registry/list");
+    const current = floors.find((f) => f.floor_id === floorId);
+    if (current) backupBeforeMutation("ha_areas", "delete-floor", floorId, current);
+  } catch { /* best-effort */ }
+
   await wsCommand("config/floor_registry/delete", { floor_id: floorId });
   return `✅ Deleted floor '${floorId}'`;
 }
