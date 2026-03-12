@@ -2263,6 +2263,50 @@
         }
       ],
       "closedAt": "2026-03-12T08:38:15.769Z"
+    },
+    {
+      "id": "regxi7eq",
+      "type": "bug",
+      "title": "HA Core version always shows \"unknown\" in context and status bar",
+      "description": "Context gathering reads `sup.homeassistant` from `/supervisor/info` but that field is `null`. The HA Core version is at `/core/info` → `version`. Need to add a `/core/info` call.",
+      "status": "closed",
+      "linkedIssueIds": [],
+      "questions": [],
+      "research": [
+        {
+          "type": "comment",
+          "content": "`/supervisor/info` → `homeassistant: null`. `/core/info` → `version: \"2026.3.1\"`. Fix: add `/core/info` to Promise.allSettled in context.ts, read `core.version`.",
+          "addedAt": "2026-03-12T09:05:44.645Z"
+        }
+      ],
+      "createdAt": "2026-03-12T09:05:34.456Z",
+      "updatedAt": "2026-03-12T09:09:08.165Z",
+      "autoValidation": {
+        "type": "agent",
+        "strategy": "Check that gatherContext returns a valid ha_version instead of \"unknown\"."
+      },
+      "closeMessage": "Added `/core/info` API call to context.ts and server.js. HA Core version now correctly resolved from core.version.",
+      "closeReason": "done",
+      "validations": [
+        {
+          "criterion": "Context gathering reads `sup.homeassistant` from `/supervisor/info` but that field is `null`. The HA Core version is at `/core/info` → `version`. Need to add a `/core/info` call.",
+          "evidence": "Fixed both context.ts and server.js. Confirmed `/core/info` returns `version: \"2026.3.1\"` (verified via `dev-scripts/ha-supervisor core`). Both files now call `/core/info` and use `core.version || sup.homeassistant || \"unknown\"`. Deployed to VM — addon builds and starts successfully. Requires /reload locally for extension validation.",
+          "met": true
+        }
+      ],
+      "closedAt": "2026-03-12T09:09:08.165Z"
+    },
+    {
+      "id": "3dtu0asz",
+      "type": "spike",
+      "title": "Expose pi-service context API through Supervisor ingress proxy",
+      "description": "Research whether the addon's internal HTTP service (port 9199) can be exposed through the Supervisor ingress proxy so the local dev extension and other integrations can fetch context (system info, entity counts, etc.) from the addon instead of making their own API calls. Investigate ingress routing, authentication requirements, and whether custom endpoints can coexist with the ttyd terminal stream.",
+      "status": "draft",
+      "linkedIssueIds": [],
+      "questions": [],
+      "research": [],
+      "createdAt": "2026-03-12T09:10:12.400Z",
+      "updatedAt": "2026-03-12T09:10:12.400Z"
     }
   ],
   "categories": [

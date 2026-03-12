@@ -120,11 +120,12 @@ function supervisorRequest(path) {
 /** Gather stable, structural HA context (no transient state) */
 async function gatherContext() {
   try {
-    const [states, supInfo, osInfo, hostInfo, addonsInfo] = await Promise.allSettled([
+    const [states, supInfo, osInfo, hostInfo, coreInfo, addonsInfo] = await Promise.allSettled([
       supervisorRequest("/core/api/states"),
       supervisorRequest("/supervisor/info"),
       supervisorRequest("/os/info"),
       supervisorRequest("/host/info"),
+      supervisorRequest("/core/info"),
       supervisorRequest("/addons"),
     ]);
 
@@ -142,6 +143,7 @@ async function gatherContext() {
     const sup = supInfo.status === "fulfilled" ? supInfo.value : {};
     const os = osInfo.status === "fulfilled" ? osInfo.value : {};
     const host = hostInfo.status === "fulfilled" ? hostInfo.value : {};
+    const core = coreInfo.status === "fulfilled" ? coreInfo.value : {};
     const addons = addonsInfo.status === "fulfilled" ? addonsInfo.value : {};
 
     // Installed add-ons
@@ -166,7 +168,7 @@ async function gatherContext() {
     cachedContext = {
       system: {
         hostname: host.hostname || "unknown",
-        ha_version: sup.homeassistant || "unknown",
+        ha_version: core.version || sup.homeassistant || "unknown",
         os_version: os.version || "unknown",
         supervisor_version: sup.version || "unknown",
         arch: sup.arch || "unknown",
