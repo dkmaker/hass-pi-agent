@@ -12,6 +12,7 @@ import { apiGet, apiPost, apiDelete } from "../lib/api.js";
 import { timeSince, formatTrace, renderMarkdownResult, renderToolCall } from "../lib/format.js";
 import type { HAState, TraceListEntry } from "../lib/types.js";
 import { toYaml } from "../lib/yaml.js";
+import { backupBeforeMutation } from "../lib/mutation-log.js";
 
 // ── Helpers ──────────────────────────────────────────────────
 
@@ -163,6 +164,8 @@ async function handleUpdate(params: Record<string, unknown>): Promise<string> {
     throw new Error(`Script '${scriptId}' not found`);
   }
 
+  backupBeforeMutation("ha_scripts", "update", scriptId, existing);
+
   const { id: _id, ...existingWithoutId } = existing;
   const merged = { ...existingWithoutId, ...config };
 
@@ -179,6 +182,12 @@ async function handleDelete(params: Record<string, unknown>): Promise<string> {
   if (!params.confirm) {
     return `⚠️ **Confirm delete**: script \`${scriptId}\`\n\nCall again with \`confirm: true\` to proceed.`;
   }
+
+  try {
+    const existing = await apiGet(`/api/config/script/config/${scriptId}`);
+    backupBeforeMutation("ha_scripts", "delete", scriptId, existing);
+  } catch { /* best-effort */ }
+
   await apiDelete(`/api/config/script/config/${scriptId}`);
   return `✅ Deleted script '${scriptId}'`;
 }

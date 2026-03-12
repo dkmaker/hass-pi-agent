@@ -11,6 +11,7 @@ import { apiGet } from "../lib/api.js";
 import { wsCommand } from "../lib/ws.js";
 import type { HAState } from "../lib/types.js";
 import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
+import { backupBeforeMutation } from "../lib/mutation-log.js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -447,6 +448,12 @@ async function handleUpdate(params: Record<string, unknown>): Promise<string> {
     );
   }
 
+  // Snapshot current state before mutation
+  try {
+    const current = await wsCommand("config/entity_registry/get", { entity_id: entityId });
+    backupBeforeMutation("ha_entities", "update", entityId, current);
+  } catch { /* best-effort */ }
+
   const result = await wsCommand<{ entity_entry: WSEntityRegistryEntry }>(
     "config/entity_registry/update",
     updateData
@@ -471,6 +478,12 @@ async function handleRemove(entityId?: string, confirm?: boolean): Promise<strin
   if (!confirm) {
     return `⚠️ **Confirm remove**: entity \`${entityId}\`\n\nCall again with \`confirm: true\` to proceed.`;
   }
+
+  // Snapshot current state before deletion
+  try {
+    const current = await wsCommand("config/entity_registry/get", { entity_id: entityId });
+    backupBeforeMutation("ha_entities", "remove", entityId, current);
+  } catch { /* best-effort */ }
 
   await wsCommand("config/entity_registry/remove", { entity_id: entityId });
   return `✅ Removed entity '${entityId}' from registry`;

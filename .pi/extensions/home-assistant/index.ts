@@ -1,4 +1,5 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import { visibleWidth } from "@mariozechner/pi-tui";
 import { registerHelperTool } from "./tools/ha-helpers.js";
 import { registerTemplateTool } from "./tools/ha-template.js";
 import { registerEntitiesTools } from "./tools/ha-entities.js";
@@ -34,6 +35,8 @@ import { registerShoppingListTool } from "./tools/ha-shopping-list.js";
 import { registerToolDocsTool } from "./tools/ha-tool-docs.js";
 import { registerPoliciesTool } from "./tools/ha-policies.js";
 import { registerQuestionnaireTool } from "./tools/questionnaire.js";
+import { registerMutationsTool } from "./tools/ha-mutations.js";
+import { readChangelog } from "./lib/mutation-log.js";
 import { policiesExist, loadPolicies, formatPoliciesForPrompt } from "./lib/policies.js";
 import { wsClose } from "./lib/ws.js";
 import {
@@ -96,6 +99,124 @@ export default function (pi: ExtensionAPI) {
   registerToolDocsTool(pi);
   registerPoliciesTool(pi);
   registerQuestionnaireTool(pi);
+  registerMutationsTool(pi);
+
+  // /ha-log slash command — show recent mutation changelog
+  pi.registerCommand("ha-log", {
+    description: "Show recent Home Assistant mutation log (pre-change backups)",
+    handler: async (_args, ctx) => {
+      const entries = readChangelog({ limit: 30 });
+      if (entries.length === 0) {
+        ctx.ui.notify("No mutations logged yet", "info");
+        return;
+      }
+
+      await ctx.ui.custom<void>(
+        (_tui, theme, _kb, done) => {
+          return {
+            focused: false,
+            handleInput(data: string) {
+              // ESC or q to close
+              if (data === "\x1b" || data === "q") done();
+            },
+            render(width: number) {
+              const inner = width - 2;
+              const row = (content: string) => {
+                const vis = visibleWidth(content);
+                const pad = Math.max(0, inner - vis);
+                return theme.fg("border", "│") + content + " ".repeat(pad) + theme.fg("border", "│");
+              };
+              const lines: string[] = [];
+              lines.push(theme.fg("border", `╭${"─".repeat(inner)}╮`));
+              lines.push(row(` ${theme.fg("accent", "📋 Home Assistant Mutation Log")}`));
+              lines.push(row(`${"─".repeat(inner)}`));
+
+              // Column widths
+              const tW = 19, toolW = 16, actW = 10;
+              const targetW = Math.max(10, inner - tW - toolW - actW - 8);
+
+              const hdr = ` ${theme.fg("dim", "Time".padEnd(tW))} ${theme.fg("dim", "Tool".padEnd(toolW))} ${theme.fg("dim", "Action".padEnd(actW))} ${theme.fg("dim", "Target")}`;
+              lines.push(row(hdr));
+              lines.push(row(`${"─".repeat(inner)}`));
+
+              for (const e of entries) {
+                const ts = e.ts.replace("T", " ").replace(/\.\d+Z$/, "").slice(0, 19);
+                const tool = e.tool.replace("ha_", "").padEnd(toolW);
+                const act = e.action.padEnd(actW);
+                const tgt = e.target.length > targetW ? e.target.slice(0, targetW - 1) + "…" : e.target;
+                lines.push(row(` ${ts} ${tool} ${act} ${tgt}`));
+              }
+
+              lines.push(row(""));
+              lines.push(row(` ${theme.fg("dim", `${entries.length} entries · Press ESC to close`)}`));
+              lines.push(theme.fg("border", `╰${"─".repeat(inner)}╯`));
+              return lines;
+            },
+            invalidate() {},
+          };
+        },
+        { overlay: true, overlayOptions: { anchor: "center", width: 90, maxHeight: 40 } }
+      );
+    },
+  });
+
+  // /ha-backups slash command — list mutation backup files
+  pi.registerCommand("ha-backups", {
+    description: "Browse Home Assistant pre-mutation backup snapshots",
+    handler: async (_args, ctx) => {
+      const { listMutationBackups } = await import("./lib/mutation-log.js");
+      const files = listMutationBackups();
+      if (files.length === 0) {
+        ctx.ui.notify("No mutation backups yet", "info");
+        return;
+      }
+
+      await ctx.ui.custom<void>(
+        (_tui, theme, _kb, done) => {
+          return {
+            focused: false,
+            handleInput(data: string) {
+              if (data === "\x1b" || data === "q") done();
+            },
+            render(width: number) {
+              const inner = width - 2;
+              const row = (content: string) => {
+                const vis = visibleWidth(content);
+                const pad = Math.max(0, inner - vis);
+                return theme.fg("border", "│") + content + " ".repeat(pad) + theme.fg("border", "│");
+              };
+              const lines: string[] = [];
+              lines.push(theme.fg("border", `╭${"─".repeat(inner)}╮`));
+              lines.push(row(` ${theme.fg("accent", "📦 Home Assistant Mutation Backups")}`));
+              lines.push(row(`${"─".repeat(inner)}`));
+
+              const shown = files.slice(0, 30);
+              for (const f of shown) {
+                // Parse filename: timestamp__tool__action__target.json
+                const parts = f.replace(".json", "").split("__");
+                const ts = (parts[0] || "").replace(/T/, " ").replace(/-/g, (m, i) => i > 9 ? ":" : "-").slice(0, 19);
+                const tool = (parts[1] || "").replace("ha_", "");
+                const action = parts[2] || "";
+                const target = parts[3] || "";
+                lines.push(row(` ${theme.fg("dim", ts)} ${tool} ${action} ${target}`));
+              }
+
+              if (files.length > 30) {
+                lines.push(row(` ${theme.fg("dim", `…and ${files.length - 30} more`)}`));
+              }
+
+              lines.push(row(""));
+              lines.push(row(` ${theme.fg("dim", `${files.length} backups · Press ESC to close`)}`));
+              lines.push(theme.fg("border", `╰${"─".repeat(inner)}╯`));
+              return lines;
+            },
+            invalidate() {},
+          };
+        },
+        { overlay: true, overlayOptions: { anchor: "center", width: 100, maxHeight: 40 } }
+      );
+    },
+  });
 
   // /setup slash command — triggers the guided policy setup wizard
   pi.registerCommand("setup", {

@@ -9,6 +9,7 @@ import { Type } from "@sinclair/typebox";
 import { StringEnum } from "@mariozechner/pi-ai";
 import { wsCommand } from "../lib/ws.js";
 import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
+import { backupBeforeMutation } from "../lib/mutation-log.js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -136,6 +137,12 @@ async function handleUpdate(params: Record<string, unknown>): Promise<string> {
   if (params.device_trackers !== undefined) data.device_trackers = params.device_trackers;
   if (params.picture !== undefined) data.picture = params.picture;
 
+  try {
+    const people = await wsCommand<WSPerson[]>("person/list");
+    const current = people.find((p) => p.id === id);
+    if (current) backupBeforeMutation("ha_people", "update", id, current);
+  } catch { /* best-effort */ }
+
   const result = await wsCommand<WSPerson>("person/update", data);
   return `✅ Updated person '${result.name}' (id: ${result.id})`;
 }
@@ -145,6 +152,13 @@ async function handleDelete(id?: string, confirm?: boolean): Promise<string> {
   if (!confirm) {
     return `⚠️ **Confirm delete**: person \`${id}\`\n\nCall again with \`confirm: true\` to proceed.`;
   }
+
+  try {
+    const people = await wsCommand<WSPerson[]>("person/list");
+    const current = people.find((p) => p.id === id);
+    if (current) backupBeforeMutation("ha_people", "delete", id, current);
+  } catch { /* best-effort */ }
+
   await wsCommand("person/delete", { person_id: id });
   return `✅ Deleted person '${id}'`;
 }

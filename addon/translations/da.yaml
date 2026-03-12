@@ -1,0 +1,118 @@
+configuration:
+  default_provider:
+    name: Standard AI-udbyder
+    description: >-
+      Udbyder brugt til nye samtaler. Du kan også konfigurere dette
+      inde i agenten med /login.
+    items:
+      anthropic: Anthropic (Claude)
+      openai: OpenAI (GPT)
+      google: Google (Gemini)
+      openrouter: OpenRouter
+      groq: Groq
+      xai: xAI (Grok)
+      mistral: Mistral
+      cerebras: Cerebras
+      huggingface: Hugging Face
+      github-copilot: GitHub Copilot
+      amazon-bedrock: Amazon Bedrock
+      google-vertex: Google Vertex AI
+      azure-openai-responses: Azure OpenAI
+  default_model:
+    name: Standard model
+    description: >-
+      Model-ID eller mønster (f.eks. *sonnet*). Lad stå tom for
+      udbyderens standardmodel.
+  install_integration:
+    name: Installér samtaleintegration
+    description: >-
+      Installér automatisk Pi Agent-integrationen til
+      Home Assistant Assist stemmesupport.
+  service_provider:
+    name: Serviceudbyder (valgfri)
+    description: >-
+      Separat udbyder til pi_agent.ask-tjenesten (stemme/automatisering).
+      Bruger hovedudbyderen hvis tom.
+    items:
+      anthropic: Anthropic (Claude)
+      openai: OpenAI (GPT)
+      google: Google (Gemini)
+      openrouter: OpenRouter
+      groq: Groq
+      xai: xAI (Grok)
+      mistral: Mistral
+      cerebras: Cerebras
+      huggingface: Hugging Face
+      github-copilot: GitHub Copilot
+      amazon-bedrock: Amazon Bedrock
+      google-vertex: Google Vertex AI
+      azure-openai-responses: Azure OpenAI
+  service_model:
+    name: Servicemodel (valgfri)
+    description: >-
+      Model til pi_agent.ask-tjenesten. Lad stå tom for at bruge
+      serviceudbyderens standardmodel.
+  anthropic_api_key:
+    name: Anthropic API-nøgle
+    description: >-
+      Fra console.anthropic.com → API Keys. Lad stå tom for at
+      konfigurere med /login inde i agenten.
+  openai_api_key:
+    name: OpenAI API-nøgle
+    description: >-
+      Fra platform.openai.com → API Keys. Lad stå tom for at
+      konfigurere med /login inde i agenten.
+  google_api_key:
+    name: Google (Gemini) API-nøgle
+    description: >-
+      Fra aistudio.google.com → API Keys. Lad stå tom for at
+      konfigurere med /login inde i agenten.
+  openrouter_api_key:
+    name: OpenRouter API-nøgle
+    description: >-
+      Fra openrouter.ai → Keys. Lad stå tom for at
+      konfigurere med /login inde i agenten.
+  xai_api_key:
+    name: xAI (Grok) API-nøgle
+    description: >-
+      Valgfri. Fra console.x.ai → API Keys.
+  groq_api_key:
+    name: Groq API-nøgle
+    description: >-
+      Valgfri. Fra console.groq.com → API Keys.
+  mistral_api_key:
+    name: Mistral API-nøgle
+    description: >-
+      Valgfri. Fra console.mistral.ai → API Keys.
+  cerebras_api_key:
+    name: Cerebras API-nøgle
+    description: >-
+      Valgfri. Fra cloud.cerebras.ai → API Keys.
+  huggingface_token:
+    name: Hugging Face-token
+    description: >-
+      Valgfri. Fra huggingface.co → Settings → Access Tokens.
+  github_token:
+    name: GitHub-token (Copilot)
+    description: >-
+      Valgfri. GitHub personal access token til Copilot-adgang.
+  aws_access_key_id:
+    name: AWS Access Key ID (Bedrock)
+    description: >-
+      Valgfri. Til Amazon Bedrock. Kræver også aws_secret_access_key og aws_region.
+  aws_secret_access_key:
+    name: AWS Secret Access Key (Bedrock)
+    description: >-
+      Valgfri. Til Amazon Bedrock.
+  aws_region:
+    name: AWS-region (Bedrock)
+    description: >-
+      Valgfri. AWS-region til Bedrock (f.eks. us-east-1).
+  azure_openai_api_key:
+    name: Azure OpenAI API-nøgle
+    description: >-
+      Valgfri. Fra Azure Portal → din OpenAI-ressource → Keys.
+  additional_packages:
+    name: Yderligere pakker
+    description: >-
+      Alpine Linux-pakker der installeres ved opstart (f.eks. jq, yq, imagemagick).

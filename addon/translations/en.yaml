@@ -1,0 +1,118 @@
+configuration:
+  default_provider:
+    name: Default AI Provider
+    description: >-
+      Provider used for new conversations. You can also configure this
+      inside the agent with /login.
+    items:
+      anthropic: Anthropic (Claude)
+      openai: OpenAI (GPT)
+      google: Google (Gemini)
+      openrouter: OpenRouter
+      groq: Groq
+      xai: xAI (Grok)
+      mistral: Mistral
+      cerebras: Cerebras
+      huggingface: Hugging Face
+      github-copilot: GitHub Copilot
+      amazon-bedrock: Amazon Bedrock
+      google-vertex: Google Vertex AI
+      azure-openai-responses: Azure OpenAI
+  default_model:
+    name: Default Model
+    description: >-
+      Model ID or fuzzy pattern (e.g. *sonnet*). Leave empty for the
+      provider's default.
+  install_integration:
+    name: Install Conversation Integration
+    description: >-
+      Automatically install the Pi Agent custom integration for
+      Home Assistant Assist voice support.
+  service_provider:
+    name: Service Provider (optional)
+    description: >-
+      Separate provider for the pi_agent.ask service (voice/automation use).
+      Defaults to the main provider if empty.
+    items:
+      anthropic: Anthropic (Claude)
+      openai: OpenAI (GPT)
+      google: Google (Gemini)
+      openrouter: OpenRouter
+      groq: Groq
+      xai: xAI (Grok)
+      mistral: Mistral
+      cerebras: Cerebras
+      huggingface: Hugging Face
+      github-copilot: GitHub Copilot
+      amazon-bedrock: Amazon Bedrock
+      google-vertex: Google Vertex AI
+      azure-openai-responses: Azure OpenAI
+  service_model:
+    name: Service Model (optional)
+    description: >-
+      Model for the pi_agent.ask service. Leave empty to use the service
+      provider's default.
+  anthropic_api_key:
+    name: Anthropic API Key
+    description: >-
+      From console.anthropic.com → API Keys. Leave empty to configure
+      with /login inside the agent.
+  openai_api_key:
+    name: OpenAI API Key
+    description: >-
+      From platform.openai.com → API Keys. Leave empty to configure
+      with /login inside the agent.
+  google_api_key:
+    name: Google (Gemini) API Key
+    description: >-
+      From aistudio.google.com → API Keys. Leave empty to configure
+      with /login inside the agent.
+  openrouter_api_key:
+    name: OpenRouter API Key
+    description: >-
+      From openrouter.ai → Keys. Leave empty to configure
+      with /login inside the agent.
+  xai_api_key:
+    name: xAI (Grok) API Key
+    description: >-
+      Optional. From console.x.ai → API Keys.
+  groq_api_key:
+    name: Groq API Key
+    description: >-
+      Optional. From console.groq.com → API Keys.
+  mistral_api_key:
+    name: Mistral API Key
+    description: >-
+      Optional. From console.mistral.ai → API Keys.
+  cerebras_api_key:
+    name: Cerebras API Key
+    description: >-
+      Optional. From cloud.cerebras.ai → API Keys.
+  huggingface_token:
+    name: Hugging Face Token
+    description: >-
+      Optional. From huggingface.co → Settings → Access Tokens.
+  github_token:
+    name: GitHub Token (Copilot)
+    description: >-
+      Optional. GitHub personal access token for Copilot access.
+  aws_access_key_id:
+    name: AWS Access Key ID (Bedrock)
+    description: >-
+      Optional. For Amazon Bedrock. Requires aws_secret_access_key and aws_region.
+  aws_secret_access_key:
+    name: AWS Secret Access Key (Bedrock)
+    description: >-
+      Optional. For Amazon Bedrock.
+  aws_region:
+    name: AWS Region (Bedrock)
+    description: >-
+      Optional. AWS region for Bedrock (e.g. us-east-1).
+  azure_openai_api_key:
+    name: Azure OpenAI API Key
+    description: >-
+      Optional. From Azure Portal → your OpenAI resource → Keys.
+  additional_packages:
+    name: Additional Packages
+    description: >-
+      Alpine Linux packages to install at startup (e.g. jq, yq, imagemagick).
