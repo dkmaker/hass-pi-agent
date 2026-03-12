@@ -12,6 +12,7 @@ import { wsCommand } from "../lib/ws.js";
 import { apiGet } from "../lib/api.js";
 import type { HAState } from "../lib/types.js";
 import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
+import { backupBeforeMutation } from "../lib/mutation-log.js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -470,6 +471,12 @@ async function handleUpdate(params: Record<string, unknown>): Promise<string> {
       "No update fields provided. Use: name_by_user, area_id, labels, disabled_by"
     );
   }
+
+  // Snapshot current state before mutation
+  try {
+    const current = await wsCommand("config/device_registry/get", { device_id: deviceId });
+    backupBeforeMutation("ha_devices", "update", deviceId, current);
+  } catch { /* best-effort */ }
 
   const updated = await wsCommand<WSDevice>("config/device_registry/update", updateData);
 

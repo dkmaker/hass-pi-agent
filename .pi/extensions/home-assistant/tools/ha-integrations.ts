@@ -9,6 +9,7 @@ import { Type } from "@sinclair/typebox";
 import { StringEnum } from "@mariozechner/pi-ai";
 import { apiGet, apiPost, apiDelete } from "../lib/api.js";
 import { timeSince , renderMarkdownResult, renderToolCall } from "../lib/format.js";
+import { backupBeforeMutation } from "../lib/mutation-log.js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -143,6 +144,12 @@ async function handleGet(entryId?: string): Promise<string> {
 async function handleDisable(entryId?: string): Promise<string> {
   if (!entryId) throw new Error("'entry_id' is required for disable");
 
+  try {
+    const entries = await apiGet<any[]>("/api/config/config_entries/entry");
+    const current = entries.find((e) => e.entry_id === entryId);
+    if (current) backupBeforeMutation("ha_integrations", "disable", entryId, current);
+  } catch { /* best-effort */ }
+
   const result = await apiPost<{ entry_id: string; disabled_by: string }>(
     `/api/config/config_entries/entry/${entryId}/disable`,
     { disabled_by: "user" }
@@ -152,6 +159,12 @@ async function handleDisable(entryId?: string): Promise<string> {
 
 async function handleEnable(entryId?: string): Promise<string> {
   if (!entryId) throw new Error("'entry_id' is required for enable");
+
+  try {
+    const entries = await apiGet<any[]>("/api/config/config_entries/entry");
+    const current = entries.find((e) => e.entry_id === entryId);
+    if (current) backupBeforeMutation("ha_integrations", "enable", entryId, current);
+  } catch { /* best-effort */ }
 
   await apiPost(
     `/api/config/config_entries/entry/${entryId}/disable`,
@@ -172,6 +185,12 @@ async function handleRemove(entryId?: string, confirm?: boolean): Promise<string
   if (!confirm) {
     return `⚠️ **Confirm remove**: integration config entry \`${entryId}\`\n\nCall again with \`confirm: true\` to proceed.`;
   }
+
+  try {
+    const entries = await apiGet<any[]>("/api/config/config_entries/entry");
+    const current = entries.find((e) => e.entry_id === entryId);
+    if (current) backupBeforeMutation("ha_integrations", "remove", entryId, current);
+  } catch { /* best-effort */ }
 
   await apiDelete(`/api/config/config_entries/entry/${entryId}`);
   return `✅ Removed config entry '${entryId}'`;

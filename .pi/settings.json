@@ -1,5 +1,5 @@
 {
   "packages": [
-    "git:github.com/dkmaker/pi-extension-project-management"
+    "~/.pi/packagemanager/repos/3910f7cd159263ed"
   ]
 }

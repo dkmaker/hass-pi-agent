@@ -9,6 +9,7 @@ import { Type } from "@sinclair/typebox";
 import { StringEnum } from "@mariozechner/pi-ai";
 import { wsCommand } from "../lib/ws.js";
 import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
+import { backupBeforeMutation } from "../lib/mutation-log.js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -125,6 +126,12 @@ async function handleUpdate(params: Record<string, unknown>): Promise<string> {
   if (params.icon !== undefined) data.icon = params.icon;
   if (params.description !== undefined) data.description = params.description;
 
+  try {
+    const labels = await wsCommand<WSLabel[]>("config/label_registry/list");
+    const current = labels.find((l) => l.label_id === labelId);
+    if (current) backupBeforeMutation("ha_labels", "update", labelId, current);
+  } catch { /* best-effort */ }
+
   const result = await wsCommand<WSLabel>("config/label_registry/update", data);
   return `✅ Updated label '${result.name}' (id: ${result.label_id})`;
 }
@@ -134,6 +141,13 @@ async function handleDelete(labelId?: string, confirm?: boolean): Promise<string
   if (!confirm) {
     return `⚠️ **Confirm delete**: label \`${labelId}\`\n\nCall again with \`confirm: true\` to proceed.`;
   }
+
+  try {
+    const labels = await wsCommand<WSLabel[]>("config/label_registry/list");
+    const current = labels.find((l) => l.label_id === labelId);
+    if (current) backupBeforeMutation("ha_labels", "delete", labelId, current);
+  } catch { /* best-effort */ }
+
   await wsCommand("config/label_registry/delete", { label_id: labelId });
   return `✅ Deleted label '${labelId}'`;
 }

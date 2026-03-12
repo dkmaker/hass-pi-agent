@@ -36,6 +36,7 @@ import {
 } from "./ha-dashboards/cards.js";
 import { handleListCardTypes } from "./ha-dashboards/card-types.js";
 import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
+import { backupBeforeMutation } from "../lib/mutation-log.js";
 
 // ── Tool registration ────────────────────────────────────────
 
@@ -335,6 +336,12 @@ async function handleUpdate(params: Record<string, unknown>): Promise<string> {
     throw new Error("No update fields provided. Use: title, icon, require_admin, show_in_sidebar");
   }
 
+  try {
+    const dashboards = await wsCommand<DashboardInfo[]>("lovelace/dashboards/list");
+    const current = dashboards.find((d) => d.id === dashboardId);
+    if (current) backupBeforeMutation("ha_dashboards", "update", dashboardId, current);
+  } catch { /* best-effort */ }
+
   const result = await wsCommand<DashboardInfo>("lovelace/dashboards/update", updateData);
   return `✅ Updated dashboard '${result.title}' (id: ${result.id})`;
 }
@@ -344,6 +351,12 @@ async function handleDelete(dashboardId?: string, confirm?: boolean): Promise<st
   if (!confirm) {
     return `⚠️ **Confirm delete**: dashboard \`${dashboardId}\`\n\nCall again with \`confirm: true\` to proceed.`;
   }
+
+  try {
+    const dashboards = await wsCommand<DashboardInfo[]>("lovelace/dashboards/list");
+    const current = dashboards.find((d) => d.id === dashboardId);
+    if (current) backupBeforeMutation("ha_dashboards", "delete", dashboardId, current);
+  } catch { /* best-effort */ }
 
   await wsCommand("lovelace/dashboards/delete", { dashboard_id: dashboardId });
   return `✅ Deleted dashboard '${dashboardId}'`;

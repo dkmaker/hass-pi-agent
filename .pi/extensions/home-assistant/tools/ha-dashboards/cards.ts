@@ -10,6 +10,7 @@ import {
   resolveViewIndex,
   type CardConfig,
 } from "./types.js";
+import { backupBeforeMutation } from "../../lib/mutation-log.js";
 
 // ── Helpers ──────────────────────────────────────────────────
 
@@ -113,6 +114,9 @@ export async function handleUpdateCard(params: Record<string, unknown>): Promise
   const { cards } = getViewCards(views, viewIdx);
   const cardIdx = validateCardIndex(cards, params.card_index as number | undefined, "update-card");
 
+  // Snapshot card before mutation
+  backupBeforeMutation("ha_dashboards", "update-card", `${urlPath ?? "default"}.view-${viewIdx}.card-${cardIdx}`, cards[cardIdx]);
+
   // Replace the entire card config (not merge — card type might change)
   if (cardConfig.type) {
     // Full replacement
@@ -146,6 +150,9 @@ export async function handleRemoveCard(params: Record<string, unknown>, confirm?
   if (!confirm) {
     return `⚠️ **Confirm remove-card**: card ${cardIdx} from view ${viewIdx} (type: ${cards[cardIdx]?.type})\n\nCall again with \`confirm: true\` to proceed.`;
   }
+
+  // Snapshot card before deletion
+  backupBeforeMutation("ha_dashboards", "remove-card", `${urlPath ?? "default"}.view-${viewIdx}.card-${cardIdx}`, cards[cardIdx]);
 
   const removed = cards.splice(cardIdx, 1)[0];
   await saveDashboardConfig(urlPath, config);

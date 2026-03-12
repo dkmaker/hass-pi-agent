@@ -69,6 +69,17 @@ export const BACKUP_DIR = env("HA_BACKUP_DIR", join(HA_CONFIG_PATH, ".storage-ba
 /** Maximum number of backup files to retain (oldest are pruned). */
 export const MAX_BACKUPS = envInt("HA_MAX_BACKUPS", 50);
 
+// ── Mutation backup tunables ─────────────────────────────────
+
+/** Directory for pre-mutation snapshots and changelog. */
+export const MUTATION_BACKUP_DIR = env(
+  "HA_MUTATION_BACKUP_DIR",
+  join(HA_CONFIG_PATH, ".pi-backups", "mutations")
+);
+
+/** Maximum number of mutation backup files to retain. */
+export const MAX_MUTATION_BACKUPS = envInt("HA_MAX_MUTATION_BACKUPS", 200);
+
 // ── Home Assistant API ───────────────────────────────────────
 
 /**

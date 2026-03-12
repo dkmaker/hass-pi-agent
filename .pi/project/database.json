@@ -1,5 +1,5 @@
 {
-  "version": 7,
+  "version": 9,
   "epics": [
     {
       "id": "w521kzvd",
@@ -852,6 +852,20 @@
         }
       ],
       "closedAt": "2026-03-08T20:53:28.927Z"
+    },
+    {
+      "id": "6i2trfuu",
+      "title": "Auto Insights",
+      "description": "Automatically enrich tool outputs with contextual insights — relationship maps, sibling entities, usage references, and smart suggestions — so the agent and user get a complete picture without manual cross-referencing.",
+      "body": "",
+      "priority": 11,
+      "status": "draft",
+      "relevantFiles": [],
+      "todos": [],
+      "successCriteria": [],
+      "research": [],
+      "createdAt": "2026-03-12T07:31:37.341Z",
+      "updatedAt": "2026-03-12T07:31:37.341Z"
     }
   ],
   "issues": [
@@ -1792,16 +1806,31 @@
       "type": "feature",
       "title": "Install MQTT client tools in add-on container",
       "description": "Add `mosquitto-clients` to the Dockerfile `apk add` list so `mosquitto_pub` and `mosquitto_sub` are available via bash for MQTT testing/debugging.",
-      "status": "draft",
+      "status": "closed",
       "linkedIssueIds": [],
       "questions": [],
-      "research": [],
+      "research": [
+        {
+          "type": "reference",
+          "content": "Alpine package `mosquitto-clients` provides `mosquitto_pub` and `mosquitto_sub`. Added to `addon/Dockerfile` apk add list. Single-line change, no config needed.",
+          "addedAt": "2026-03-09T07:45:41.274Z"
+        }
+      ],
       "createdAt": "2026-03-08T21:25:53.483Z",
-      "updatedAt": "2026-03-08T21:25:53.483Z",
+      "updatedAt": "2026-03-09T07:45:56.382Z",
       "autoValidation": {
         "type": "agent",
         "strategy": "Check Dockerfile contains mosquitto-clients in apk add line"
-      }
+      },
+      "closeMessage": "Added mosquitto-clients to addon/Dockerfile. Available after next rebuild/deploy.",
+      "validations": [
+        {
+          "criterion": "Add `mosquitto-clients` to the Dockerfile `apk add` list so `mosquitto_pub` and `mosquitto_sub` are available via bash for MQTT testing/debugging.",
+          "evidence": "Validated: `grep 'mosquitto-clients' addon/Dockerfile` returns `    mosquitto-clients` — package is present in the apk add list.",
+          "met": true
+        }
+      ],
+      "closedAt": "2026-03-09T07:45:56.382Z"
     },
     {
       "id": "bzmea2de",
@@ -1917,12 +1946,319 @@
         }
       ],
       "closedAt": "2026-03-08T22:43:19.378Z"
+    },
+    {
+      "id": "hys5yl6s",
+      "type": "feature",
+      "title": "Home Assistant status line in TUI footer",
+      "description": "Add a persistent status line using `ctx.ui.setStatus()` that shows a compact, at-a-glance HA overview in the Pi TUI footer. This makes the agent feel native to Home Assistant with an always-visible indicator.\n\n**Status line format:** `🏠 HA 2025.1 · 847 entities · 23 automations · 12 areas · 4 add-ons`\n\n**Implementation:**\n- In `index.ts` `session_start` handler, call `ctx.ui.setStatus(\"ha\", ...)` with themed compact line\n- Use `ctx.ui.theme.fg()` for color accents (dim separators, accent for counts)\n- Uses already-gathered `HAContext` — no extra API calls\n- **File:** `.pi/extensions/home-assistant/index.ts` (small addition in existing handler)",
+      "status": "closed",
+      "linkedIssueIds": [],
+      "questions": [],
+      "research": [
+        {
+          "type": "comment",
+          "content": "Uses `ctx.ui.setStatus(\"ha\", ...)` with theme colors. Added in `session_start` handler after the existing chat message. Shows: HA version, entity count, automation count, area count, running add-on count. Dim `·` separators, accent-colored numbers.",
+          "addedAt": "2026-03-09T07:50:42.704Z"
+        }
+      ],
+      "createdAt": "2026-03-09T07:49:48.734Z",
+      "updatedAt": "2026-03-09T07:51:00.011Z",
+      "autoValidation": {
+        "type": "agent",
+        "strategy": "Check that index.ts contains a setStatus call with HA metrics in the session_start handler"
+      },
+      "closeMessage": "Implemented persistent HA status line in TUI footer showing key metrics with themed colors.",
+      "validations": [
+        {
+          "criterion": "Add a persistent status line using `ctx.ui.setStatus()` that shows a compact, at-a-glance HA overview in the Pi TUI footer. This makes the agent feel native to Home Assistant with an always-visible indicator.\n\n**Status line format:** `🏠 HA 2025.1 · 847 entities · 23 automations · 12 areas · 4 add-ons`\n\n**Implementation:**\n- In `index.ts` `session_start` handler, call `ctx.ui.setStatus(\"ha\", ...)` with themed compact line\n- Use `ctx.ui.theme.fg()` for color accents (dim separators, accent for counts)\n- Uses already-gathered `HAContext` — no extra API calls\n- **File:** `.pi/extensions/home-assistant/index.ts` (small addition in existing handler)",
+          "evidence": "Line 164: `ctx.ui.setStatus(\"ha\", statusParts.join(dim(\" · \")));` — within the session_start handler, preceded by HA version, entity count, automation count, area count, and running add-on count construction.",
+          "met": true
+        }
+      ],
+      "closedAt": "2026-03-09T07:51:00.011Z"
+    },
+    {
+      "id": "05ci9ioy",
+      "type": "feature",
+      "title": "Automatic pre-mutation backups with JSONL changelog",
+      "description": "Before any write/update/delete action in HA tools, automatically snapshot the current state of the affected resource via the HA API and save it to `/homeassistant/.pi-backups/mutations/`. Append every mutation to a JSONL changelog file with timestamp, tool, action, target, and backup file reference — enabling rollback and full audit trail.\n\n**Key changes:**\n\n### 1. Core backup module — `lib/mutation-log.ts`\n- `backupBeforeMutation(tool, action, target, snapshotFn)` — fetches current state, writes snapshot JSON, appends to `changelog.jsonl`\n- Config constants in `lib/config.ts` for backup dir and rotation\n- Backup rotation (configurable max count)\n\n### 2. Instrument ~15 tool files\nAdd pre-mutation backup call before update/delete/remove actions in: ha-entities, ha-devices, ha-areas, ha-labels, ha-automations, ha-dashboards, ha-helpers, ha-scenes, ha-scripts, ha-zones, ha-people, ha-tags, ha-integrations, ha-categories, ha-recorder\n\n### 3. New tool — `ha_mutations`\nDedicated tool for the agent to query and manage mutation history:\n| Action | Description |\n|--------|-------------|\n| `log` | Show recent changelog entries (filterable by tool, target, date range) |\n| `list` | List backup snapshot files (filterable by tool/target) |\n| `show` | Show contents of a specific backup snapshot |\n| `restore` | Restore a snapshot (call appropriate HA API to revert) |\n| `purge` | Clean old backups beyond retention limit |\n\n### 4. Slash commands for the user\n- `/ha-log` — rich TUI view of recent mutations (timestamps, tool, action, target, summary)\n- `/ha-backups` — browse backup snapshots with filtering, see what was changed",
+      "status": "closed",
+      "linkedIssueIds": [],
+      "questions": [],
+      "research": [
+        {
+          "type": "reference",
+          "content": "## Implementation Plan\n\n### `lib/mutation-log.ts`\n- `MUTATION_BACKUP_DIR` = `/homeassistant/.pi-backups/mutations/`\n- `MUTATION_CHANGELOG` = `/homeassistant/.pi-backups/mutations/changelog.jsonl`\n- `backupBeforeMutation(tool, action, targetId, currentState)` — write snapshot JSON, append JSONL line\n- JSONL schema: `{ts, tool, action, target, backupFile, summary}`\n- `readChangelog(opts)` — read/filter JSONL, `listMutationBackups()`, `showBackup()`, `purgeBackups()`\n\n### Instrumentation pattern\nEach tool's update/delete handler gets ~3 lines before the mutation:\n```ts\nimport { backupBeforeMutation } from \"../lib/mutation-log.js\";\n// Before wsCommand/apiPost that mutates:\nconst currentState = await wsCommand(\"config/entity_registry/get\", { entity_id });\nawait backupBeforeMutation(\"ha_entities\", \"update\", entityId, currentState);\n```\n\n### Tool: `ha_mutations` (new file `tools/ha-mutations.ts`)\nActions: log, list, show, restore, purge. Registered in index.ts.\n\n### Slash commands (registered in index.ts)\n- `/ha-log` — overlay with recent changelog entries, scrollable, ESC to close\n- `/ha-backups` — overlay listing backup files with filtering\n\n### Tools to instrument (mutating actions):\n| Tool | Actions |\n|------|---------|\n| ha-entities | update, remove, regenerate-ids |\n| ha-devices | update |\n| ha-areas | update-area, delete-area, update-floor, delete-floor |\n| ha-labels | update, delete |\n| ha-automations | update, delete, enable, disable |\n| ha-dashboards | update, delete, update-view, remove-view, update-card, remove-card |\n| ha-helpers | update, remove |\n| ha-scenes | update, delete |\n| ha-scripts | update, delete |\n| ha-zones | update, delete |\n| ha-people | update, delete |\n| ha-tags | update, delete |\n| ha-integrations | disable, enable, remove |\n| ha-categories | update, delete |\n| ha-recorder | adjust, change-unit, clear |",
+          "addedAt": "2026-03-12T05:10:58.720Z"
+        }
+      ],
+      "createdAt": "2026-03-12T05:02:18.349Z",
+      "updatedAt": "2026-03-12T08:16:05.128Z",
+      "autoValidation": {
+        "type": "agent",
+        "strategy": "Deploy to VM, trigger a mutating action (e.g. entity update), verify backup file and changelog.jsonl entry are created in /homeassistant/.pi-backups/mutations/"
+      },
+      "closeMessage": "All components implemented and tested on VM: mutation-log.ts core module, ha-mutations tool (log/list/show/purge), 15 instrumented tool files, slash commands (/ha-log, /ha-backups), config constants. Pre-mutation snapshots are written before every update/delete/remove action.",
+      "closeReason": "done",
+      "validations": [
+        {
+          "criterion": "Before any write/update/delete action in HA tools, automatically snapshot the current state of the affected resource via the HA API and save it to `/homeassistant/.pi-backups/mutations/`. Append every mutation to a JSONL changelog file with timestamp, tool, action, target, and backup file reference — enabling rollback and full audit trail.\n\n**Key changes:**\n\n### 1. Core backup module — `lib/mutation-log.ts`\n- `backupBeforeMutation(tool, action, target, snapshotFn)` — fetches current state, writes snapshot JSON, appends to `changelog.jsonl`\n- Config constants in `lib/config.ts` for backup dir and rotation\n- Backup rotation (configurable max count)\n\n### 2. Instrument ~15 tool files\nAdd pre-mutation backup call before update/delete/remove actions in: ha-entities, ha-devices, ha-areas, ha-labels, ha-automations, ha-dashboards, ha-helpers, ha-scenes, ha-scripts, ha-zones, ha-people, ha-tags, ha-integrations, ha-categories, ha-recorder\n\n### 3. New tool — `ha_mutations`\nDedicated tool for the agent to query and manage mutation history:\n| Action | Description |\n|--------|-------------|\n| `log` | Show recent changelog entries (filterable by tool, target, date range) |\n| `list` | List backup snapshot files (filterable by tool/target) |\n| `show` | Show contents of a specific backup snapshot |\n| `restore` | Restore a snapshot (call appropriate HA API to revert) |\n| `purge` | Clean old backups beyond retention limit |\n\n### 4. Slash commands for the user\n- `/ha-log` — rich TUI view of recent mutations (timestamps, tool, action, target, summary)\n- `/ha-backups` — browse backup snapshots with filtering, see what was changed",
+          "evidence": "Deployed to VM and tested. Entity update on input_boolean.test_pir triggered mutation backup. VM filesystem shows 3 backup JSON files and changelog.jsonl in /homeassistant/.pi-backups/mutations/. The ha_mutations tool (log, list, show, purge) all work correctly. 15 tool files instrumented with backupBeforeMutation calls. Verified via: ssh root@10.99.0.13 \"cat /homeassistant/.pi-backups/mutations/changelog.jsonl\" showing 3 JSONL entries with proper ts/tool/action/target/backupFile fields.",
+          "met": true
+        }
+      ],
+      "closedAt": "2026-03-12T08:16:05.128Z"
+    },
+    {
+      "id": "8d82zv3o",
+      "type": "feature",
+      "title": "Auto-enrich entity views with relationship context",
+      "description": "When getting or updating an entity via `ha_entities`, automatically include its full relationship map — parent device with all sibling entities (and their states), automations/scripts/scenes that reference it, area assignment, and disabled siblings. Currently this requires manually calling `ha_graph query` separately.\n\n**Changes:**\n1. Enrich `handleGet()` in `ha-entities.ts` — append device siblings (entity_id, state, disabled), automation/script/scene references\n2. Enrich `handleUpdate()` — append brief relationship summary after update confirmation\n3. Helper function `getEntityRelationships(entityId)` to gather device siblings + references in one call\n\n**Example output:**\n```\n📍 Device: Shelly Plug S (shelly_plug_kitchen)\n   Area: Køkken\n\n🔗 Sibling entities:\n   ● sensor.kitchen_plug_power     → 45.2 W\n   ● sensor.kitchen_plug_energy    → 12.3 kWh  \n   ○ switch.kitchen_plug           → on\n   ⊘ sensor.kitchen_plug_voltage   → (disabled)\n\n⚡ Used in:\n   - automation.kitchen_high_power_alert\n   - script.kitchen_appliance_reset\n```",
+      "status": "closed",
+      "epicId": "6i2trfuu",
+      "linkedIssueIds": [],
+      "questions": [],
+      "research": [],
+      "createdAt": "2026-03-12T07:31:44.889Z",
+      "updatedAt": "2026-03-12T07:40:25.806Z",
+      "autoValidation": {
+        "type": "agent",
+        "strategy": "Call ha_entities get on an entity that belongs to a device, verify output includes sibling entities and automation references"
+      },
+      "closeMessage": "Merged into feature iy6ft9qh (Live reactive graph) which includes auto-enrichment of all tool outputs as a core capability.",
+      "closeReason": "wont-fix",
+      "validations": [
+        {
+          "criterion": "When getting or updating an entity via `ha_entities`, automatically include its full relationship map — parent device with all sibling entities (and their states), automations/scripts/scenes that reference it, area assignment, and disabled siblings. Currently this requires manually calling `ha_graph query` separately.\n\n**Changes:**\n1. Enrich `handleGet()` in `ha-entities.ts` — append device siblings (entity_id, state, disabled), automation/script/scene references\n2. Enrich `handleUpdate()` — append brief relationship summary after update confirmation\n3. Helper function `getEntityRelationships(entityId)` to gather device siblings + references in one call\n\n**Example output:**\n```\n📍 Device: Shelly Plug S (shelly_plug_kitchen)\n   Area: Køkken\n\n🔗 Sibling entities:\n   ● sensor.kitchen_plug_power     → 45.2 W\n   ● sensor.kitchen_plug_energy    → 12.3 kWh  \n   ○ switch.kitchen_plug           → on\n   ⊘ sensor.kitchen_plug_voltage   → (disabled)\n\n⚡ Used in:\n   - automation.kitchen_high_power_alert\n   - script.kitchen_appliance_reset\n```",
+          "evidence": "This feature is superseded by iy6ft9qh which delivers the same auto-enrichment as part of the live in-memory graph. No separate implementation needed.",
+          "met": true
+        }
+      ],
+      "closedAt": "2026-03-12T07:40:25.806Z"
+    },
+    {
+      "id": "iy6ft9qh",
+      "type": "feature",
+      "title": "Live reactive graph with file watchers and state subscriptions",
+      "description": "Replace the current build-on-demand `ha_graph` with a live, always-current, **in-memory** relationship engine running in the **add-on's background webserver** (`server.js` on port 9199), not in the extension.\n\n**Architecture:**\n- **Graph lives in `server.js`** — the persistent background process that survives pi sessions. Builds on startup, stays in memory, updates reactively.\n- **Extension queries the server** — `ha_graph` tool and auto-enrichment in other tools call `localhost:9199/graph/*` endpoints. No graph logic in the extension.\n- **In-memory** — ~15-25 KB for small systems, <5 MB even for massive installs. Microsecond lookups via bidirectional indexes (`refsTo`/`refsFrom`).\n\n**Reactive updates (in server.js):**\n1. **File watchers** — resolve ALL yaml files from `configuration.yaml` using `!include`/`!include_dir_*` resolution (recursive). Watch all resolved files + `.storage/`. When `configuration.yaml` changes, re-resolve includes and update watch list dynamically.\n2. **WebSocket subscriptions** — subscribe to HA `state_changed`, `device_registry_updated`, `entity_registry_updated`, `area_registry_updated` events. Update graph incrementally.\n3. **Granular updates** — when a single entity/device/area changes, replace just that node + its edges, no full rebuild.\n4. **Debounce + coalesce** — collect rapid-fire changes (500ms window), apply as one batch. If rebuild is running and new changes arrive, cancel and restart from latest state.\n\n**Server API endpoints (new):**\n- `GET /graph/status` — build time, node/edge counts, watcher status\n- `GET /graph/query?target=X&direction=both` — relationships for a node\n- `GET /graph/impact?target=X` — what depends on X\n- `GET /graph/orphans?type=entity` — unconnected nodes\n- `GET /graph/entity?id=X` — full enriched entity view (siblings, automations, state)\n- `POST /graph/rebuild` — force full rebuild\n\n**Extension changes:**\n- `ha_graph` tool → thin HTTP client calling server endpoints\n- `ha_entities get/update`, `ha_devices get/update`, `ha_automations get` → auto-enrich output by querying `/graph/entity?id=X`\n- Remove graph builder/cache/watcher code from extension `lib/graph/`\n\n**Files affected:**\n- `addon/rootfs/opt/pi-agent-service/server.js` — add graph engine, file watchers, WS subscriptions, API endpoints\n- `tools/ha-graph.ts` — replace with HTTP client to server\n- `tools/ha-entities.ts`, `ha-devices.ts`, `ha-automations.ts` — auto-enrich via server API\n- Remove/simplify `lib/graph/` (move logic to server)",
+      "status": "draft",
+      "epicId": "6i2trfuu",
+      "linkedIssueIds": [
+        "cxbmr9g1",
+        "nuktna9e"
+      ],
+      "questions": [],
+      "research": [
+        {
+          "type": "comment",
+          "content": "## Incremental Update & Queue Strategy\n\n### Granular updates (no full rebuild)\nWhen a single entity/device/area changes, only update that node and its edges — don't rebuild the whole graph:\n- **Entity registry change** → replace that entity's node, re-scan its edges (area, device, labels)\n- **Device registry change** → replace device node + update entity→device edges\n- **Automation YAML change** → re-parse that one file, replace its edges (entity references, triggers, conditions, actions)\n- **State change** → update the node's state attribute only (no edge changes)\n\n### Coalescing / queue strategy\nMultiple rapid updates (e.g. bulk entity rename) need smart handling:\n- **Debounce window** (e.g. 500ms) — collect all changes, then apply as one batch\n- **If a rebuild IS running and new changes arrive** — cancel/abort current rebuild, restart with the latest state (last-write-wins)\n- **File watcher debounce** — HA often writes `.storage` files in bursts (multiple registries updated together). Collect all changed files in the debounce window, then process together.\n\n### Implementation sketch:\n```\nlet pendingChanges: Set<string> = new Set();\nlet rebuildTimer: NodeJS.Timeout | null = null;\n\nfunction onChangeDetected(targetId: string) {\n  pendingChanges.add(targetId);\n  if (rebuildTimer) clearTimeout(rebuildTimer);\n  rebuildTimer = setTimeout(() => {\n    const batch = [...pendingChanges];\n    pendingChanges.clear();\n    applyIncrementalUpdates(batch);\n  }, 500);\n}\n```",
+          "addedAt": "2026-03-12T07:42:22.146Z"
+        },
+        {
+          "type": "comment",
+          "content": "## Relationship Display Strategy\n\n### On `get` (default) — compact stats\nAlways append a relationship summary, but keep it brief:\n```\n📊 Relationships: 4 siblings · 2 automations · 1 script · Area: Køkken · Device: Shelly Plug S\n```\n\n### On `get` with `include_relationships: true` — full expansion\n```\n📍 Device: Shelly Plug S (shelly_plug_kitchen)\n   Area: Køkken\n\n🔗 Sibling entities:\n   ● sensor.kitchen_plug_power     → 45.2 W\n   ● sensor.kitchen_plug_energy    → 12.3 kWh  \n   ○ switch.kitchen_plug           → on\n   ⊘ sensor.kitchen_plug_voltage   → (disabled)\n\n⚡ Used in:\n   - automation.kitchen_high_power_alert\n   - script.kitchen_appliance_reset\n```\n\n### On `update` / `delete` — ALWAYS full relationships\nAfter any mutation, always show full relationships for everything that depends on the changed item. Critical for the agent to understand impact.\n\n### Applies to all \"get\" tools:\n- `ha_entities get` → entity relationships\n- `ha_devices get` → device entities + area + automations\n- `ha_automations get` → all referenced entities with states\n- `ha_helpers get` → usage in automations/scripts\n- `ha_areas get` → devices + entities in area\n- `ha_labels list` → entities/devices per label\n\nAll tools get an optional `include_relationships` boolean parameter.",
+          "addedAt": "2026-03-12T07:44:55.561Z"
+        }
+      ],
+      "createdAt": "2026-03-12T07:36:39.370Z",
+      "updatedAt": "2026-03-12T07:59:00.377Z",
+      "autoValidation": {
+        "type": "agent",
+        "strategy": "Deploy to VM, verify graph auto-builds on startup, modify a YAML file, confirm graph reindexes automatically, query relationships and verify they reflect current state"
+      }
+    },
+    {
+      "id": "b79x1ki7",
+      "type": "feature",
+      "title": "Entity rename history tracker with broken relationship detection",
+      "description": "Maintain a persistent rename history database so we can always trace what an entity/device/area used to be called, even across context resets. When combined with the live graph, this enables:\n\n1. **Rename ledger** — persistent JSONL file tracking `{old_id, new_id, timestamp, tool}` for every rename done through our tools. Survives restarts, stored in `/homeassistant/.pi-backups/rename-history.jsonl`.\n\n2. **Broken relationship detection** — after a rename, scan the graph for anything still referencing the OLD name (automations, scripts, dashboards, scenes). Flag these as broken references. Show them in the update result:\n   ```\n   ⚠️ Broken references (still using old name sensor.kitchen_temp):\n     - automation.kitchen_climate_control (condition)\n     - lovelace dashboard \"energy\" view 2, card 3\n   ```\n\n3. **Reverse lookup** — any tool can query \"what was this entity called before?\" or \"what is the new name for this old entity?\" Useful when the agent sees a stale reference in YAML/automation and needs to know what it was renamed to.\n\n4. **Builds on existing mutation log** — the pre-mutation backup system already captures the old state. The rename tracker adds a specialized index on top for fast old→new and new→old lookups.\n\n**Files affected:**\n- New: `lib/rename-tracker.ts` (or extend `mutation-log.ts`) — append-only rename ledger + bidirectional index\n- `tools/ha-entities.ts` — on `new_entity_id` update, record rename + scan for broken refs\n- `tools/ha-graph.ts` or server graph — add broken reference detection after rename\n- `tools/ha-mutations.ts` — add `renames` action to query rename history",
+      "status": "draft",
+      "epicId": "6i2trfuu",
+      "linkedIssueIds": [
+        "yfv69s6c",
+        "cxbmr9g1"
+      ],
+      "questions": [],
+      "research": [],
+      "createdAt": "2026-03-12T07:46:33.224Z",
+      "updatedAt": "2026-03-12T07:54:36.550Z",
+      "autoValidation": {
+        "type": "agent",
+        "strategy": "Rename an entity, verify rename-history.jsonl entry created, query rename history, check broken reference detection output"
+      }
+    },
+    {
+      "id": "yfv69s6c",
+      "type": "feature",
+      "title": "YAML entity manager — structured CRUD for YAML-defined entities",
+      "description": "A tool that understands HA's YAML configuration structure and provides full CRUD for YAML-defined entities (template sensors, command_line sensors, MQTT entities, shell_commands, etc.) — things that today require manually editing YAML files.\n\n**Core capability:**\n1. **Parse & index** — traverse `configuration.yaml` and all `!include` files, build a structured map of every YAML-defined entity with its full config block, source file, and line range\n2. **Get** — `ha_yaml get sensor.kitchen_temp` returns the full YAML definition as structured data (not raw text), including which file it lives in\n3. **Update** — `ha_yaml update sensor.kitchen_temp config={...}` writes the change back to the correct file, preserving comments and formatting where possible\n4. **Create** — `ha_yaml create domain=template config={...}` adds to the right file based on domain conventions\n5. **Delete** — `ha_yaml delete sensor.kitchen_temp` removes from YAML with confirmation\n6. **Rename** — `ha_yaml rename sensor.old_name sensor.new_name` updates the YAML definition AND triggers the rename tracker to scan for broken references across all files\n7. **List** — `ha_yaml list domain=template` shows all YAML-defined entities of a type\n\n**Guard hook:**\n- Extension `tool_call` hook that intercepts `edit`/`write` calls targeting HA YAML files (configuration.yaml, automations.yaml, etc.)\n- Warns: \"Use `ha_yaml` tool instead of direct file editing for tracked changes and relationship awareness\"\n- Doesn't hard-block (user can override) but steers the agent to use managed tools\n\n**Integration with rename tracker (b79x1ki7):**\n- On rename, scans ALL YAML files for references to old entity_id and offers to update them\n- Records rename in the ledger for broken reference detection\n\n**Files affected:**\n- New: `tools/ha-yaml.ts` — the structured YAML entity manager tool\n- New: `lib/yaml-entity-parser.ts` — parser that maps YAML blocks to entities\n- `index.ts` — register tool + YAML file edit guard hook\n- Reuses `lib/graph/yaml-resolver.ts` for include resolution",
+      "status": "draft",
+      "epicId": "6i2trfuu",
+      "linkedIssueIds": [
+        "b79x1ki7",
+        "cxbmr9g1"
+      ],
+      "questions": [],
+      "research": [],
+      "createdAt": "2026-03-12T07:49:15.161Z",
+      "updatedAt": "2026-03-12T07:54:36.560Z",
+      "autoValidation": {
+        "type": "agent",
+        "strategy": "List YAML-defined entities, get one, update it, verify file was correctly modified, verify rename tracker integration"
+      }
+    },
+    {
+      "id": "cxbmr9g1",
+      "type": "feature",
+      "title": "Dynamic naming engine with validation rules, device-type mapping, and graph-powered compliance",
+      "description": "Replace the current static naming policies with a powerful, configurable naming engine that enforces conventions at write-time and can audit the entire system.\n\n**Core concepts:**\n\n### 1. Device-type mapping table per area\nConfigurable map where each area + device type combination defines the naming pattern:\n```json\n{\n  \"kitchen\": {\n    \"wallplug\": \"kitchen_wallplug_{n}\",\n    \"switch\": \"kitchen_switch_{n}\",\n    \"light\": \"kitchen_light_{n}\",\n    \"sensor_power\": \"kitchen_{device}_power\",\n    \"sensor_energy\": \"kitchen_{device}_energy\"\n  },\n  \"_global\": {\n    \"wallplug\": \"{area}_wallplug_{n}\",\n    \"unassigned_prefix\": \"unassigned_\"\n  }\n}\n```\n\n### 2. Area requirement rule\nConfigurable: entities MUST belong to an area, or get prefixed with a configurable fallback (e.g. `unassigned_`, `global_`, or a custom prefix). Enforced on create/update.\n\n### 3. Write-time validation hooks\nIntercept `ha_entities update`, `ha_helpers add`, `ha_yaml create`, etc. and validate:\n- Does the entity_id match the naming pattern for its area + device type?\n- Is it assigned to an area? If not, apply fallback prefix rule\n- Are friendly names compliant (Danish, no location prefix, etc.)?\n- Flag violations as warnings (soft) or errors (hard) based on rule config\n\n### 4. Graph-powered dynamic rules\nRules can include graph queries as tokens:\n- `{graph:orphans:entity}` — entities not referenced by any automation/script\n- `{graph:unused:30d}` — entities with no state changes in 30 days\n- `{graph:no_area}` — entities without area assignment\n\nExample soft rule: \"ALWAYS disable entities not used anywhere\" → runs `{graph:orphans:entity}` and flags them.\n\n### 5. Rule types\n- **Hard rules** — block non-compliant writes with error\n- **Soft rules** — warn but allow (e.g. \"consider disabling unused entities\")\n- **Audit rules** — only surface during `ha_policies check`, not on every write\n\n### 6. Persistent rule storage\nRules stored in `/homeassistant/.pi-policies/rules.json` — survives sessions, editable via `ha_policies` tool with new actions: `add-rule`, `update-rule`, `remove-rule`, `list-rules`, `test-rule`.\n\n**Integration:**\n- Uses live graph (iy6ft9qh) for relationship queries\n- Uses rename tracker (b79x1ki7) to validate renamed entities stay compliant\n- YAML manager (yfv69s6c) applies same rules on YAML entity create/update\n\n**Files affected:**\n- New: `lib/naming-engine.ts` — pattern matching, validation, device-type mapping\n- `tools/ha-policies.ts` — add rule CRUD actions, enhanced `check` with graph queries\n- `tools/ha-entities.ts`, `ha-helpers.ts`, `ha-yaml.ts` — write-time validation hooks\n- `index.ts` — register validation interceptors",
+      "status": "draft",
+      "epicId": "6i2trfuu",
+      "linkedIssueIds": [
+        "iy6ft9qh",
+        "b79x1ki7",
+        "yfv69s6c"
+      ],
+      "questions": [],
+      "research": [],
+      "createdAt": "2026-03-12T07:54:31.753Z",
+      "updatedAt": "2026-03-12T07:54:36.560Z",
+      "autoValidation": {
+        "type": "agent",
+        "strategy": "Configure naming rules, attempt a non-compliant entity rename, verify it flags violation, run audit check with graph-powered rules"
+      }
+    },
+    {
+      "id": "nuktna9e",
+      "type": "feature",
+      "title": "Agent notes system — persistent context annotations on entities, devices, automations",
+      "description": "A persistent notes system where the AI agent can attach contextual knowledge to any HA object (entity, device, automation, area, etc.). Notes are **always returned** when interacting with that object — so the agent always has context even after session resets.\n\n**Use cases:**\n- \"This Shelly device needs a 2s delay between commands or it drops them\"\n- \"Automation disabled because motion sensor has false positives at night — revisit when new sensor installed\"\n- \"Entity renamed from sensor.temp_1 to sensor.kitchen_temperature on 2026-03-10\"\n- \"Tried approach X for this automation, didn't work because Y — use Z instead\"\n\n**Tool: `ha_notes`**\n| Action | Description |\n|--------|-------------|\n| `get` | Get note for a specific entity/device/automation |\n| `set` | Set or **merge** note — if note exists, the tool receives existing text and the agent writes a combined update (one flow, no separate read needed since notes always follow the object) |\n| `list` | List all notes, optionally filtered by domain/area/type |\n| `delete` | Remove note for a specific target |\n\n**Key design:**\n- **Always injected** — every `ha_entities get`, `ha_devices get`, `ha_automations get`, etc. appends the note if one exists:\n  ```\n  📝 Agent notes:\n    This plug occasionally reports 0W briefly during high loads — not a real outage.\n    Automation kitchen_power_alert has a 30s delay to filter these.\n  ```\n- **Merge-on-update** — when the agent calls `set`, it already knows the existing note (because it was shown on `get`). It writes a single combined note that merges old + new context. No separate read step needed.\n- **Persistent storage** — JSON file in `/homeassistant/.pi-backups/agent-notes.json`, keyed by entity_id/device_id/automation_id. Survives sessions and restarts.\n- **Searchable** — `list` with search term to find notes across all objects.\n\n**Integration:**\n- All `get` handlers across tools auto-append notes\n- All `update` handlers include optional `note` parameter for inline annotation\n- Graph enrichment (iy6ft9qh) includes note presence in relationship stats\n\n**Files affected:**\n- New: `lib/agent-notes.ts` — CRUD for note storage\n- New: `tools/ha-notes.ts` — dedicated notes management tool\n- `tools/ha-entities.ts`, `ha-devices.ts`, `ha-automations.ts`, `ha-helpers.ts`, `ha-scenes.ts`, `ha-scripts.ts` — inject notes on get/update",
+      "status": "draft",
+      "epicId": "6i2trfuu",
+      "linkedIssueIds": [
+        "iy6ft9qh"
+      ],
+      "questions": [],
+      "research": [],
+      "createdAt": "2026-03-12T07:58:52.170Z",
+      "updatedAt": "2026-03-12T07:59:00.377Z",
+      "autoValidation": {
+        "type": "agent",
+        "strategy": "Add a note to an entity, get that entity and verify note appears, update with merged content, list all notes, delete and verify removed"
+      }
+    },
+    {
+      "id": "wnvf9w8a",
+      "type": "chore",
+      "title": "Fix add-on deploy workflow and create deployment asset",
+      "description": "The current deploy-addon script and workflow is broken — every deploy is trial and error. Root causes: (1) `config.yaml` has `image:` field which makes Supervisor reject rebuild, (2) no automatic version bumping for dev builds, (3) workflow docs are outdated. Fix the deploy script to handle all this reliably, and convert the workflow into a linkable asset.",
+      "status": "closed",
+      "linkedIssueIds": [],
+      "questions": [],
+      "research": [
+        {
+          "type": "reference",
+          "content": "## Root Cause Analysis\n\n### Problem 1: `image:` field blocks rebuild\n`addon/config.yaml` has `image: ghcr.io/dkmaker/hass-pi-agent/{arch}-pi_agent`. Supervisor treats this as a pre-built image add-on → `rebuild` is rejected with \"Can't rebuild an image-based add-on\". Fix: deploy script must strip `image:` line on the VM copy.\n\n### Problem 2: Version mismatch errors\nWhen version in config changes, Supervisor says \"Version changed, use Update instead Rebuild\". But update tries to pull from the (non-existent) remote image. Fix: for dev, keep version same OR use a dev version suffix and use rebuild (not update).\n\n### Problem 3: No single reliable command\nThe workflow requires: deploy → reload store → rebuild. But errors at each step cascade. Need a single script that handles the full cycle.\n\n### Solution: Fix deploy-addon script\n1. Strip `image:` line from config.yaml on the VM (sed after scp)\n2. Stop addon before rebuild to avoid state conflicts\n3. Reload store, then rebuild (which builds from Dockerfile)\n4. Start addon and tail logs\n5. Handle first-install vs rebuild automatically",
+          "addedAt": "2026-03-12T08:15:40.453Z"
+        }
+      ],
+      "createdAt": "2026-03-12T08:15:26.139Z",
+      "updatedAt": "2026-03-12T08:17:45.907Z",
+      "closeMessage": "Rewrote deploy-addon script to handle full deploy cycle in one command. Strips `image:` line for local builds, auto-detects install vs rebuild, has fallback to uninstall+reinstall, includes --restart and --logs-only flags. Created linkable asset with full workflow documentation.",
+      "closeReason": "done",
+      "validations": [
+        {
+          "criterion": "The current deploy-addon script and workflow is broken — every deploy is trial and error. Root causes: (1) `config.yaml` has `image:` field which makes Supervisor reject rebuild, (2) no automatic version bumping for dev builds, (3) workflow docs are outdated. Fix the deploy script to handle all this reliably, and convert the workflow into a linkable asset.",
+          "evidence": "Ran `deploy-addon` successfully — single command completed full cycle: sync, scp, strip image line, store reload, rebuild, start, logs. Output shows add-on built and started with all services running. Created asset r4ythzy7 (Add-on Deploy & Test Workflow) as linkable reference.",
+          "met": true
+        }
+      ],
+      "closedAt": "2026-03-12T08:17:45.907Z"
+    },
+    {
+      "id": "qbu3k106",
+      "type": "chore",
+      "title": "Move dev scripts from skill to dev-scripts/ and remove ha-dev skill",
+      "description": "Move all scripts from `.pi/skills/ha-dev/scripts/` to `dev-scripts/` at repo root. Update all internal path references. Convert useful docs into assets. Remove the skill entirely.",
+      "status": "closed",
+      "linkedIssueIds": [],
+      "questions": [],
+      "research": [
+        {
+          "type": "comment",
+          "content": "5 scripts to move, all use `SCRIPT_DIR/../../../..` for REPO_ROOT (4 levels up from `.pi/skills/ha-dev/scripts/`). New path `dev-scripts/` is 1 level up → change to `SCRIPT_DIR/..`. Skill docs can become assets or be dropped (deploy workflow already an asset). AGENTS.md and skill docs reference old paths.",
+          "addedAt": "2026-03-12T08:18:18.846Z"
+        }
+      ],
+      "createdAt": "2026-03-12T08:18:01.183Z",
+      "updatedAt": "2026-03-12T08:19:13.109Z",
+      "closeMessage": "Scripts moved to dev-scripts/, skill removed, all references updated. Both deploy-addon and vm-ctl confirmed working from new paths.",
+      "closeReason": "done",
+      "validations": [
+        {
+          "criterion": "Move all scripts from `.pi/skills/ha-dev/scripts/` to `dev-scripts/` at repo root. Update all internal path references. Convert useful docs into assets. Remove the skill entirely.",
+          "evidence": "Moved 5 scripts (deploy-addon, ha-api, ha-supervisor, setup-vm, vm-ctl) from .pi/skills/ha-dev/scripts/ to dev-scripts/. Fixed REPO_ROOT paths. Updated AGENTS.md and asset r4ythzy7. Verified deploy-addon --logs-only and vm-ctl status work from new location. Removed .pi/skills/ha-dev/ entirely.",
+          "met": true
+        }
+      ],
+      "closedAt": "2026-03-12T08:19:13.109Z"
+    },
+    {
+      "id": "29umsq27",
+      "type": "feature",
+      "title": "Deploy script: auto-inject ANTHROPIC_API_KEY into add-on config",
+      "description": "After rebuild/install, the deploy script should read `ANTHROPIC_API_KEY` from the local environment and push it to the add-on's options via the Supervisor API, so the AI provider key is always up to date without manual configuration.",
+      "status": "closed",
+      "linkedIssueIds": [],
+      "questions": [],
+      "research": [
+        {
+          "type": "comment",
+          "content": "The `environment` field is a string array in addon options. To inject the key: POST to `/addons/local_pi_agent/options` with `{\"options\": {\"environment\": [\"ANTHROPIC_API_KEY=sk-...\"], ...existing options}}`. Must preserve existing options — fetch current first, merge the env var, then set.",
+          "addedAt": "2026-03-12T08:23:57.271Z"
+        }
+      ],
+      "createdAt": "2026-03-12T08:23:20.236Z",
+      "updatedAt": "2026-03-12T08:26:11.228Z",
+      "closeMessage": "Added Step 7 to deploy-addon that reads ANTHROPIC_API_KEY from local env, merges it into the add-on's options.environment list via Supervisor API, then starts. Confirmed working on VM.",
+      "closeReason": "done",
+      "validations": [
+        {
+          "criterion": "After rebuild/install, the deploy script should read `ANTHROPIC_API_KEY` from the local environment and push it to the add-on's options via the Supervisor API, so the AI provider key is always up to date without manual configuration.",
+          "evidence": "Deploy script now auto-injects ANTHROPIC_API_KEY. Tested on VM — logs show \"Set environment variable: ANTHROPIC_API_KEY\". The script fetches current addon options, merges the key into the environment list (replacing if exists), and POSTs back via Supervisor API before starting the add-on.",
+          "met": true
+        }
+      ],
+      "closedAt": "2026-03-12T08:26:11.228Z"
+    },
+    {
+      "id": "sdxterza",
+      "type": "feature",
+      "title": "Redesign add-on config: secrets for API keys, cleaner UI with translations",
+      "description": "API keys are currently passed via the `environment` string array, which is ugly, error-prone, and shows keys in plain text. Redesign the config to use dedicated `password` schema fields for API keys (masked in UI), show only the main providers (Anthropic, OpenAI, Google, OpenRouter) prominently with others as optional, and add `translations/en.yaml` for field names and descriptions visible in the settings UI. None required — users can use `/login` inside the agent instead.",
+      "status": "ready",
+      "linkedIssueIds": [],
+      "questions": [],
+      "research": [
+        {
+          "type": "reference",
+          "content": "## Implementation Plan\n\n### 1. `addon/config.yaml` — schema changes\n**Main providers (prominent):**\n- `anthropic_api_key: password?`\n- `openai_api_key: password?`\n- `google_api_key: password?`\n- `openrouter_api_key: password?`\n\n**Optional providers:**\n- `xai_api_key: password?`\n- `groq_api_key: password?`\n- `mistral_api_key: password?`\n- `cerebras_api_key: password?`\n- `huggingface_api_key: password?`\n- `github_copilot_api_key: password?`\n\n**Keep:** `default_provider`, `default_model`, `install_integration`, `service_provider`, `service_model`, `additional_packages`\n**Remove:** `environment` array (replaced by dedicated fields)\n\n### 2. `addon/translations/en.yaml` — new file\n```yaml\nconfiguration:\n  anthropic_api_key:\n    name: Anthropic API Key\n    description: \"From console.anthropic.com → API Keys. Leave empty to configure with /login inside the agent.\"\n  openai_api_key:\n    name: OpenAI API Key\n    description: \"From platform.openai.com → API Keys. Leave empty to configure with /login.\"\n  # ... etc for each field\n  default_provider:\n    name: Default AI Provider\n    description: \"Provider used for new conversations.\"\n    items:\n      anthropic: Anthropic (Claude)\n      openai: OpenAI (GPT)\n      google: Google (Gemini)\n      openrouter: OpenRouter\n      # ... etc\n```\n\n### 3. `addon/rootfs/etc/s6-overlay/s6-rc.d/init-pi/run` — map config fields to env vars\nRead from `/data/options.json` and export:\n```bash\nanthropic_key=$(jq -r '.anthropic_api_key // empty' /data/options.json)\n[ -n \"$anthropic_key\" ] && export ANTHROPIC_API_KEY=\"$anthropic_key\"\n```\n\n### 4. `dev-scripts/deploy-addon` — update injection\nChange from environment array to the dedicated `anthropic_api_key` field.\n\n### 5. `addon/DOCS.md` — update documentation\nDocument the new config fields and that /login is an alternative.",
+          "addedAt": "2026-03-12T08:33:35.107Z"
+        }
+      ],
+      "createdAt": "2026-03-12T08:33:19.427Z",
+      "updatedAt": "2026-03-12T08:33:46.113Z",
+      "autoValidation": {
+        "type": "agent",
+        "strategy": "Deploy to VM with deploy-addon, verify config UI shows masked password fields and translated descriptions, confirm API key injection still works."
+      }
     }
   ],
   "categories": [
     {
       "slug": "workflows",
-      "description": "Development workflows and processes"
+      "description": "Development workflows and deployment procedures"
     },
     {
       "slug": "architecture",
@@ -1934,7 +2270,7 @@
     },
     {
       "slug": "patterns",
-      "description": "Reusable implementation patterns for Pi Agent tools"
+      "description": "Reusable code patterns and conventions for the HA extension"
     }
   ],
   "assets": [
@@ -2083,6 +2419,38 @@
       ],
       "createdAt": "2026-03-08T20:23:41.706Z",
       "updatedAt": "2026-03-08T20:23:45.605Z"
+    },
+    {
+      "id": "sxikcqlc",
+      "categorySlug": "patterns",
+      "title": "Pre-mutation backup pattern",
+      "context": "When implementing any new tool or modifying existing tools that perform write/update/delete operations on HA entities, devices, areas, automations, helpers, or any other HA objects. Apply this pattern before every mutation.",
+      "body": "## Pre-Mutation Backup Pattern\n\nEvery write/update/delete action MUST snapshot the current state before applying changes.\n\n### Import\n```typescript\nimport { backupBeforeMutation } from \"../lib/mutation-log.js\";\n// or from \"../../lib/mutation-log.js\" for subdirectory tools\n```\n\n### Usage — when current state is fetchable\n```typescript\n// Before the mutation call, wrap in try/catch (best-effort, never block the mutation)\ntry {\n  const current = await wsCommand(\"config/entity_registry/get\", { entity_id: entityId });\n  backupBeforeMutation(\"ha_entities\", \"update\", entityId, current);\n} catch { /* best-effort */ }\n\n// Now do the actual mutation\nconst result = await wsCommand(\"config/entity_registry/update\", updateData);\n```\n\n### Usage — when using list to find current state\n```typescript\ntry {\n  const items = await wsCommand<WSArea[]>(\"config/area_registry/list\");\n  const current = items.find((a) => a.area_id === areaId);\n  if (current) backupBeforeMutation(\"ha_areas\", \"update-area\", areaId, current);\n} catch { /* best-effort */ }\n```\n\n### Usage — when no get API exists (log the mutation params)\n```typescript\nbackupBeforeMutation(\"ha_recorder\", \"adjust\", statisticId, data, `Adjust sum by ${value}`);\n```\n\n### Parameters\n```typescript\nbackupBeforeMutation(\n  tool: string,      // Tool name: \"ha_entities\", \"ha_yaml\", etc.\n  action: string,    // Action: \"update\", \"delete\", \"rename\", etc.\n  target: string,    // Target ID: entity_id, device_id, area_id, etc.\n  state: unknown,    // Current state object to snapshot\n  summary?: string   // Optional human-readable summary\n): string            // Returns backup filename\n```\n\n### Rules\n1. **Always best-effort** — wrap in try/catch, never let backup failure block the actual mutation\n2. **Snapshot BEFORE the mutation** — not after\n3. **Use the most specific get API** available (get > list+find > log params)\n4. **For delete actions** — snapshot inside the confirm block, after confirm check but before the actual delete\n5. **For tools with existing state** (e.g. automations that fetch existing config for merge) — reuse that fetched state, no extra API call needed",
+      "project": false,
+      "trigger": {
+        "event": "issue_create"
+      },
+      "sources": [],
+      "linkedEpicIds": [
+        "6i2trfuu"
+      ],
+      "linkedIssueIds": [],
+      "createdAt": "2026-03-12T08:01:10.726Z",
+      "updatedAt": "2026-03-12T08:01:13.986Z"
+    },
+    {
+      "id": "r4ythzy7",
+      "categorySlug": "workflows",
+      "title": "Add-on Deploy & Test Workflow",
+      "context": "When deploying the Pi Agent add-on to the dev VM for testing, or when any issue requires VM testing before close.",
+      "body": "# Add-on Deploy & Test Workflow\n\n## Quick Reference\n\n| Task | Command |\n|------|---------|\n| **Full deploy + rebuild** | `dev-scripts/deploy-addon` |\n| **Quick restart** (no Docker build) | `dev-scripts/deploy-addon --restart` |\n| **Check logs** | `dev-scripts/deploy-addon --logs-only` |\n\n## What deploy-addon Does (single command)\n\n1. Syncs extension source into `addon/extensions/` build context\n2. SCPs everything to VM at `/addons/pi_agent/`\n3. **Strips `image:` line** from config.yaml (critical — enables local Dockerfile builds)\n4. Reloads the add-on store\n5. Detects installed vs first-time → **rebuild** or **install**\n6. Waits for Docker build to complete\n7. Starts the add-on and shows logs\n\n## Key Details\n\n| Property | Value |\n|----------|-------|\n| VM IP | Auto-detected from `haos-isolated` network DHCP leases |\n| Addon slug | `local_pi_agent` (Supervisor adds `local_` prefix) |\n| VM path | `/addons/pi_agent/` |\n| Config | `addon/config.yaml` |\n| Token | `.env` → `HAOS_API_TOKEN` |\n\n## Why `image:` Must Be Stripped\n\n`config.yaml` has `image: ghcr.io/dkmaker/hass-pi-agent/{arch}-pi_agent` for production (GHCR pulls). With this line present, Supervisor treats the add-on as **image-based** and rejects `rebuild` with \"Can't rebuild an image-based add-on\". The deploy script strips it on the VM copy so Supervisor builds from the local Dockerfile instead.\n\n**Important:** The `image:` line must remain in the repo's `addon/config.yaml` for production builds. Only the VM copy is modified.\n\n## When to Use What\n\n| Scenario | Command |\n|----------|---------|\n| Code changes to extension, tools, lib | `deploy-addon` (full rebuild) |\n| run.sh or s6 service changes | `deploy-addon` (full rebuild) |\n| Dockerfile changes | `deploy-addon` (full rebuild) |\n| Config-only tweaks (options.json) | `deploy-addon --restart` |\n| Debugging, checking status | `deploy-addon --logs-only` |\n\n## Troubleshooting\n\n- **VM not found:** Run `dev-scripts/vm-ctl start`\n- **SSH fails:** Ensure Terminal & SSH add-on is installed on VM with port 22 mapped\n- **Rebuild fails, falls back to reinstall:** This is handled automatically — the script will uninstall + reinstall if rebuild fails\n- **Add-on not in store:** The script runs `store reload` automatically",
+      "project": false,
+      "sources": [],
+      "linkedEpicIds": [],
+      "linkedIssueIds": [],
+      "createdAt": "2026-03-12T08:17:37.004Z",
+      "updatedAt": "2026-03-12T08:18:54.312Z"
     }
-  ]
+  ],
+  "config": {}
 }
