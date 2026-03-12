@@ -58,20 +58,33 @@ if bashio::var.has_value "${service_model}"; then
     echo "export PI_SERVICE_MODEL=\"${service_model}\"" >> /etc/profile.d/pi-agent.sh
 fi
 
-# --- User-defined environment variables (API keys, provider config, etc.) ---
-if bashio::config.has_value 'environment'; then
-    env_count=$(bashio::config 'environment | length')
-    for (( i=0; i<env_count; i++ )); do
-        entry=$(bashio::config "environment[${i}]")
-        key="${entry%%=*}"
-        value="${entry#*=}"
-        if [[ -n "${key}" ]]; then
-            printf '%s' "${value}" > "/var/run/s6/container_environment/${key}"
-            echo "export ${key}=\"${value}\"" >> /etc/profile.d/pi-agent.sh
-            bashio::log.info "Set environment variable: ${key}"
-        fi
-    done
-fi
+# --- API keys from dedicated config fields ---
+declare -A API_KEY_MAP=(
+    [anthropic_api_key]=ANTHROPIC_API_KEY
+    [openai_api_key]=OPENAI_API_KEY
+    [google_api_key]=GEMINI_API_KEY
+    [openrouter_api_key]=OPENROUTER_API_KEY
+    [xai_api_key]=XAI_API_KEY
+    [groq_api_key]=GROQ_API_KEY
+    [mistral_api_key]=MISTRAL_API_KEY
+    [cerebras_api_key]=CEREBRAS_API_KEY
+    [huggingface_token]=HF_TOKEN
+    [github_token]=GITHUB_TOKEN
+    [aws_access_key_id]=AWS_ACCESS_KEY_ID
+    [aws_secret_access_key]=AWS_SECRET_ACCESS_KEY
+    [aws_region]=AWS_REGION
+    [azure_openai_api_key]=AZURE_OPENAI_API_KEY
+)
+
+for config_key in "${!API_KEY_MAP[@]}"; do
+    env_var="${API_KEY_MAP[$config_key]}"
+    value=$(bashio::config "${config_key}")
+    if bashio::var.has_value "${value}"; then
+        printf '%s' "${value}" > "/var/run/s6/container_environment/${env_var}"
+        echo "export ${env_var}=\"${value}\"" >> /etc/profile.d/pi-agent.sh
+        bashio::log.info "Set ${env_var} from config"
+    fi
+done
 
 # --- Persistent bash history ---
 touch /data/.bash_history

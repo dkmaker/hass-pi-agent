@@ -2237,7 +2237,7 @@
       "type": "feature",
       "title": "Redesign add-on config: secrets for API keys, cleaner UI with translations",
       "description": "API keys are currently passed via the `environment` string array, which is ugly, error-prone, and shows keys in plain text. Redesign the config to use dedicated `password` schema fields for API keys (masked in UI), show only the main providers (Anthropic, OpenAI, Google, OpenRouter) prominently with others as optional, and add `translations/en.yaml` for field names and descriptions visible in the settings UI. None required — users can use `/login` inside the agent instead.",
-      "status": "ready",
+      "status": "closed",
       "linkedIssueIds": [],
       "questions": [],
       "research": [
@@ -2248,11 +2248,21 @@
         }
       ],
       "createdAt": "2026-03-12T08:33:19.427Z",
-      "updatedAt": "2026-03-12T08:33:46.113Z",
+      "updatedAt": "2026-03-12T08:38:15.769Z",
       "autoValidation": {
         "type": "agent",
         "strategy": "Deploy to VM with deploy-addon, verify config UI shows masked password fields and translated descriptions, confirm API key injection still works."
-      }
+      },
+      "closeMessage": "Redesigned config: 14 dedicated password fields for API keys, translations/en.yaml + translations/da.yaml with field names and descriptions, updated init script with associative array mapping, updated DOCS.md, updated deploy script. Removed environment array for API keys.",
+      "closeReason": "done",
+      "validations": [
+        {
+          "criterion": "API keys are currently passed via the `environment` string array, which is ugly, error-prone, and shows keys in plain text. Redesign the config to use dedicated `password` schema fields for API keys (masked in UI), show only the main providers (Anthropic, OpenAI, Google, OpenRouter) prominently with others as optional, and add `translations/en.yaml` for field names and descriptions visible in the settings UI. None required — users can use `/login` inside the agent instead.",
+          "evidence": "Deployed to VM. Logs show \"Set ANTHROPIC_API_KEY from config\" confirming new dedicated fields work. Supervisor addon-info shows both en and da translations loaded (Languages: ['en', 'da']). Danish example: {\"name\": \"Anthropic API-nøgle\", \"description\": \"Fra console.anthropic.com → API Keys. Lad stå tom for at konfigurere med /login inde i agenten.\"}. All API keys use password? schema (masked in UI). Deploy script injects via dedicated field.",
+          "met": true
+        }
+      ],
+      "closedAt": "2026-03-12T08:38:15.769Z"
     }
   ],
   "categories": [
