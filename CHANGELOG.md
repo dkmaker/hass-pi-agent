@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.1](https://github.com/dkmaker/hass-pi-agent/compare/v0.10.0...v0.10.1) (2026-05-30)
+
+
+### Bug Fixes
+
+* migrate to [@earendil-works](https://github.com/earendil-works) pi 0.78.0 and typebox 1.x ([ab0a0d2](https://github.com/dkmaker/hass-pi-agent/commit/ab0a0d25ead734e01074619fc7a770c997a60ac3))
+
 ## [0.10.0](https://github.com/dkmaker/hass-pi-agent/compare/v0.9.2...v0.10.0) (2026-03-09)
 
 
