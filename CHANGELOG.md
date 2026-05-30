@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.2](https://github.com/dkmaker/hass-pi-agent/compare/v0.10.1...v0.10.2) (2026-05-30)
+
+
+### Bug Fixes
+
+* resolve HA Core version from /core/info instead of supervisor info ([4d5d31c](https://github.com/dkmaker/hass-pi-agent/commit/4d5d31c1fbde61d5c1a40a9f56e6ca7e46b63908))
+
 ## [0.10.1](https://github.com/dkmaker/hass-pi-agent/compare/v0.10.0...v0.10.1) (2026-05-30)
 
 
