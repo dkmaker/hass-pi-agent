@@ -56,3 +56,29 @@ Optional separate provider/model for the `pi_agent.ask` service (used by automat
 ### Additional Packages
 
 Alpine Linux packages to install at startup. Useful for tools your workflows need (e.g., `jq`, `yq`, `imagemagick`).
+
+## File Safety (Write-Guard)
+
+The agent works from a dedicated scratch directory, **`/homeassistant/agent/`**, which is freely writable (notes, backups, temporary files). To protect your configuration, the built-in file tools are guarded: the agent may write to the scratch dir, to `configuration.yaml`, and to every file that `configuration.yaml` pulls in via `!include` / `!include_dir_*`. Writes to anything else under `/homeassistant` (for example `.storage/`, `secrets.yaml`, or stray files) are blocked. Registry and state changes still go through the built-in Home Assistant tools as usual.
+
+This is a pragmatic guardrail against accidental writes, not a hard security sandbox.
+
+### Write Guard
+
+Mode for the guard:
+
+- `strict` (default) — block writes outside the allowed set.
+- `warn` — allow but log would-be blocks to the add-on log.
+- `off` — disable the guard.
+
+### Write Guard Allow
+
+Extra paths the agent is allowed to write to, relative to `/homeassistant`. Add directories or globs you deliberately maintain, e.g.:
+
+```yaml
+write_guard_allow:
+  - custom_components/**
+  - www/**
+```
+
+Glob syntax: a trailing `/` or `/**` means anything under that directory; `*` matches one path segment; `**` matches any depth.

@@ -45,6 +45,8 @@ options:
   aws_region: ''
   azure_openai_api_key: ''
   additional_packages: []
+  write_guard: strict
+  write_guard_allow: []
 schema:
   default_provider: >-
     list(anthropic|openai|google|openrouter|groq|xai|mistral|cerebras|huggingface|github-copilot|amazon-bedrock|google-vertex|azure-openai-responses)
@@ -69,3 +71,6 @@ schema:
   azure_openai_api_key: password?
   additional_packages:
     - str
+  write_guard: list(strict|warn|off)?
+  write_guard_allow:
+    - str?
