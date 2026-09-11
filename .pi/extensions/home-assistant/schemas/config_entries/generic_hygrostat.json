@@ -14,8 +14,8 @@
     {
       "field": "device_class",
       "required": true,
-      "type": "string",
-      "format": "select"
+      "type": "unknown",
+      "raw": "selector.DeviceClassSelector( selector.DeviceClassSelectorConfig(domain=Platform.HUMIDIFIER) )"
     },
     {
       "field": "target_sensor",
@@ -56,8 +56,8 @@
     {
       "field": "device_class",
       "required": true,
-      "type": "string",
-      "format": "select"
+      "type": "unknown",
+      "raw": "selector.DeviceClassSelector( selector.DeviceClassSelectorConfig(domain=Platform.HUMIDIFIER) )"
     },
     {
       "field": "target_sensor",

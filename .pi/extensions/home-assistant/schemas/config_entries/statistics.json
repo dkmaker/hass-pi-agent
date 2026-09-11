@@ -29,7 +29,7 @@
       "field": "samples_max_buffer_size",
       "required": false,
       "type": "unknown",
-      "raw": "NumberSelector( NumberSelectorConfig(min=0, step=1, mode=NumberSelectorMode.BOX) )"
+      "raw": "NumberSelector( NumberSelectorConfig(min=1, step=1, mode=NumberSelectorMode.BOX) )"
     },
     {
       "field": "max_age",

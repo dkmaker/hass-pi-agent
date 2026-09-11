@@ -53,6 +53,18 @@
       "format": "duration"
     },
     {
+      "field": "max_cycle_duration",
+      "required": false,
+      "type": "object",
+      "format": "duration"
+    },
+    {
+      "field": "cycle_cooldown",
+      "required": false,
+      "type": "object",
+      "format": "duration"
+    },
+    {
       "field": "min_temp",
       "required": false,
       "type": "number"
@@ -101,6 +113,18 @@
     },
     {
       "field": "keep_alive",
+      "required": false,
+      "type": "object",
+      "format": "duration"
+    },
+    {
+      "field": "max_cycle_duration",
+      "required": false,
+      "type": "object",
+      "format": "duration"
+    },
+    {
+      "field": "cycle_cooldown",
       "required": false,
       "type": "object",
       "format": "duration"
