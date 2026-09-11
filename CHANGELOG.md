@@ -1,5 +1,41 @@
 # Changelog
 
+## [0.11.0](https://github.com/dkmaker/hass-pi-agent/compare/v0.10.2...v0.11.0) (2026-09-11)
+
+
+### Features
+
+* agent notes and YAML entity manager tools ([b1e22cd](https://github.com/dkmaker/hass-pi-agent/commit/b1e22cdd7cdad29541de917d7b2ac5cafaf22bd0))
+* automatic pre-mutation backups with JSONL changelog ([27e7ae2](https://github.com/dkmaker/hass-pi-agent/commit/27e7ae2e9bb0956b41e1952c20f75ed5925dc155))
+* dedicated password fields for API keys with translations ([18c4b7f](https://github.com/dkmaker/hass-pi-agent/commit/18c4b7f937116764278ee6753e89a5fa823cfc5d))
+* reconcile stale branches, bump SDK 0.85.1, native tool prompts ([fd2d04e](https://github.com/dkmaker/hass-pi-agent/commit/fd2d04e44e6619fb4f530e9900a98c0b2d14173c))
+
+
+### Bug Fixes
+
+* add label and ha_tool_docs pointer to new tools ([740e789](https://github.com/dkmaker/hass-pi-agent/commit/740e7895f3467833f98cc2468dbd0ea1e5ad5c6c))
+
+
+### Code Refactoring
+
+* native promptSnippet/promptGuidelines, remove ha_tool_docs and questionnaire ([9464d63](https://github.com/dkmaker/hass-pi-agent/commit/9464d635a43eb87b1b23f0c5afe827dbf8254910))
+
+
+### Chores
+
+* bump pi coding agent SDK 0.78.0 -&gt; 0.85.1 ([042ad81](https://github.com/dkmaker/hass-pi-agent/commit/042ad812884cdda5cfbc997f39ca72e469bcec04))
+* **deps:** bump actions/checkout from 6 to 7 ([53df1ad](https://github.com/dkmaker/hass-pi-agent/commit/53df1ad8205958d7b927ecd660f570415aed6010))
+* **deps:** bump actions/checkout from 6 to 7 ([ab8371e](https://github.com/dkmaker/hass-pi-agent/commit/ab8371e4ecfdce4c2a4cb8d81f15bc9fa3af6b42))
+* gitignore .pi/lean.json (machine-local per user preference) ([bcd25fe](https://github.com/dkmaker/hass-pi-agent/commit/bcd25fe70394d967d4e1eb21e5e85e525e560fb2))
+* move dev scripts from skill to dev-scripts/, rewrite deploy workflow ([6c8637b](https://github.com/dkmaker/hass-pi-agent/commit/6c8637b99e6a7062be999f4b798a6deff556bf73))
+* pin ha-core/ha-frontend submodules to release tags, refresh schemas ([b8c8a6b](https://github.com/dkmaker/hass-pi-agent/commit/b8c8a6bec9b0985554167c81e6e722e31a14c44b))
+* pin submodules to release tags (2026.9.1), refresh schemas ([90bcf19](https://github.com/dkmaker/hass-pi-agent/commit/90bcf1960e10fbde6fdc0bdd5511f19c3814076e))
+* pre-trust /homeassistant and skip pi version check in add-on ([4eb210f](https://github.com/dkmaker/hass-pi-agent/commit/4eb210f15d7d2e65710a63f90f56d41d41d3ada1))
+* purge unused pi planner/package/git state files ([3d2f37a](https://github.com/dkmaker/hass-pi-agent/commit/3d2f37aeceee1d4dea1caf1d9c2eeb5180afd10d))
+* purge unused pi planner/package/git state files ([8081295](https://github.com/dkmaker/hass-pi-agent/commit/8081295c8ba94976c71eb9b9b5cbb8d8785ddc81))
+* remove vestigial docs/homeassistant mirror ([f22a851](https://github.com/dkmaker/hass-pi-agent/commit/f22a8515ba1ec68b5f87af6f211e0226f4228d5a))
+* surface refactor + chore commits in release changelog ([4ad400d](https://github.com/dkmaker/hass-pi-agent/commit/4ad400d8d1f01901138342431fb3bcf226f12c49))
+
 ## [0.10.2](https://github.com/dkmaker/hass-pi-agent/compare/v0.10.1...v0.10.2) (2026-05-30)
 
 
