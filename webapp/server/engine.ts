@@ -97,6 +97,14 @@ let unsub: (() => void) | null = null;
 const clients = new Set<WebSocket>();
 let busy = false;
 
+// Global single-flight lock: interactive prompts acquire immediately (reject if
+// held); pi_agent.ask calls QUEUE behind whatever is running (never concurrent).
+let lockHeld = false;
+const askWaiters: Array<() => void> = [];
+function acquireNow(): boolean { if (lockHeld) return false; lockHeld = true; return true; }
+function releaseLock(): void { lockHeld = false; const next = askWaiters.shift(); if (next) { lockHeld = true; next(); } }
+function acquireQueued(): Promise<void> { return new Promise((res) => { if (!lockHeld) { lockHeld = true; res(); } else askWaiters.push(res); }); }
+
 function broadcast(msg: unknown): void {
   const s = JSON.stringify(msg);
   for (const ws of clients) { try { ws.send(s); } catch { /* dropped */ } }
@@ -132,7 +140,7 @@ function toWire(e: AgentSessionEvent): void {
   }
 }
 async function handlePrompt(text: string): Promise<void> {
-  if (busy) { broadcast({ type: "notice", text: "Busy — one turn at a time." }); return; }
+  if (!acquireNow()) { broadcast({ type: "notice", text: "Busy — one turn at a time." }); return; }
   busy = true;
   try {
     await session.prompt(text);
@@ -141,7 +149,48 @@ async function handlePrompt(text: string): Promise<void> {
     broadcast({ type: "agent_end" });
   } finally {
     busy = false;
+    releaseLock();
   }
+}
+
+// ── pi_agent.ask: queued fresh-context one-shot (voice/automation entry) ──
+const ASK_TIMEOUT_MS = 10 * 60 * 1000;
+const ASK_MAX_PENDING = 5;
+let askPending = 0;
+
+async function fireLogbook(name: string, message: string): Promise<void> {
+  const url = process.env.HA_URL, token = process.env.HA_TOKEN;
+  if (!url || !token) return;
+  try {
+    await fetch(`${url}/api/events/logbook_entry`, { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ name, message, domain: "pi_agent" }) });
+  } catch { /* best-effort */ }
+}
+
+async function handleAsk(question: string, overrides: { provider?: string; model?: string }): Promise<void> {
+  await acquireQueued(); // wait behind any running interactive/ask turn
+  let askModel = model;
+  if (overrides.provider && overrides.model) {
+    const r = resolveCliModel({ cliModel: `${overrides.provider}/${overrides.model}`, modelRuntime });
+    if (!r.error) askModel = r.model;
+  }
+  const askSession = (await createAgentSession({ resourceLoader: loader, cwd: agentCwd, sessionManager: SessionManager.inMemory(agentCwd), model: askModel, modelRuntime })).session;
+  let answer = "";
+  const unsub = askSession.subscribe((e) => {
+    const a = (e as { assistantMessageEvent?: { type: string; delta?: string } }).assistantMessageEvent;
+    if (e.type === "message_update" && a?.type === "text_delta" && a.delta) answer += a.delta;
+  });
+  const timer = setTimeout(() => { void askSession.abort().catch(() => {}); }, ASK_TIMEOUT_MS);
+  try {
+    await askSession.prompt(question);
+  } catch (err) {
+    if (!answer) answer = `(error: ${(err as Error).message})`;
+  } finally {
+    clearTimeout(timer);
+    unsub();
+    try { askSession.dispose(); } catch { /* ignore */ }
+    releaseLock();
+  }
+  await fireLogbook("Pi Agent", answer.trim() || "(no answer)");
 }
 
 // ── Session lifecycle: /new, /sessions list, resume ───────
@@ -255,3 +304,27 @@ wss.on("connection", (ws) => {
 });
 
 server.listen(PORT, "0.0.0.0", () => console.log(`[engine] http+ws on http://127.0.0.1:${PORT}`));
+
+// ── pi_agent.ask API (internal, port 9199) — preserves the HA component contract ──
+const ASK_PORT = Number(process.env.PI_ASK_PORT ?? 9199);
+const askServer = createServer((req, res) => {
+  const j = (code: number, obj: unknown) => { res.writeHead(code, { "content-type": "application/json" }); res.end(JSON.stringify(obj)); };
+  if (req.method === "POST" && req.url === "/ask") {
+    let body = "";
+    req.on("data", (c) => { body += c; });
+    req.on("end", () => {
+      let parsed: { question?: unknown; provider?: string; model?: string };
+      try { parsed = JSON.parse(body); } catch { j(400, { error: "Invalid JSON" }); return; }
+      if (!parsed.question || typeof parsed.question !== "string") { j(400, { error: "Missing 'question' field" }); return; }
+      if (askPending >= ASK_MAX_PENDING) { j(429, { error: "Too many pending requests" }); return; }
+      askPending += 1;
+      void handleAsk(parsed.question, { provider: parsed.provider, model: parsed.model }).finally(() => { askPending -= 1; });
+      j(202, { status: "accepted" });
+    });
+  } else if (req.method === "GET" && req.url === "/health") {
+    j(200, { status: "ok", pending: askPending, busy: lockHeld });
+  } else {
+    res.writeHead(404).end();
+  }
+});
+askServer.listen(ASK_PORT, "127.0.0.1", () => console.log(`[engine] ask API on http://127.0.0.1:${ASK_PORT}/ask`));
