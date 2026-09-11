@@ -19,7 +19,8 @@ export function registerMutationsTool(pi: ExtensionAPI): void {
     label: "HA Mutations",
     description:
       "Query and manage pre-mutation backups and changelog. Actions: log, list, show, purge. " +
-      "Every write/update/delete action automatically snapshots the previous state before applying changes.",
+      "Every write/update/delete action automatically snapshots the previous state before applying changes. " +
+      "Use ha_tool_docs('ha_mutations') for full usage.",
     parameters: Type.Object({
       action: StringEnum(["log", "list", "show", "purge"] as const, {
         description: "Action to perform",

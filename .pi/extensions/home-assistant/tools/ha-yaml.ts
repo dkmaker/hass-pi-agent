@@ -20,11 +20,12 @@ import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
 export function registerYamlTool(ctx: ExtensionAPI) {
   ctx.registerTool({
     name: "ha_yaml",
+    label: "HA YAML",
     description:
       "Manage YAML-defined entities and config blocks in Home Assistant configuration files. " +
       "Parses configuration.yaml and all included files. " +
       "All write operations automatically backup the file before modifying it. " +
-      "Actions: list, get, files, update, create, delete.",
+      "Actions: list, get, files, update, create, delete. Use ha_tool_docs('ha_yaml') for full usage.",
     parameters: Type.Object({
       action: StringEnum(["list", "get", "files", "update", "create", "delete"] as const, {
         description: "Action to perform",

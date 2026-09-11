@@ -10,10 +10,11 @@ import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
 export function registerNotesTool(ctx: ExtensionAPI) {
   ctx.registerTool({
     name: "ha_notes",
+    label: "HA Notes",
     description:
       "Manage persistent agent notes on HA objects (entities, devices, automations, etc.). " +
       "Notes are automatically shown when inspecting objects. " +
-      "Actions: get, set, list, delete.",
+      "Actions: get, set, list, delete. Use ha_tool_docs('ha_notes') for full usage.",
     parameters: Type.Object({
       action: StringEnum(["get", "set", "list", "delete"] as const, {
         description: "Action to perform",
