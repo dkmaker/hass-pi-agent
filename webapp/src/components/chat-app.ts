@@ -270,7 +270,7 @@ export class PiChatApp extends LitElement {
     .sess-t { font-size: 14px; font-weight: 500; }
     .sess-w { font-size: 12px; color: var(--pi-text-2); }
 
-    .scroll { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+    .scroll { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
     .row { display: flex; }
     .row.user { justify-content: flex-end; }
     .bubble { max-width: 86%; padding: 10px 14px; border-radius: var(--pi-radius); font-size: 15px; line-height: 1.55; }
