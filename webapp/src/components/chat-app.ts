@@ -5,8 +5,9 @@ import "@material/web/progress/circular-progress.js";
 import "@material/web/button/filled-button.js";
 import "@material/web/button/text-button.js";
 import "./tool-block.js";
+import "./setup-wizard.js";
 import { icon } from "../icon.js";
-import { mdiRobot, mdiMenu, mdiPlus, mdiSend, mdiStop, mdiThemeLightDark, mdiWeatherSunny, mdiWeatherNight } from "@mdi/js";
+import { mdiRobot, mdiMenu, mdiPlus, mdiSend, mdiStop, mdiThemeLightDark, mdiWeatherSunny, mdiWeatherNight, mdiCog } from "@mdi/js";
 import { renderMarkdown } from "../md.js";
 import type { Entry, ServerEvent, ToolResult } from "../types.js";
 
@@ -47,6 +48,7 @@ export class PiChatApp extends LitElement {
   @state() private sessionTitle = "New chat";
   @state() private themeMode: "auto" | "light" | "dark" =
     ((typeof localStorage !== "undefined" && localStorage.getItem("pi-theme")) as "auto" | "light" | "dark") || "auto";
+  @state() private setupOpen = false;
   private sessions = cannedSessions();
   @query(".scroll") private scroller?: HTMLElement;
   @query("textarea") private ta?: HTMLTextAreaElement;
@@ -121,12 +123,29 @@ export class PiChatApp extends LitElement {
     }
   }
 
-  private send(text: string): void {
-    const t = text.trim();
-    if (!t || this.busy || !this.ws || this.ws.readyState !== WebSocket.OPEN) return;
-    this.entries.push({ kind: "user", id: nid(), text: t });
+  private clearDraft(): void {
     this.draft = "";
     if (this.ta) this.ta.style.height = "44px";
+  }
+
+  private onWizardComplete(e: CustomEvent): void {
+    this.setupOpen = false;
+    const summary = (e.detail?.summary as { topic: string; choice: string }[]) ?? [];
+    const lines = summary.map((s) => `- **${s.topic}:** ${s.choice}`).join("\n");
+    this.entries.push({ kind: "assistant", id: nid(), text: `Setup complete — saved your conventions:\n${lines}\n\nI'll follow these when naming and organizing things.`, thinking: "", streaming: false });
+    this.bump();
+  }
+
+  private send(text: string): void {
+    const t = text.trim();
+    if (!t) return;
+    const cmd = t.toLowerCase();
+    if (cmd === "/setup") { this.setupOpen = true; this.clearDraft(); return; }
+    if (cmd === "/new") { this.newSession(); this.clearDraft(); return; }
+    if (cmd === "/sessions") { this.drawerOpen = true; this.clearDraft(); return; }
+    if (this.busy || !this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+    this.entries.push({ kind: "user", id: nid(), text: t });
+    this.clearDraft();
     this.busy = true;
     this.bump();
     this.ws.send(JSON.stringify({ type: "prompt", text: t }));
@@ -212,7 +231,8 @@ export class PiChatApp extends LitElement {
     .empty { margin: auto; text-align: center; color: var(--pi-text-2); max-width: 420px; }
     .empty h2 { color: var(--pi-text); font-weight: 600; }
     .chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 14px; }
-    .chip { border: 1px solid var(--pi-divider); background: var(--pi-surface); color: var(--pi-text); border-radius: 999px; padding: 8px 14px; font-size: 13px; cursor: pointer; }
+    .chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--pi-divider); background: var(--pi-surface); color: var(--pi-text); border-radius: 999px; padding: 8px 14px; font-size: 13px; cursor: pointer; }
+    .chip svg { width: 16px; height: 16px; }
     .chip:hover { border-color: var(--pi-primary); }
 
     .composer {
@@ -254,6 +274,12 @@ export class PiChatApp extends LitElement {
   render() {
     const empty = this.entries.length === 0;
     return html`
+      <pi-setup-wizard
+        .open=${this.setupOpen}
+        @wizard-close=${() => { this.setupOpen = false; }}
+        @wizard-complete=${(e: CustomEvent) => this.onWizardComplete(e)}
+      ></pi-setup-wizard>
+
       ${this.drawerOpen
         ? html`
             <div class="scrim" @click=${() => { this.drawerOpen = false; }}></div>
@@ -262,6 +288,9 @@ export class PiChatApp extends LitElement {
               <button class="newchat" @click=${() => this.newSession()}>
                 ${icon(mdiPlus, 18)}
                 New chat
+              </button>
+              <button class="sess" @click=${() => { this.setupOpen = true; this.drawerOpen = false; }}>
+                <span class="sess-t">Set up conventions</span><span class="sess-w">/setup wizard</span>
               </button>
               ${this.sessions.map(
                 (s) => html`<button class="sess" @click=${() => this.openSession(s)}>
@@ -300,6 +329,9 @@ export class PiChatApp extends LitElement {
                 ${["Show my lights", "Update the porch light script", "Turn off the kitchen light", "What can you do?"].map(
                   (c) => html`<button class="chip" @click=${() => this.send(c)}>${c}</button>`,
                 )}
+              </div>
+              <div class="chips" style="margin-top: 6px">
+                <button class="chip" @click=${() => { this.setupOpen = true; }}>${icon(mdiCog, 16)} Set up conventions</button>
               </div>
             </div>`
           : this.entries.map((e) => this.renderEntry(e))}
