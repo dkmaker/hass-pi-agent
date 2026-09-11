@@ -55,19 +55,68 @@ export class PiChatApp extends LitElement {
 
   private ws?: WebSocket;
 
+  private themePoll?: ReturnType<typeof setInterval>;
+
   connectedCallback(): void {
     super.connectedCallback();
     this.applyTheme();
+    // Re-mirror HA's theme periodically while in auto, so it tracks HA theme
+    // switches live. No-op when not embedded in HA (standalone mock).
+    this.themePoll = setInterval(() => { if (this.themeMode === "auto") this.applyHaBridge(); }, 3000);
     this.connect();
+  }
+
+  disconnectedCallback(): void {
+    super.disconnectedCallback();
+    if (this.themePoll) clearInterval(this.themePoll);
   }
 
   private themeIcon(): string {
     return this.themeMode === "light" ? mdiWeatherSunny : this.themeMode === "dark" ? mdiWeatherNight : mdiThemeLightDark;
   }
+  private static readonly BRIDGE_VARS = ["--pi-primary", "--pi-accent", "--pi-bg", "--pi-surface", "--pi-surface-2", "--pi-text", "--pi-text-2", "--pi-divider", "--pi-code-bg"];
+
+  /**
+   * Mirror Home Assistant's active theme into our tokens by reading the parent
+   * ingress frame's CSS custom properties (same-origin). Returns false when not
+   * embedded in HA or the frame isn't readable (standalone mock / cross-origin)
+   * so the caller falls back to the built-in light/dark palette.
+   */
+  private applyHaBridge(): boolean {
+    try {
+      if (window.parent === window) return false; // not iframed
+      const cs = getComputedStyle(window.parent.document.documentElement);
+      const g = (v: string): string => cs.getPropertyValue(v).trim();
+      const primary = g("--primary-color");
+      if (!primary) return false; // no HA theme present
+      const map: Record<string, string> = {
+        "--pi-primary": primary,
+        "--pi-accent": g("--accent-color") || primary,
+        "--pi-bg": g("--primary-background-color") || g("--lovelace-background"),
+        "--pi-surface": g("--card-background-color") || g("--ha-card-background"),
+        "--pi-surface-2": g("--secondary-background-color"),
+        "--pi-text": g("--primary-text-color"),
+        "--pi-text-2": g("--secondary-text-color"),
+        "--pi-divider": g("--divider-color"),
+        "--pi-code-bg": g("--markdown-code-background-color") || g("--secondary-background-color"),
+      };
+      const el = document.documentElement;
+      for (const [k, v] of Object.entries(map)) if (v) el.style.setProperty(k, v);
+      return true;
+    } catch {
+      return false; // cross-origin frame
+    }
+  }
+
   private applyTheme(): void {
     const el = document.documentElement;
-    if (this.themeMode === "auto") el.removeAttribute("data-theme");
-    else el.setAttribute("data-theme", this.themeMode);
+    for (const k of PiChatApp.BRIDGE_VARS) el.style.removeProperty(k);
+    if (this.themeMode === "auto") {
+      el.removeAttribute("data-theme");
+      this.applyHaBridge(); // follow HA when embedded; else CSS system fallback
+    } else {
+      el.setAttribute("data-theme", this.themeMode);
+    }
   }
   private cycleTheme(): void {
     const order: Array<"auto" | "light" | "dark"> = ["auto", "light", "dark"];
