@@ -6,6 +6,16 @@
 
 export type ToolResultKind = "entities" | "yaml_diff" | "service" | "automation_trace" | "text";
 
+/** System overview shown on the new-chat / session screen only. */
+export interface StatsOverview {
+  entities: number;
+  automations: number;
+  scripts: number;
+  lights: number;
+  sensors: number;
+  areas: number;
+}
+
 export interface ToolResult {
   kind: ToolResultKind;
   /** Freeform payload rendered per kind by <pi-tool-block>. */
@@ -15,6 +25,7 @@ export interface ToolResult {
 /** Server → client events (mock). */
 export type ServerEvent =
   | { type: "agent_start" }
+  | { type: "stats"; data: StatsOverview }
   | { type: "working"; label: string }
   | { type: "message_start" }
   | { type: "thinking_delta"; delta: string }

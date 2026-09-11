@@ -7,9 +7,9 @@ import "@material/web/button/text-button.js";
 import "./tool-block.js";
 import "./setup-wizard.js";
 import { icon } from "../icon.js";
-import { mdiRobot, mdiMenu, mdiPlus, mdiSend, mdiStop, mdiThemeLightDark, mdiWeatherSunny, mdiWeatherNight, mdiCog, mdiHistory } from "@mdi/js";
+import { mdiRobot, mdiMenu, mdiPlus, mdiSend, mdiStop, mdiThemeLightDark, mdiWeatherSunny, mdiWeatherNight, mdiCog, mdiHistory, mdiShapeOutline, mdiRobotOutline, mdiScriptTextOutline, mdiLightbulbOutline, mdiGauge, mdiFloorPlan } from "@mdi/js";
 import { renderMarkdown } from "../md.js";
-import type { Entry, ServerEvent, ToolResult } from "../types.js";
+import type { Entry, ServerEvent, ToolResult, StatsOverview } from "../types.js";
 
 let idc = 0;
 const nid = () => `e${++idc}`;
@@ -56,6 +56,7 @@ export class PiChatApp extends LitElement {
   @state() private themeMode: "auto" | "light" | "dark" =
     ((typeof localStorage !== "undefined" && localStorage.getItem("pi-theme")) as "auto" | "light" | "dark") || "auto";
   @state() private setupOpen = false;
+  @state() private stats?: StatsOverview;
   private sessions = cannedSessions();
   @query(".scroll") private scroller?: HTMLElement;
   @query("textarea") private ta?: HTMLTextAreaElement;
@@ -151,6 +152,7 @@ export class PiChatApp extends LitElement {
   private onEvent(ev: ServerEvent): void {
     switch (ev.type) {
       case "agent_start": this.busy = true; break;
+      case "stats": this.stats = ev.data; break;
       case "working": this.working = ev.label; break;
       case "message_start":
         this.entries.push({ kind: "assistant", id: nid(), text: "", thinking: "", streaming: true });
@@ -290,6 +292,12 @@ export class PiChatApp extends LitElement {
     .chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--pi-divider); background: var(--pi-surface); color: var(--pi-text); border-radius: 999px; padding: 8px 14px; font-size: 13px; cursor: pointer; }
     .chip svg { width: 16px; height: 16px; }
     .chip:hover { border-color: var(--pi-primary); }
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 22px; }
+    .stat { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 12px 6px; background: var(--pi-surface-2); border: 1px solid var(--pi-divider); border-radius: 12px; }
+    .stat .ic { color: var(--pi-text-2); display: grid; }
+    .stat .ic svg { width: 18px; height: 18px; }
+    .stat .num { font-size: 21px; font-weight: 700; color: var(--pi-text); line-height: 1.05; }
+    .stat .lbl { font-size: 11px; color: var(--pi-text-2); }
 
     .cmd-menu { margin: 0 12px 8px; background: var(--pi-surface); border: 1px solid var(--pi-divider); border-radius: 14px; overflow: hidden; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18); }
     .cmd { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 14px; border: none; background: transparent; color: var(--pi-text); cursor: pointer; text-align: left; }
@@ -321,6 +329,10 @@ export class PiChatApp extends LitElement {
     .sendbtn:disabled { opacity: 0.4; cursor: default; }
     .sendbtn svg { width: 20px; height: 20px; fill: currentColor; }
   `;
+
+  private statCard(path: string, n: number, label: string) {
+    return html`<div class="stat"><span class="ic">${icon(path, 18)}</span><span class="num">${n}</span><span class="lbl">${label}</span></div>`;
+  }
 
   private renderEntry(e: Entry) {
     if (e.kind === "user") return html`<div class="row user"><div class="bubble">${e.text}</div></div>`;
@@ -398,6 +410,16 @@ export class PiChatApp extends LitElement {
               <div class="chips" style="margin-top: 6px">
                 <button class="chip" @click=${() => { this.setupOpen = true; }}>${icon(mdiCog, 16)} Set up conventions</button>
               </div>
+              ${this.stats
+                ? html`<div class="stats">
+                    ${this.statCard(mdiShapeOutline, this.stats.entities, "Entities")}
+                    ${this.statCard(mdiRobotOutline, this.stats.automations, "Automations")}
+                    ${this.statCard(mdiScriptTextOutline, this.stats.scripts, "Scripts")}
+                    ${this.statCard(mdiLightbulbOutline, this.stats.lights, "Lights")}
+                    ${this.statCard(mdiGauge, this.stats.sensors, "Sensors")}
+                    ${this.statCard(mdiFloorPlan, this.stats.areas, "Areas")}
+                  </div>`
+                : nothing}
             </div>`
           : this.entries.map((e) => this.renderEntry(e))}
         ${this.working

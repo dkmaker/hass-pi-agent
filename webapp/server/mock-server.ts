@@ -8,7 +8,7 @@
  */
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 import { WebSocketServer, type WebSocket } from "ws";
@@ -16,6 +16,29 @@ import { WebSocketServer, type WebSocket } from "ws";
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const DIST = join(__dirname, "..", "dist");
 const PORT = Number(process.env.PORT ?? 8770);
+
+// Repo .env → process.env so the stats widget shows REAL numbers off the dev VM.
+try {
+  for (const line of readFileSync(join(__dirname, "..", "..", ".env"), "utf8").split("\n")) {
+    const m = line.match(/^\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.+)/);
+    if (m && !process.env[m[1]]) process.env[m[1]] = m[2].trim();
+  }
+} catch { /* no .env — stats widget stays hidden */ }
+
+interface StatsOverview { entities: number; automations: number; scripts: number; lights: number; sensors: number; areas: number; }
+let statsCache: StatsOverview | null = null;
+async function fetchStats(): Promise<StatsOverview | null> {
+  if (statsCache) return statsCache;
+  const url = process.env.HA_URL, token = process.env.HA_TOKEN;
+  if (!url || !token) return null;
+  const template = `{"entities": {{ states | list | count }}, "automations": {{ states.automation | list | count }}, "scripts": {{ states.script | list | count }}, "lights": {{ states.light | list | count }}, "sensors": {{ states.sensor | list | count }}, "areas": {{ areas() | list | count }}}`;
+  try {
+    const r = await fetch(`${url}/api/template`, { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ template }) });
+    if (!r.ok) return null;
+    statsCache = JSON.parse(await r.text()) as StatsOverview;
+    return statsCache;
+  } catch { return null; }
+}
 
 const MIME: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
@@ -192,6 +215,7 @@ wss.on("connection", (ws: WebSocket) => {
   let running = false;
 
   const send = (ev: unknown) => { if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(ev)); };
+  void fetchStats().then((s) => { if (s) send({ type: "stats", data: s }); });
 
   ws.on("message", async (raw) => {
     let cmd: { type: string; text?: string };
