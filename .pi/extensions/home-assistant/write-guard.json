@@ -1,0 +1,4 @@
+{
+  "_readme": "Maintainer-controlled write allowlist for the Pi agent. The agent may ALWAYS write to its scratch dir (/homeassistant/agent), to configuration.yaml, and to every file reachable from it via !include / !include_dir_*. This file adds EXTRA writable paths under /homeassistant that are otherwise blocked. To open one more path in a release, add a glob to \"allow\" below. Users can add their own via the add-on option 'write_guard_allow'. Glob syntax: 'dir/' or 'dir/**' = anything under dir; '*' = one path segment; '**' = any depth; e.g. 'custom_components/**', 'www/**', 'packages/*.yaml'. Paths are relative to /homeassistant.",
+  "allow": []
+}

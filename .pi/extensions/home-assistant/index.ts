@@ -39,6 +39,7 @@ import { registerYamlTool } from "./tools/ha-yaml.js";
 import { readChangelog } from "./lib/mutation-log.js";
 import { policiesExist, loadPolicies, formatPoliciesForPrompt } from "./lib/policies.js";
 import { wsClose } from "./lib/ws.js";
+import { getMode, isWriteAllowed, resolveWritePath, checkBashCommand, blockReason } from "./lib/write-guard.js";
 import {
   gatherContext,
   getContext,
@@ -339,6 +340,34 @@ ${addonLines || "No add-ons installed"}${areaLine}`;
     }
 
     return result;
+  });
+
+  // Filesystem write-guard — gate obvious writes outside the allowed set
+  // (scratch dir + configuration.yaml + its !includes + allowlisted globs).
+  // Pragmatic guardrail, not a sandbox; custom ha_* tools are never gated here.
+  pi.on("tool_call", async (event) => {
+    const mode = getMode();
+    if (mode === "off") return;
+
+    let target: string | undefined;
+    if (event.toolName === "write" || event.toolName === "edit") {
+      const p = (event.input as { path?: string }).path;
+      if (p) {
+        const abs = resolveWritePath(p);
+        if (!isWriteAllowed(abs)) target = abs;
+      }
+    } else if (event.toolName === "bash") {
+      const cmd = (event.input as { command?: string }).command || "";
+      const res = checkBashCommand(cmd);
+      if (!res.allowed) target = res.blocked[0];
+    }
+
+    if (!target) return;
+    if (mode === "warn") {
+      console.error(`[write-guard] would block write to ${target} (warn mode)`);
+      return;
+    }
+    return { block: true, reason: blockReason(target) };
   });
 
   // Clean up WebSocket connection on shutdown
