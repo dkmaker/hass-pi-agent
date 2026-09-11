@@ -19,6 +19,7 @@ export class PiChatApp extends LitElement {
   @state() private connected = false;
   @state() private draft = "";
   @query(".scroll") private scroller?: HTMLElement;
+  @query("textarea") private ta?: HTMLTextAreaElement;
 
   private ws?: WebSocket;
 
@@ -79,6 +80,7 @@ export class PiChatApp extends LitElement {
     if (!t || this.busy || !this.ws || this.ws.readyState !== WebSocket.OPEN) return;
     this.entries.push({ kind: "user", id: nid(), text: t });
     this.draft = "";
+    if (this.ta) this.ta.style.height = "44px";
     this.busy = true;
     this.bump();
     this.ws.send(JSON.stringify({ type: "prompt", text: t }));
@@ -139,8 +141,10 @@ export class PiChatApp extends LitElement {
     }
     textarea {
       flex: 1; resize: none; border: 1px solid var(--pi-divider); border-radius: 22px;
-      padding: 11px 16px; font: 15px/1.4 var(--pi-font); background: var(--pi-bg); color: var(--pi-text);
-      max-height: 140px; outline: none;
+      height: 44px; min-height: 44px; max-height: 140px;
+      padding: 10px 16px; line-height: 22px;
+      font-family: var(--pi-font); font-size: 15px; background: var(--pi-bg); color: var(--pi-text);
+      outline: none;
     }
     textarea:focus { border-color: var(--pi-primary); }
     .sendbtn {
@@ -202,7 +206,7 @@ export class PiChatApp extends LitElement {
           rows="1"
           placeholder="Message Pi Agent…"
           .value=${this.draft}
-          @input=${(e: Event) => { const t = e.target as HTMLTextAreaElement; this.draft = t.value; t.style.height = "auto"; t.style.height = `${Math.min(t.scrollHeight, 140)}px`; }}
+          @input=${(e: Event) => { const t = e.target as HTMLTextAreaElement; this.draft = t.value; t.style.height = "auto"; t.style.height = `${Math.min(Math.max(t.scrollHeight, 44), 140)}px`; }}
           @keydown=${this.onKey}
         ></textarea>
         ${this.busy
