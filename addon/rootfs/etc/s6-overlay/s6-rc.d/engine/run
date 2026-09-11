@@ -1,0 +1,21 @@
+#!/command/with-contenv bashio
+# shellcheck shell=bash
+# ==============================================================================
+# Pi Agent Add-on: embedded web chat engine
+# Serves the web chat UI + WebSocket over Ingress, and the pi_agent.ask HTTP API.
+# Replaces the ttyd/tmux/pi-TUI service and the standalone pi-agent-service.
+# ==============================================================================
+bashio::log.info 'Starting Pi Agent web chat engine...'
+
+# Ingress port (Supervisor-assigned) is the engine's HTTP/WS port.
+PI_ENGINE_PORT="$(bashio::addon.ingress_port)"
+export PI_ENGINE_PORT
+export PI_ENGINE_AGENTDIR="/data/engine-agentdir"
+export HA_EXTENSION_PATH="/opt/ha-extension/index.ts"
+
+mkdir -p "${PI_ENGINE_AGENTDIR}" /homeassistant/agent
+
+cd /opt/pi-webapp || bashio::exit.nok 'webapp directory /opt/pi-webapp missing'
+
+# Run the TypeScript engine directly via the tsx loader (single node process).
+exec node --import tsx server/engine.ts

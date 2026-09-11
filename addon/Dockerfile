@@ -38,6 +38,10 @@ COPY component/pi_agent /opt/pi-agent-component/pi_agent
 # Install extension dependencies
 RUN cd /opt/ha-extension && npm install --omit=dev
 
+# Build the embedded web chat engine + UI (vite build → dist, then drop build-only deps)
+COPY webapp /opt/pi-webapp
+RUN cd /opt/pi-webapp && npm install && npm run build && npm prune --omit=dev
+
 # Copy rootfs overlay
 COPY rootfs /
 

@@ -24,11 +24,14 @@ const repoRoot = resolve(__dirname, "..", "..");
 const distDir = resolve(__dirname, "..", "dist");
 const PORT = Number(process.env.PI_ENGINE_PORT ?? 8771);
 
-// ── repo .env → process.env (no override) so the HA extension resolves its API/config
-for (const line of readFileSync(resolve(repoRoot, ".env"), "utf8").split("\n")) {
-  const m = line.match(/^\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.+)/);
-  if (m && !process.env[m[1]]) process.env[m[1]] = m[2].trim();
-}
+// ── repo .env → process.env (local dev only; in the add-on, env comes from
+// s6 container_environment so this file is absent — tolerate that).
+try {
+  for (const line of readFileSync(resolve(repoRoot, ".env"), "utf8").split("\n")) {
+    const m = line.match(/^\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.+)/);
+    if (m && !process.env[m[1]]) process.env[m[1]] = m[2].trim();
+  }
+} catch { /* no .env (container) */ }
 
 const MIME: Record<string, string> = {
   ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css",
@@ -60,7 +63,7 @@ const agentCwd = process.env.HA_CONFIG_PATH ? resolve(process.env.HA_CONFIG_PATH
 // Isolated agentDir/auth so nothing auto-discovers AND we never read the operator's
 // global ~/.pi auth.json (which holds a subscription Anthropic rejects here). Auth
 // comes ONLY from add-on-config env keys (OPENROUTER_API_KEY, ANTHROPIC_API_KEY, …).
-const engineAgentDir = resolve(__dirname, "..", ".engine-agentdir");
+const engineAgentDir = process.env.PI_ENGINE_AGENTDIR || resolve(__dirname, "..", ".engine-agentdir");
 mkdirSync(agentCwd, { recursive: true });
 mkdirSync(engineAgentDir, { recursive: true });
 
@@ -327,4 +330,4 @@ const askServer = createServer((req, res) => {
     res.writeHead(404).end();
   }
 });
-askServer.listen(ASK_PORT, "127.0.0.1", () => console.log(`[engine] ask API on http://127.0.0.1:${ASK_PORT}/ask`));
+askServer.listen(ASK_PORT, "0.0.0.0", () => console.log(`[engine] ask API on :${ASK_PORT}/ask`));
