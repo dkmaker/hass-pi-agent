@@ -116,7 +116,12 @@ export function registerStatsTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_stats",
     label: "HA Statistics",
-    description: `Query HA long-term statistics. Actions: list, get. Use ha_tool_docs('ha_stats') for full usage.`,
+    description: `Query HA long-term statistics. Actions: list, get.`,
+    promptSnippet:
+      "Query long-term statistics: list available statistic IDs, get aggregated values over a time range with period grouping.",
+    promptGuidelines: [
+      "Use ha_stats when the user asks for aggregated/long-term data (energy totals, averages) rather than raw state history.",
+    ],
 
     parameters: Type.Object({
       action: StringEnum(["list", "get"] as const, {

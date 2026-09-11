@@ -25,6 +25,8 @@ import {
 import * as collectionWsBackend from "../lib/backends/collection-ws.js";
 import * as configEntryBackend from "../lib/backends/config-entry.js";
 import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
+import { backupBeforeMutation } from "../lib/mutation-log.js";
+import { appendNoteIfExists } from "../lib/agent-notes.js";
 
 
 // ── Tool registration ────────────────────────────────────────
@@ -35,7 +37,13 @@ export function registerHelperTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_helpers",
     label: "HA Helpers",
-    description: `Manage HA helpers — all types, unified interface. Actions: list-types, list, get, add, update, remove. Use ha_tool_docs('ha_helpers') for full usage.`,
+    description: `Manage HA helpers — all types, unified interface. Actions: list-types, list, get, add, update, remove.`,
+    promptSnippet:
+      "Manage all helper types (input_*, counter, timer, template, utility_meter, derivative, etc.) — list/add/update/remove, live with no restart.",
+    promptGuidelines: [
+      "Use ha_helpers when the user asks to create or manage helpers like input_boolean, counter, timer, template sensors, or utility meters.",
+      "Use ha_helpers action:list-types to see supported types and their field schemas before adding.",
+    ],
 
     parameters: Type.Object({
       action: StringEnum(
@@ -219,7 +227,7 @@ async function handleGet(type?: string, id?: string): Promise<string> {
     : await configEntryBackend.getEntry(t, id);
 
   if (!item) return `Helper '${id}' not found in ${type}.\n\n${formatSchema(type)}`;
-  return formatHelperDetail(type, item);
+  return formatHelperDetail(type, item) + appendNoteIfExists(`${type}.${id}`);
 }
 
 async function handleAdd(type?: string, fields?: Record<string, unknown>): Promise<string> {
@@ -259,6 +267,16 @@ async function handleUpdate(type?: string, id?: string, fields?: Record<string, 
     return `Validation errors:\n${validation.errors.map((e) => `  - ${e}`).join("\n")}\n\n${formatSchema(type)}`;
   }
 
+  // Snapshot before mutation
+  try {
+    if (t.storageType === "collection") {
+      const current = await collectionWsBackend.getItem(t, id);
+      if (current) backupBeforeMutation("ha_helpers", "update", `${type}.${id}`, current);
+    } else {
+      backupBeforeMutation("ha_helpers", "update", `${type}.${id}`, { type, id, fields });
+    }
+  } catch { /* best-effort */ }
+
   if (t.storageType === "collection") {
     const result = await collectionWsBackend.updateItem(t, id, fields);
     if (!result.success) return `Error: ${result.message}`;
@@ -277,6 +295,16 @@ async function handleRemove(type?: string, id?: string, confirm?: boolean): Prom
   }
   const t = requireType(type);
   if (typeof t === "string") return t;
+
+  // Snapshot before deletion
+  try {
+    if (t.storageType === "collection") {
+      const current = await collectionWsBackend.getItem(t, id);
+      if (current) backupBeforeMutation("ha_helpers", "remove", `${type}.${id}`, current);
+    } else {
+      backupBeforeMutation("ha_helpers", "remove", `${type}.${id}`, { type, id });
+    }
+  } catch { /* best-effort */ }
 
   if (t.storageType === "collection") {
     const result = await collectionWsBackend.removeItem(t, id);

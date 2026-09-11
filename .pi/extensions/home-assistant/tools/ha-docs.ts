@@ -13,7 +13,13 @@ export function registerDocsTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_docs",
     label: "HA Docs",
-    description: `Look up HA integration and configuration documentation. Actions: list, get, search, update, status. Use ha_tool_docs('ha_docs') for full usage.`,
+    description: `Look up HA integration and configuration documentation. Actions: list, get, search, update, status.`,
+    promptSnippet:
+      "Look up HA integration and configuration docs: list/search integrations, fetch full integration pages from GitHub.",
+    promptGuidelines: [
+      "Use ha_docs when the user asks how an integration works or how to configure one.",
+      "Use ha_docs action:search to find an integration by keyword, then action:get for its full doc page.",
+    ],
 
     parameters: Type.Object({
       action: StringEnum(

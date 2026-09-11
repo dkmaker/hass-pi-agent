@@ -36,6 +36,7 @@ import {
 } from "./ha-dashboards/cards.js";
 import { handleListCardTypes } from "./ha-dashboards/card-types.js";
 import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
+import { backupBeforeMutation } from "../lib/mutation-log.js";
 
 // ── Tool registration ────────────────────────────────────────
 
@@ -50,7 +51,14 @@ export function registerDashboardsTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_dashboards",
     label: "HA Dashboards",
-    description: `Manage HA dashboards (Lovelace UI) — views and cards. Actions: list, get, create, update, delete, get-view, add-view, update-view, remove-view, move-view, add-card, update-card, remove-card, move-card, list-card-types. Use ha_tool_docs('ha_dashboards') for full usage.`,
+    description: `Manage HA dashboards (Lovelace UI) — views and cards. Actions: list, get, create, update, delete, get-view, add-view, update-view, remove-view, move-view, add-card, update-card, remove-card, move-card, list-card-types.`,
+    promptSnippet:
+      "Manage Lovelace dashboards, views, and cards: CRUD, move views/cards, list built-in card types.",
+    promptGuidelines: [
+      "Use ha_dashboards when the user asks to create, edit, or reorganize dashboards, views, or cards.",
+      "Use ha_dashboards action:list-card-types to see available card types and their fields before adding a card.",
+      "Use ha_dashboards for custom cards via the 'custom:' type prefix with freeform config fields.",
+    ],
 
     parameters: Type.Object({
       action: StringEnum([...ALL_ACTIONS], {
@@ -335,6 +343,12 @@ async function handleUpdate(params: Record<string, unknown>): Promise<string> {
     throw new Error("No update fields provided. Use: title, icon, require_admin, show_in_sidebar");
   }
 
+  try {
+    const dashboards = await wsCommand<DashboardInfo[]>("lovelace/dashboards/list");
+    const current = dashboards.find((d) => d.id === dashboardId);
+    if (current) backupBeforeMutation("ha_dashboards", "update", dashboardId, current);
+  } catch { /* best-effort */ }
+
   const result = await wsCommand<DashboardInfo>("lovelace/dashboards/update", updateData);
   return `✅ Updated dashboard '${result.title}' (id: ${result.id})`;
 }
@@ -344,6 +358,12 @@ async function handleDelete(dashboardId?: string, confirm?: boolean): Promise<st
   if (!confirm) {
     return `⚠️ **Confirm delete**: dashboard \`${dashboardId}\`\n\nCall again with \`confirm: true\` to proceed.`;
   }
+
+  try {
+    const dashboards = await wsCommand<DashboardInfo[]>("lovelace/dashboards/list");
+    const current = dashboards.find((d) => d.id === dashboardId);
+    if (current) backupBeforeMutation("ha_dashboards", "delete", dashboardId, current);
+  } catch { /* best-effort */ }
 
   await wsCommand("lovelace/dashboards/delete", { dashboard_id: dashboardId });
   return `✅ Deleted dashboard '${dashboardId}'`;

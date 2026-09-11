@@ -9,6 +9,7 @@ import { Type } from "@earendil-works/pi-ai";
 import { StringEnum } from "@earendil-works/pi-ai";
 import { wsCommand } from "../lib/ws.js";
 import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
+import { backupBeforeMutation } from "../lib/mutation-log.js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -24,7 +25,13 @@ export function registerCategoriesTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_categories",
     label: "HA Categories",
-    description: `Manage categories for automations/scripts/scenes. Actions: list, create, update, delete. Use ha_tool_docs('ha_categories') for full usage.`,
+    description: `Manage categories for automations/scripts/scenes. Actions: list, create, update, delete.`,
+    promptSnippet:
+      "Manage UI categories for organizing automations, scripts, and scenes.",
+    promptGuidelines: [
+      "Use ha_categories when the user wants to organize automations/scripts/scenes into named categories.",
+      "Use ha_categories with scope (automation/script/scene) — categories are scoped per object type.",
+    ],
 
     parameters: Type.Object({
       action: StringEnum(["list", "create", "update", "delete"] as const, {
@@ -110,6 +117,12 @@ async function handleUpdate(params: Record<string, unknown>): Promise<string> {
   if (params.name !== undefined) data.name = params.name;
   if (params.icon !== undefined) data.icon = params.icon;
 
+  try {
+    const cats = await wsCommand<WSCategory[]>("config/category_registry/list", { scope });
+    const current = cats.find((c) => c.category_id === categoryId);
+    if (current) backupBeforeMutation("ha_categories", "update", `${scope}.${categoryId}`, current);
+  } catch { /* best-effort */ }
+
   const result = await wsCommand<WSCategory>("config/category_registry/update", data);
   return `✅ Updated category '${result.name}' (id: ${result.category_id})`;
 }
@@ -122,6 +135,12 @@ async function handleDelete(params: Record<string, unknown>): Promise<string> {
   if (!params.confirm) {
     return `⚠️ **Confirm delete**: category \`${categoryId}\` (scope: ${scope})\n\nCall again with \`confirm: true\` to proceed.`;
   }
+
+  try {
+    const cats = await wsCommand<WSCategory[]>("config/category_registry/list", { scope });
+    const current = cats.find((c) => c.category_id === categoryId);
+    if (current) backupBeforeMutation("ha_categories", "delete", `${scope}.${categoryId}`, current);
+  } catch { /* best-effort */ }
 
   await wsCommand("config/category_registry/delete", { scope, category_id: categoryId });
   return `✅ Deleted category '${categoryId}'`;

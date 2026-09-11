@@ -37,7 +37,13 @@ export function registerTemplateTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_template",
     label: "HA Template",
-    description: `Render and validate HA Jinja2 templates. Actions: render, validate. Use ha_tool_docs('ha_template') for full usage.`,
+    description: `Render and validate HA Jinja2 templates. Actions: render, validate.`,
+    promptSnippet:
+      "Render and validate Jinja2 templates against live entity states.",
+    promptGuidelines: [
+      "Use ha_template action:render to test a template expression before putting it in an automation/sensor.",
+      "Use ha_template action:validate to check template syntax.",
+    ],
 
     parameters: Type.Object({
       action: StringEnum(["render", "validate"] as const, {

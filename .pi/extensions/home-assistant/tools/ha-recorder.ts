@@ -10,6 +10,7 @@ import { StringEnum } from "@earendil-works/pi-ai";
 import { wsCommand } from "../lib/ws.js";
 import { apiPost } from "../lib/api.js";
 import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
+import { backupBeforeMutation } from "../lib/mutation-log.js";
 
 // ── Tool registration ────────────────────────────────────────
 
@@ -17,7 +18,13 @@ export function registerRecorderTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_recorder",
     label: "HA Recorder",
-    description: `Manage HA recorder and statistics. Actions: adjust, change-unit, clear, purge, info. Use ha_tool_docs('ha_recorder') for full usage.`,
+    description: `Manage HA recorder and statistics. Actions: adjust, change-unit, clear, purge, info.`,
+    promptSnippet:
+      "Manage recorder + long-term statistics: adjust values, change units, clear, purge, info.",
+    promptGuidelines: [
+      "Use ha_recorder to correct a statistic (adjust sum, change-unit) — e.g. fixing a utility meter reading or unit mismatch.",
+      "Use ha_recorder action:purge to trim recorder database history.",
+    ],
 
     parameters: Type.Object({
       action: StringEnum(["adjust", "change-unit", "clear", "purge", "info"] as const, {
@@ -85,6 +92,8 @@ async function handleAdjust(params: Record<string, unknown>): Promise<string> {
   };
   if (params.adjustment_unit !== undefined) data.adjustment_unit_of_measurement = params.adjustment_unit;
 
+  backupBeforeMutation("ha_recorder", "adjust", statisticId, data, `Adjust sum by ${params.sum}`);
+
   await wsCommand("recorder/adjust_sum_statistics", data);
   return `✅ Adjusted statistics for '${statisticId}' by ${params.sum}`;
 }
@@ -93,6 +102,8 @@ async function handleChangeUnit(params: Record<string, unknown>): Promise<string
   const statisticId = params.statistic_id as string | undefined;
   if (!statisticId) throw new Error("'statistic_id' is required for change-unit");
   if (!params.unit_of_measurement) throw new Error("'unit_of_measurement' is required for change-unit");
+
+  backupBeforeMutation("ha_recorder", "change-unit", statisticId, { statistic_id: statisticId, new_unit: params.unit_of_measurement }, `Change unit to ${params.unit_of_measurement}`);
 
   await wsCommand("recorder/update_statistics_metadata", {
     statistic_id: statisticId,
@@ -104,6 +115,8 @@ async function handleChangeUnit(params: Record<string, unknown>): Promise<string
 async function handleClear(params: Record<string, unknown>): Promise<string> {
   const statisticId = params.statistic_id as string | undefined;
   if (!statisticId) throw new Error("'statistic_id' is required for clear");
+
+  backupBeforeMutation("ha_recorder", "clear", statisticId, { statistic_id: statisticId }, `Clear all statistics`);
 
   await wsCommand("recorder/clear_statistics", {
     statistic_ids: [statisticId],

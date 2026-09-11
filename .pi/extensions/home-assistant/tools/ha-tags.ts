@@ -9,6 +9,7 @@ import { Type } from "@earendil-works/pi-ai";
 import { StringEnum } from "@earendil-works/pi-ai";
 import { wsCommand } from "../lib/ws.js";
 import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
+import { backupBeforeMutation } from "../lib/mutation-log.js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -26,7 +27,12 @@ export function registerTagsTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_tags",
     label: "HA Tags",
-    description: `Manage HA tags (NFC/QR). Actions: list, get, create, update, delete. Use ha_tool_docs('ha_tags') for full usage.`,
+    description: `Manage HA tags (NFC/QR). Actions: list, get, create, update, delete.`,
+    promptSnippet:
+      "Manage NFC/QR tags: list, get, create, update, delete — scanned tags fire the tag_scanned event.",
+    promptGuidelines: [
+      "Use ha_tags when the user asks to create or manage NFC/QR tags used to trigger automations.",
+    ],
 
     parameters: Type.Object({
       action: StringEnum(["list", "get", "create", "update", "delete"] as const, {
@@ -126,6 +132,12 @@ async function handleUpdate(params: Record<string, unknown>): Promise<string> {
   if (params.name !== undefined) data.name = params.name;
   if (params.description !== undefined) data.description = params.description;
 
+  try {
+    const tags = await wsCommand<WSTag[]>("tag/list");
+    const current = tags.find((t) => t.id === id);
+    if (current) backupBeforeMutation("ha_tags", "update", id, current);
+  } catch { /* best-effort */ }
+
   const result = await wsCommand<WSTag>("tag/update", data);
   return `✅ Updated tag '${result.name || result.tag_id}' (id: ${result.id})`;
 }
@@ -135,6 +147,13 @@ async function handleDelete(id?: string, confirm?: boolean): Promise<string> {
   if (!confirm) {
     return `⚠️ **Confirm delete**: tag \`${id}\`\n\nCall again with \`confirm: true\` to proceed.`;
   }
+
+  try {
+    const tags = await wsCommand<WSTag[]>("tag/list");
+    const current = tags.find((t) => t.id === id);
+    if (current) backupBeforeMutation("ha_tags", "delete", id, current);
+  } catch { /* best-effort */ }
+
   await wsCommand("tag/delete", { tag_id: id });
   return `✅ Deleted tag '${id}'`;
 }

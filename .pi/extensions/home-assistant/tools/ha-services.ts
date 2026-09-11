@@ -36,7 +36,13 @@ export function registerServicesTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_services",
     label: "HA Services",
-    description: `Discover and call HA services. Actions: list, get, call. Use ha_tool_docs('ha_services') for full usage.`,
+    description: `Discover and call HA services. Actions: list, get, call.`,
+    promptSnippet:
+      "Discover and call any HA service: list by domain, get a service's full field/selector/target schema, call with data + target.",
+    promptGuidelines: [
+      "Use ha_services action:get to fetch a service's valid fields before calling it.",
+      "Use ha_services action:call to invoke a service — remember calls have real-world effects (lights, locks, climate).",
+    ],
 
     parameters: Type.Object({
       action: StringEnum(["list", "get", "call"] as const, {

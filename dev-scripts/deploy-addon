@@ -1,0 +1,210 @@
+#!/usr/bin/env bash
+#
+# Deploy the Pi Agent add-on to the HAOS dev VM.
+#
+# This script handles the FULL cycle:
+#   1. Sync source files to VM via SCP
+#   2. Strip the `image:` line (required for local Dockerfile builds)
+#   3. Reload the add-on store
+#   4. Install (first time) or Rebuild (subsequent) the add-on
+#   5. Start the add-on and show logs
+#
+# Usage:
+#   deploy-addon              # Full deploy + rebuild
+#   deploy-addon --logs-only  # Just show recent logs
+#   deploy-addon --restart    # Restart without rebuild (fast, no Docker build)
+#
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+source "$REPO_ROOT/.env"
+
+ADDON_DIR="$REPO_ROOT/addon"
+ADDON_SLUG="pi_agent"
+SUPERVISOR_SLUG="local_${ADDON_SLUG}"
+export SCRIPT_DIR SUPERVISOR_SLUG
+NET_NAME="${HAOS_NET_NAME:-haos-isolated}"
+TOKEN="${HAOS_API_TOKEN:?HAOS_API_TOKEN not set in .env}"
+
+# ── Find VM IP ─────────────────────────────────────────────────
+VM_IP=$(sudo virsh net-dhcp-leases "$NET_NAME" 2>/dev/null | grep -oP '10\.99\.0\.\d+' | head -1)
+if [ -z "$VM_IP" ]; then
+  echo "❌ Cannot find VM IP. Is the VM running?"
+  echo "   .pi/skills/ha-dev/scripts/vm-ctl start"
+  exit 1
+fi
+
+SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR"
+SSH_CMD="ssh $SSH_OPTS root@${VM_IP}"
+WS_URL="ws://${VM_IP}:8123/api/websocket"
+
+# ── Supervisor API helper (via WebSocket) ──────────────────────
+_supervisor_call() {
+  local endpoint="$1"
+  local method="${2:-get}"
+  local data="${3:-}"
+
+  python3 -c "
+import json, asyncio, websockets, sys
+
+async def main():
+    async with websockets.connect('${WS_URL}') as ws:
+        await ws.recv()
+        await ws.send(json.dumps({'type':'auth','access_token':'${TOKEN}'}))
+        r = json.loads(await ws.recv())
+        if r['type'] != 'auth_ok':
+            print('AUTH_FAILED', file=sys.stderr)
+            sys.exit(1)
+        msg = {'id':1,'type':'supervisor/api','endpoint':'$endpoint','method':'$method'}
+        data_str = '''$data'''
+        if data_str:
+            msg['data'] = json.loads(data_str)
+        await ws.send(json.dumps(msg))
+        r = json.loads(await ws.recv())
+        if r.get('success'):
+            result = r.get('result',{})
+            if isinstance(result, dict) and 'data' in result and len(result) == 1:
+                result = result['data']
+            print(json.dumps(result))
+        else:
+            err = r.get('error',{})
+            print(json.dumps(err), file=sys.stderr)
+            sys.exit(1)
+
+asyncio.run(main())
+" 2>&1
+}
+
+# ── Get addon logs via REST (more reliable for text) ───────────
+_addon_logs() {
+  local lines="${1:-30}"
+  curl -sf -H "Authorization: Bearer ${TOKEN}" \
+    "http://${VM_IP}:8123/api/hassio/addons/${SUPERVISOR_SLUG}/logs" 2>/dev/null \
+    | sed 's/\x1b\[[0-9;]*m//g' | tail -n "$lines"
+}
+
+# ── Check if addon is installed ────────────────────────────────
+_is_installed() {
+  local info
+  info=$(_supervisor_call "/addons/${SUPERVISOR_SLUG}/info" 2>/dev/null) || return 1
+  echo "$info" | python3 -c "import json,sys; d=json.load(sys.stdin); sys.exit(0 if d.get('version') else 1)" 2>/dev/null
+}
+
+# ── Handle flags ───────────────────────────────────────────────
+case "${1:-}" in
+  --logs-only)
+    echo "📋 Recent logs for ${SUPERVISOR_SLUG}:"
+    _addon_logs 50
+    exit 0
+    ;;
+  --restart)
+    echo "🔄 Restarting ${SUPERVISOR_SLUG} (no rebuild)..."
+    _supervisor_call "/addons/${SUPERVISOR_SLUG}/restart" "post" >/dev/null
+    sleep 3
+    echo "📋 Logs:"
+    _addon_logs 20
+    exit 0
+    ;;
+esac
+
+# ── Step 1: Sync extension source into build context ──────────
+echo "📦 Syncing extension source into addon build context..."
+rm -rf "$ADDON_DIR/extensions/home-assistant"
+mkdir -p "$ADDON_DIR/extensions"
+cp -a "$REPO_ROOT/.pi/extensions/home-assistant" "$ADDON_DIR/extensions/home-assistant"
+rm -rf "$ADDON_DIR/extensions/home-assistant/node_modules" "$ADDON_DIR/extensions/home-assistant/data"
+
+# ── Step 2: Copy to VM ────────────────────────────────────────
+echo "📤 Copying addon/ → VM:/addons/${ADDON_SLUG}/"
+$SSH_CMD "rm -rf /addons/${ADDON_SLUG} && mkdir -p /addons/${ADDON_SLUG}"
+scp -r $SSH_OPTS "$ADDON_DIR/"* "root@${VM_IP}:/addons/${ADDON_SLUG}/" >/dev/null
+
+# ── Step 3: Strip image: line for local builds ─────────────────
+echo "🔧 Stripping 'image:' from config.yaml (enables local Dockerfile build)..."
+$SSH_CMD "sed -i '/^image:/d' /addons/${ADDON_SLUG}/config.yaml"
+
+# ── Step 4: Reload store ──────────────────────────────────────
+echo "🔄 Reloading add-on store..."
+_supervisor_call "/store/reload" "post" >/dev/null 2>&1 || true
+sleep 2
+
+# ── Step 5: Install or Rebuild ────────────────────────────────
+if _is_installed; then
+  echo "🏗️  Rebuilding add-on (Docker build from Dockerfile)..."
+  # Stop first to avoid state conflicts
+  _supervisor_call "/addons/${SUPERVISOR_SLUG}/stop" "post" >/dev/null 2>&1 || true
+  sleep 2
+
+  result=$(_supervisor_call "/addons/${SUPERVISOR_SLUG}/rebuild" "post" 2>&1) || {
+    echo "⚠️  Rebuild failed: $result"
+    echo "   Trying uninstall + reinstall..."
+    _supervisor_call "/addons/${SUPERVISOR_SLUG}/uninstall" "post" >/dev/null 2>&1 || true
+    sleep 3
+    _supervisor_call "/store/reload" "post" >/dev/null 2>&1 || true
+    sleep 2
+    echo "📥 Installing fresh..."
+    _supervisor_call "/addons/${SUPERVISOR_SLUG}/install" "post" >/dev/null 2>&1 || true
+    # Wait for build
+    sleep 5
+  }
+else
+  echo "📥 First install — building add-on from Dockerfile..."
+  _supervisor_call "/addons/${SUPERVISOR_SLUG}/install" "post" >/dev/null 2>&1 || true
+fi
+
+# ── Step 6: Wait for build to complete ────────────────────────
+echo -n "⏳ Waiting for build"
+for i in $(seq 1 60); do
+  sleep 3
+  if _is_installed; then
+    echo " ✅"
+    break
+  fi
+  echo -n "."
+done
+
+# ── Step 7: Inject API keys into add-on config ────────────────
+if [ -n "${ANTHROPIC_API_KEY:-}" ]; then
+  echo "🔑 Injecting ANTHROPIC_API_KEY into add-on options..."
+  # Fetch current options, merge the env var, POST back
+  OPTIONS_JSON=$(python3 << 'PYEOF'
+import json, subprocess, os
+
+info = subprocess.run(
+    [os.environ["SCRIPT_DIR"] + "/ha-supervisor", "addon-info", os.environ["SUPERVISOR_SLUG"]],
+    capture_output=True, text=True
+)
+opts = json.loads(info.stdout).get("options", {})
+
+# Set the dedicated API key field
+opts["anthropic_api_key"] = os.environ["ANTHROPIC_API_KEY"]
+
+print(json.dumps({"options": opts}))
+PYEOF
+  )
+  if _supervisor_call "/addons/${SUPERVISOR_SLUG}/options" "post" "$OPTIONS_JSON" >/dev/null 2>&1; then
+    echo "   ✅ API key configured"
+  else
+    echo "   ⚠️  Failed to set API key (set manually in add-on config)"
+  fi
+else
+  echo "⚠️  ANTHROPIC_API_KEY not in environment — skipping API key injection"
+fi
+
+# ── Step 8: Start and show logs ────────────────────────────────
+echo "▶️  Starting add-on..."
+_supervisor_call "/addons/${SUPERVISOR_SLUG}/start" "post" >/dev/null 2>&1 || true
+sleep 5
+
+echo ""
+echo "📋 Recent logs:"
+echo "─────────────────────────────────────────"
+_addon_logs 25
+echo "─────────────────────────────────────────"
+echo ""
+echo "✅ Deploy complete! Add-on: ${SUPERVISOR_SLUG}"
+echo ""
+echo "Commands:"
+echo "  deploy-addon --logs-only   # Check logs"
+echo "  deploy-addon --restart     # Quick restart (no rebuild)"

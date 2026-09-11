@@ -27,7 +27,7 @@ RUN apk add --no-cache \
     mosquitto-clients
 
 # Install pi coding agent (pinned version)
-RUN npm install -g @earendil-works/pi-coding-agent@0.78.0
+RUN npm install -g @earendil-works/pi-coding-agent@0.85.1
 
 # Copy HA extension into image
 COPY extensions/home-assistant /opt/ha-extension

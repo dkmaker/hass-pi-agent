@@ -31,7 +31,14 @@ export function registerBackupsTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_backups",
     label: "HA Backups",
-    description: `Manage HA backups. Actions: list, get, create-full, create-partial, restore-full, restore-partial, delete. Use ha_tool_docs('ha_backups') for full usage.`,
+    description: `Manage HA backups. Actions: list, get, create-full, create-partial, restore-full, restore-partial, delete.`,
+    promptSnippet:
+      "Create, restore, and manage Home Assistant backups — full or partial (add-ons/folders).",
+    promptGuidelines: [
+      "Use ha_backups when the user asks to back up, restore, or list Home Assistant backups.",
+      "Use ha_backups create-full before sweeping changes; create-partial to snapshot specific add-ons/folders.",
+      "Use ha_backups restore-full / restore-partial only with explicit user confirmation — it overwrites current state.",
+    ],
 
     parameters: Type.Object({
       action: StringEnum(

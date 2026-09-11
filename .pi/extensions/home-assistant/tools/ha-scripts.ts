@@ -12,6 +12,8 @@ import { apiGet, apiPost, apiDelete } from "../lib/api.js";
 import { timeSince, formatTrace, renderMarkdownResult, renderToolCall } from "../lib/format.js";
 import type { HAState, TraceListEntry } from "../lib/types.js";
 import { toYaml } from "../lib/yaml.js";
+import { backupBeforeMutation } from "../lib/mutation-log.js";
+import { appendNoteIfExists } from "../lib/agent-notes.js";
 
 // ── Helpers ──────────────────────────────────────────────────
 
@@ -131,7 +133,7 @@ async function handleGet(params: Record<string, unknown>): Promise<string> {
     lines.push("```");
   }
 
-  return lines.join("\n");
+  return lines.join("\n") + appendNoteIfExists(resolvedEntityId!);
 }
 
 // ── Create ───────────────────────────────────────────────────
@@ -163,6 +165,8 @@ async function handleUpdate(params: Record<string, unknown>): Promise<string> {
     throw new Error(`Script '${scriptId}' not found`);
   }
 
+  backupBeforeMutation("ha_scripts", "update", scriptId, existing);
+
   const { id: _id, ...existingWithoutId } = existing;
   const merged = { ...existingWithoutId, ...config };
 
@@ -179,6 +183,12 @@ async function handleDelete(params: Record<string, unknown>): Promise<string> {
   if (!params.confirm) {
     return `⚠️ **Confirm delete**: script \`${scriptId}\`\n\nCall again with \`confirm: true\` to proceed.`;
   }
+
+  try {
+    const existing = await apiGet(`/api/config/script/config/${scriptId}`);
+    backupBeforeMutation("ha_scripts", "delete", scriptId, existing);
+  } catch { /* best-effort */ }
+
   await apiDelete(`/api/config/script/config/${scriptId}`);
   return `✅ Deleted script '${scriptId}'`;
 }
@@ -262,7 +272,13 @@ export function registerScriptsTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_scripts",
     label: "HA Scripts",
-    description: `Manage HA scripts — CRUD, run, stop, traces. Actions: list, get, create, update, delete, run, stop, traces, trace. Use ha_tool_docs('ha_scripts') for full usage.`,
+    description: `Manage HA scripts — CRUD, run, stop, traces. Actions: list, get, create, update, delete, run, stop, traces, trace.`,
+    promptSnippet:
+      "Full script lifecycle: CRUD, run/stop, execution traces — changes auto-reload.",
+    promptGuidelines: [
+      "Use ha_scripts when the user asks to create, edit, run, stop, or debug scripts.",
+      "Use ha_scripts action:run with variables to test a script; action:traces / trace to debug a run.",
+    ],
 
     parameters: Type.Object({
       action: StringEnum(ALL_ACTIONS, { description: "Action to perform" }),

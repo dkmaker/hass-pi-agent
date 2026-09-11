@@ -12,6 +12,8 @@ import { wsCommand } from "../lib/ws.js";
 import { apiGet } from "../lib/api.js";
 import type { HAState } from "../lib/types.js";
 import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
+import { backupBeforeMutation } from "../lib/mutation-log.js";
+import { appendNoteIfExists } from "../lib/agent-notes.js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -126,7 +128,14 @@ export function registerDevicesTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_devices",
     label: "HA Devices",
-    description: `Discover, inspect, and manage HA devices. Actions: list, get, update, tree. Use ha_tool_docs('ha_devices') for full usage.`,
+    description: `Discover, inspect, and manage HA devices. Actions: list, get, update, tree.`,
+    promptSnippet:
+      "Discover, inspect, and manage HA devices: filter/list, full detail, rename, move to area, set labels, enable/disable, view hub→child tree.",
+    promptGuidelines: [
+      "Use ha_devices when the user asks to find, inspect, rename, re-area, or enable/disable a physical device.",
+      "Use ha_devices action:tree to see hub/bridge devices and their children.",
+      "Use ha_devices action:get for hardware info + all of a device's entities and states.",
+    ],
 
     parameters: Type.Object({
       action: StringEnum(["list", "get", "update", "tree"] as const, {
@@ -435,7 +444,7 @@ async function handleGet(deviceId?: string): Promise<string> {
     }
   }
 
-  return lines.join("\n");
+  return lines.join("\n") + appendNoteIfExists(deviceId!);
 }
 
 // ── Update ───────────────────────────────────────────────────
@@ -470,6 +479,12 @@ async function handleUpdate(params: Record<string, unknown>): Promise<string> {
       "No update fields provided. Use: name_by_user, area_id, labels, disabled_by"
     );
   }
+
+  // Snapshot current state before mutation
+  try {
+    const current = await wsCommand("config/device_registry/get", { device_id: deviceId });
+    backupBeforeMutation("ha_devices", "update", deviceId, current);
+  } catch { /* best-effort */ }
 
   const updated = await wsCommand<WSDevice>("config/device_registry/update", updateData);
 

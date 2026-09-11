@@ -8,7 +8,7 @@ Development workspace for **Pi Agent for Home Assistant**, a Home Assistant add-
 |-----------|---------|
 | `addon/` | Add-on source (config.yaml, Dockerfile, run.sh) |
 | `.pi/extensions/home-assistant/` | Pi extension — tools, lib, schemas |
-| `.pi/skills/ha-dev/` | Dev skill — API scripts, VM management, docs |
+| `dev-scripts/` | Dev scripts — deploy, VM management, API helpers |
 | `ha-core/` | Git submodule — HA backend (reference only, **do not edit**) |
 | `ha-frontend/` | Git submodule — HA frontend (reference only, **do not edit**) |
 | `tools/` | Schema extractors (extract-schemas.py, extract-automation-schemas.py) |
@@ -37,18 +37,12 @@ Development workspace for **Pi Agent for Home Assistant**, a Home Assistant add-
 | Network | `haos-isolated` — private subnet, NAT internet, no LAN bridge |
 
 ```bash
-.pi/skills/ha-dev/scripts/vm-ctl start|stop|status|ssh|destroy
+dev-scripts/vm-ctl start|stop|status|ssh|destroy
 ```
 
 ## Deploy Workflow
 
-```bash
-.pi/skills/ha-dev/scripts/deploy-addon          # SCP to VM + store reload
-.pi/skills/ha-dev/scripts/ha-supervisor addon-rebuild local_pi_agent  # Rebuild after changes
-.pi/skills/ha-dev/scripts/ha-api addon-logs local_pi_agent            # Check logs
-```
-
-First install: HA UI → Settings → Add-ons → Add-on Store → ⋮ Check for updates → Local add-ons → Install.
+See asset **"Add-on Deploy & Test Workflow"** for deploy commands, troubleshooting, and details.
 
 ## Extension Structure
 

@@ -17,7 +17,15 @@ import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
 export function registerGraphTool(pi: ExtensionAPI) {
   pi.registerTool({
     name: "ha_graph",
-    description: `Entity & configuration relationship graph engine. Actions: build, status, query, impact, orphans, unused-labels, unused-areas, summary, export. Use ha_tool_docs('ha_graph') for full usage.`,
+    label: "HA Graph",
+    description: `Entity & configuration relationship graph engine. Actions: build, status, query, impact, orphans, unused-labels, unused-areas, summary, export.`,
+    promptSnippet:
+      "Entity/config relationship graph: find references, impact analysis, orphans, unused labels/areas, summary, export.",
+    promptGuidelines: [
+      "Use ha_graph action:impact before renaming/deleting an entity to see what automations/scripts/dashboards break.",
+      "Use ha_graph action:orphans / unused-labels / unused-areas to find cleanup candidates.",
+      "Use ha_graph action:query to trace references to or from an entity, area, or label.",
+    ],
     parameters: Type.Object({
       action: StringEnum(
         ["build", "status", "query", "impact", "orphans", "unused-labels", "unused-areas", "summary", "export"] as const,

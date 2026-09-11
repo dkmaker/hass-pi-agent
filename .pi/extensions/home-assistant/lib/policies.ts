@@ -2,17 +2,16 @@
  * Policy storage and management for Pi Agent.
  *
  * Policies are user-defined conventions (naming, organization, etc.)
- * stored in /homeassistant/pi-agent/policies.yaml and injected into
+ * stored in /homeassistant/.pi-agent/policies.yaml and injected into
  * the system prompt so the AI follows them consistently.
  */
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { HA_CONFIG_PATH } from "./config.js";
+import { PI_AGENT_DIR } from "./config.js";
 import { parseYaml, toYaml } from "./yaml.js";
 
 // ── Paths ────────────────────────────────────────────────────
 
-export const PI_AGENT_DIR = join(HA_CONFIG_PATH, "pi-agent");
 export const POLICIES_FILE = join(PI_AGENT_DIR, "policies.yaml");
 
 // ── Types ────────────────────────────────────────────────────

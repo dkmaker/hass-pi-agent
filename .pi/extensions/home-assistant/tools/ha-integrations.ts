@@ -9,6 +9,7 @@ import { Type } from "@earendil-works/pi-ai";
 import { StringEnum } from "@earendil-works/pi-ai";
 import { apiGet, apiPost, apiDelete } from "../lib/api.js";
 import { timeSince , renderMarkdownResult, renderToolCall } from "../lib/format.js";
+import { backupBeforeMutation } from "../lib/mutation-log.js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -33,7 +34,13 @@ export function registerIntegrationsTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_integrations",
     label: "HA Integrations",
-    description: `Manage HA integrations (config entries). Actions: list, get, disable, enable, reload, remove. Use ha_tool_docs('ha_integrations') for full usage.`,
+    description: `Manage HA integrations (config entries). Actions: list, get, disable, enable, reload, remove.`,
+    promptSnippet:
+      "Manage integration config entries: list, inspect, enable/disable, reload, remove (not add — use the UI wizard for that).",
+    promptGuidelines: [
+      "Use ha_integrations when the user asks to reload, disable, enable, or remove a configured integration.",
+      "Use ha_integrations action:reload after changing an integration's YAML or to recover a failed entry.",
+    ],
 
     parameters: Type.Object({
       action: StringEnum(["list", "get", "disable", "enable", "reload", "remove"] as const, {
@@ -143,6 +150,12 @@ async function handleGet(entryId?: string): Promise<string> {
 async function handleDisable(entryId?: string): Promise<string> {
   if (!entryId) throw new Error("'entry_id' is required for disable");
 
+  try {
+    const entries = await apiGet<any[]>("/api/config/config_entries/entry");
+    const current = entries.find((e) => e.entry_id === entryId);
+    if (current) backupBeforeMutation("ha_integrations", "disable", entryId, current);
+  } catch { /* best-effort */ }
+
   const result = await apiPost<{ entry_id: string; disabled_by: string }>(
     `/api/config/config_entries/entry/${entryId}/disable`,
     { disabled_by: "user" }
@@ -152,6 +165,12 @@ async function handleDisable(entryId?: string): Promise<string> {
 
 async function handleEnable(entryId?: string): Promise<string> {
   if (!entryId) throw new Error("'entry_id' is required for enable");
+
+  try {
+    const entries = await apiGet<any[]>("/api/config/config_entries/entry");
+    const current = entries.find((e) => e.entry_id === entryId);
+    if (current) backupBeforeMutation("ha_integrations", "enable", entryId, current);
+  } catch { /* best-effort */ }
 
   await apiPost(
     `/api/config/config_entries/entry/${entryId}/disable`,
@@ -172,6 +191,12 @@ async function handleRemove(entryId?: string, confirm?: boolean): Promise<string
   if (!confirm) {
     return `⚠️ **Confirm remove**: integration config entry \`${entryId}\`\n\nCall again with \`confirm: true\` to proceed.`;
   }
+
+  try {
+    const entries = await apiGet<any[]>("/api/config/config_entries/entry");
+    const current = entries.find((e) => e.entry_id === entryId);
+    if (current) backupBeforeMutation("ha_integrations", "remove", entryId, current);
+  } catch { /* best-effort */ }
 
   await apiDelete(`/api/config/config_entries/entry/${entryId}`);
   return `✅ Removed config entry '${entryId}'`;

@@ -9,6 +9,7 @@ import { Type } from "@earendil-works/pi-ai";
 import { StringEnum } from "@earendil-works/pi-ai";
 import { wsCommand } from "../lib/ws.js";
 import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
+import { backupBeforeMutation } from "../lib/mutation-log.js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -28,7 +29,12 @@ export function registerZonesTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_zones",
     label: "HA Zones",
-    description: `Manage HA zones (presence detection areas). Actions: list, get, create, update, delete. Use ha_tool_docs('ha_zones') for full usage.`,
+    description: `Manage HA zones (presence detection areas). Actions: list, get, create, update, delete.`,
+    promptSnippet:
+      "Manage geographic zones for presence detection: list, get, create, update, delete (home zone is UI-only).",
+    promptGuidelines: [
+      "Use ha_zones when the user asks to add or edit geographic zones used for presence/automations.",
+    ],
 
     parameters: Type.Object({
       action: StringEnum(["list", "get", "create", "update", "delete"] as const, {
@@ -144,6 +150,12 @@ async function handleUpdate(params: Record<string, unknown>): Promise<string> {
   if (params.icon !== undefined) data.icon = params.icon;
   if (params.passive !== undefined) data.passive = params.passive;
 
+  try {
+    const zones = await wsCommand<WSZone[]>("zone/list");
+    const current = zones.find((z) => z.id === id);
+    if (current) backupBeforeMutation("ha_zones", "update", id, current);
+  } catch { /* best-effort */ }
+
   const result = await wsCommand<WSZone>("zone/update", data);
   return `✅ Updated zone '${result.name}' (id: ${result.id})`;
 }
@@ -153,6 +165,13 @@ async function handleDelete(id?: string, confirm?: boolean): Promise<string> {
   if (!confirm) {
     return `⚠️ **Confirm delete**: zone \`${id}\`\n\nCall again with \`confirm: true\` to proceed.`;
   }
+
+  try {
+    const zones = await wsCommand<WSZone[]>("zone/list");
+    const current = zones.find((z) => z.id === id);
+    if (current) backupBeforeMutation("ha_zones", "delete", id, current);
+  } catch { /* best-effort */ }
+
   await wsCommand("zone/delete", { id });
   return `✅ Deleted zone '${id}'`;
 }

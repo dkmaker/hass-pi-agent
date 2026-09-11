@@ -46,8 +46,14 @@ export function registerPoliciesTool(pi: ExtensionAPI): void {
     label: "HA Policies",
     description:
       "Manage user-defined policies (naming conventions, organization preferences). " +
-      "Actions: list, get, set, remove, init (setup wizard scan), check (audit entities). " +
-      "Use ha_tool_docs('ha_policies') for full usage.",
+      "Actions: list, get, set, remove, init (setup wizard scan), check (audit entities).",
+    promptSnippet:
+      "Manage user naming/organization policies the agent follows; scan system (init) and audit entities (check).",
+    promptGuidelines: [
+      "Use ha_policies action:check to audit entities against defined naming/organization conventions.",
+      "Use ha_policies action:init at the start of /setup to scan the system and drive the guided wizard.",
+      "Use ha_policies action:set to record a convention the user states so it's followed consistently.",
+    ],
 
     parameters: Type.Object({
       action: StringEnum(
@@ -277,7 +283,7 @@ async function handleInit(): Promise<string> {
   lines.push("- **Device types:** Common types like 'ceiling light', 'motion sensor', 'temperature', 'door lock' etc.");
   lines.push("- **Metrics:** power, energy, voltage, current, temperature, humidity");
   lines.push("- **Common words:** on, off, open, closed, etc.");
-  lines.push("Use the `questionnaire` tool to let users pick/confirm translations.");
+  lines.push("Ask the user to pick/confirm translations conversationally, one topic at a time.");
   lines.push("Save all mappings with `action: 'set'`, `category: 'language'`.");
   lines.push("");
   lines.push("After all topics, show a complete summary and save with `action: 'set'`.");

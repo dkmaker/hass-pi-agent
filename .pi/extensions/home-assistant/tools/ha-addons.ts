@@ -64,7 +64,14 @@ export function registerAddonsTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_addons",
     label: "HA Add-ons",
-    description: `Manage HA add-ons (install, start/stop, config, logs, store). Actions: list, get, start, stop, restart, install, uninstall, update, logs, stats, config, set-config, store, store-refresh, list-repos, add-repo, remove-repo. Use ha_tool_docs('ha_addons') for full usage.`,
+    description: `Manage HA add-ons (install, start/stop, config, logs, store). Actions: list, get, start, stop, restart, install, uninstall, update, logs, stats, config, set-config, store, store-refresh, list-repos, add-repo, remove-repo.`,
+    promptSnippet:
+      "Manage HA add-ons: install/uninstall, start/stop/restart, update, view/set config, logs, stats, and the add-on store + repositories.",
+    promptGuidelines: [
+      "Use ha_addons when the user asks to install, configure, start/stop, update, or check logs/stats of a Home Assistant add-on.",
+      "Use ha_addons action:store to browse available add-ons; action:set-config to change an add-on's options.",
+      "Use ha_addons action:logs when troubleshooting a misbehaving add-on.",
+    ],
 
     parameters: Type.Object({
       action: StringEnum(

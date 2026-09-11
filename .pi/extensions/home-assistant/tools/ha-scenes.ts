@@ -11,6 +11,8 @@ import { wsCommand } from "../lib/ws.js";
 import { apiGet, apiPost, apiDelete } from "../lib/api.js";
 import type { HAState } from "../lib/types.js";
 import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
+import { backupBeforeMutation } from "../lib/mutation-log.js";
+import { appendNoteIfExists } from "../lib/agent-notes.js";
 
 // ── List ─────────────────────────────────────────────────────
 
@@ -110,7 +112,7 @@ async function handleGet(params: Record<string, unknown>): Promise<string> {
     }
   }
 
-  return lines.join("\n");
+  return lines.join("\n") + appendNoteIfExists(resolvedEntityId!);
 }
 
 // ── Create ───────────────────────────────────────────────────
@@ -142,6 +144,8 @@ async function handleUpdate(params: Record<string, unknown>): Promise<string> {
     throw new Error(`Scene '${sceneId}' not found`);
   }
 
+  backupBeforeMutation("ha_scenes", "update", sceneId, existing);
+
   const { id: _id, ...rest } = existing;
   const merged = { ...rest, ...config };
 
@@ -158,6 +162,12 @@ async function handleDelete(params: Record<string, unknown>): Promise<string> {
   if (!params.confirm) {
     return `⚠️ **Confirm delete**: scene \`${sceneId}\`\n\nCall again with \`confirm: true\` to proceed.`;
   }
+
+  try {
+    const existing = await apiGet(`/api/config/scene/config/${sceneId}`);
+    backupBeforeMutation("ha_scenes", "delete", sceneId, existing);
+  } catch { /* best-effort */ }
+
   await apiDelete(`/api/config/scene/config/${sceneId}`);
   return `✅ Deleted scene '${sceneId}'`;
 }
@@ -200,7 +210,13 @@ export function registerScenesTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_scenes",
     label: "HA Scenes",
-    description: `Manage HA scenes — CRUD, activate, snapshot. Actions: list, get, create, update, delete, activate, snapshot. Use ha_tool_docs('ha_scenes') for full usage.`,
+    description: `Manage HA scenes — CRUD, activate, snapshot. Actions: list, get, create, update, delete, activate, snapshot.`,
+    promptSnippet:
+      "Manage scenes: list/get/create/update/delete, activate, or snapshot current entity states into a scene.",
+    promptGuidelines: [
+      "Use ha_scenes when the user asks to create, edit, activate, or capture scenes.",
+      "Use ha_scenes action:snapshot to build a scene from entities' current states.",
+    ],
 
     parameters: Type.Object({
       action: StringEnum(ALL_ACTIONS, { description: "Action to perform" }),
