@@ -9,6 +9,7 @@
     "mock": "tsx server/mock-server.ts"
   },
   "dependencies": {
+    "@earendil-works/pi-coding-agent": "^0.85.1",
     "@material/web": "^2.3.0",
     "@mdi/js": "^7.4.47",
     "lit": "^3.2.1"
