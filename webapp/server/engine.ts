@@ -17,7 +17,7 @@ import { readFileSync, mkdirSync } from "node:fs";
 import { dirname, extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { WebSocketServer, type WebSocket } from "ws";
-import { createAgentSession, DefaultResourceLoader, ModelRuntime, SessionManager, resolveCliModel, type AgentSessionEvent } from "@earendil-works/pi-coding-agent";
+import { createAgentSession, DefaultResourceLoader, ModelRuntime, SessionManager, resolveCliModel, type AgentSession, type AgentSessionEvent } from "@earendil-works/pi-coding-agent";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dirname, "..", "..");
@@ -89,18 +89,9 @@ if (modelSpec) {
   else { model = r.model; if (r.warning) console.warn("[engine]", r.warning); }
 }
 
-const sessionManager = SessionManager.inMemory(agentCwd);
-const { session } = await createAgentSession({
-  resourceLoader: loader,
-  cwd: agentCwd,
-  sessionManager,
-  model,
-  modelRuntime,
-});
-console.log("[engine] ready — model=%s tools=%d (ha_*=%d)",
-  session.model?.id ?? "(default)",
-  session.agent.state.tools.length,
-  session.agent.state.tools.filter((t) => t.name.startsWith("ha_")).length);
+// The active session is mutable — /new and resume replace it (re-subscribing toWire).
+let session!: AgentSession;
+let unsub: (() => void) | null = null;
 
 // ── WS clients + event fan-out ──────────────────────────────
 const clients = new Set<WebSocket>();
@@ -140,8 +131,6 @@ function toWire(e: AgentSessionEvent): void {
     default: break; // queue_update / compaction_* / auto_retry_* — not surfaced yet
   }
 }
-session.subscribe(toWire);
-
 async function handlePrompt(text: string): Promise<void> {
   if (busy) { broadcast({ type: "notice", text: "Busy — one turn at a time." }); return; }
   busy = true;
@@ -154,6 +143,81 @@ async function handlePrompt(text: string): Promise<void> {
     busy = false;
   }
 }
+
+// ── Session lifecycle: /new, /sessions list, resume ───────
+async function startSession(sm: ReturnType<typeof SessionManager.create>): Promise<void> {
+  if (unsub) { unsub(); unsub = null; }
+  if (session) { try { session.dispose(); } catch { /* ignore */ } }
+  const created = await createAgentSession({ resourceLoader: loader, cwd: agentCwd, sessionManager: sm, model, modelRuntime });
+  session = created.session;
+  unsub = session.subscribe(toWire);
+  busy = false;
+}
+
+function relTime(iso?: string): string {
+  if (!iso) return "";
+  const m = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+  if (m < 1) return "just now";
+  if (m < 60) return `${m}m ago`;
+  const h = Math.round(m / 60);
+  return h < 24 ? `${h}h ago` : `${Math.round(h / 24)}d ago`;
+}
+
+async function listSessions(): Promise<Array<{ path: string; id: string; title: string; when: string; count: number }>> {
+  const list = (await SessionManager.list(agentCwd)) as Array<Record<string, unknown>>;
+  return list
+    .map((s) => ({
+      path: String(s.path ?? ""),
+      id: String(s.id ?? ""),
+      title: (String(s.name ?? "").trim() || String(s.firstMessage ?? "").trim() || "Chat").slice(0, 64),
+      when: relTime((s.modified ?? s.created) as string),
+      count: Number(s.messageCount ?? 0),
+      _t: new Date(String(s.modified ?? s.created ?? 0)).getTime(),
+    }))
+    .filter((s) => s.count > 0 && s.path)
+    .sort((a, b) => b._t - a._t)
+    .map(({ _t, ...s }) => s);
+}
+
+/** Reconstruct the frontend timeline (src/types.ts Entry[]) from a resumed session's messages. */
+function historyEntries(): Array<Record<string, unknown>> {
+  const out: Array<Record<string, unknown>> = [];
+  const toolById: Record<string, Record<string, unknown>> = {};
+  let n = 0;
+  const nid = () => `h${n++}`;
+  for (const m of (session.messages ?? []) as Array<Record<string, unknown>>) {
+    const role = m.role as string;
+    const content = (m.content ?? []) as Array<Record<string, unknown>>;
+    if (role === "user") {
+      const text = content.filter((c) => c.type === "text").map((c) => c.text ?? "").join("\n").trim();
+      if (text) out.push({ kind: "user", id: nid(), text });
+    } else if (role === "assistant") {
+      let text = "";
+      for (const c of content) {
+        if (c.type === "text") text += (c.text as string) ?? "";
+        else if (c.type === "toolCall") {
+          const id = String(c.toolCallId ?? c.id ?? nid());
+          const entry = { kind: "tool", id, toolName: String(c.toolName ?? c.name ?? "tool"), args: (c.args ?? c.input ?? {}) as Record<string, unknown>, running: false, isError: false, result: { kind: "text", data: "" } };
+          toolById[id] = entry;
+          out.push(entry);
+        }
+      }
+      if (text.trim()) out.push({ kind: "assistant", id: nid(), text: text.trim(), thinking: "", streaming: false });
+    } else if (role === "toolResult") {
+      const id = String(m.toolCallId ?? content[0]?.toolCallId ?? "");
+      const text = content.filter((c) => c.type === "text").map((c) => c.text ?? "").join("\n");
+      const e = toolById[id];
+      if (e) { e.result = { kind: "text", data: text }; e.isError = !!m.isError; }
+    }
+  }
+  return out;
+}
+
+await startSession(SessionManager.create(agentCwd));
+console.log("[engine] ready — model=%s tools=%d (ha_*=%d)",
+  session.model?.id ?? "(default)",
+  session.agent.state.tools.length,
+  session.agent.state.tools.filter((t) => t.name.startsWith("ha_")).length);
 
 // ── HTTP static (webapp/dist) ───────────────────────────────
 const server = createServer(async (req, res) => {
@@ -173,12 +237,19 @@ const server = createServer(async (req, res) => {
 const wss = new WebSocketServer({ server, path: "/ws" });
 wss.on("connection", (ws) => {
   clients.add(ws);
-  void fetchStats().then((s) => { if (s) { try { ws.send(JSON.stringify({ type: "stats", data: s })); } catch { /* dropped */ } } });
+  const sendTo = (msg: unknown) => { try { ws.send(JSON.stringify(msg)); } catch { /* dropped */ } };
+  void fetchStats().then((s) => { if (s) sendTo({ type: "stats", data: s }); });
+  void listSessions().then((s) => sendTo({ type: "sessions", data: s }));
   ws.on("message", (raw) => {
-    let cmd: { type?: string; text?: string };
+    let cmd: { type?: string; text?: string; path?: string };
     try { cmd = JSON.parse(String(raw)); } catch { return; }
-    if (cmd.type === "prompt" && cmd.text) void handlePrompt(cmd.text);
-    else if (cmd.type === "abort") void session.abort().then(() => broadcast({ type: "aborted" }));
+    switch (cmd.type) {
+      case "prompt": if (cmd.text) void handlePrompt(cmd.text); break;
+      case "abort": void session.abort().then(() => broadcast({ type: "aborted" })); break;
+      case "list_sessions": void listSessions().then((s) => sendTo({ type: "sessions", data: s })); break;
+      case "new_session": void startSession(SessionManager.create(agentCwd)).then(() => broadcast({ type: "session_cleared" })); break;
+      case "open_session": if (cmd.path) void startSession(SessionManager.open(cmd.path)).then(() => broadcast({ type: "history", data: historyEntries() })); break;
+    }
   });
   ws.on("close", () => clients.delete(ws));
 });

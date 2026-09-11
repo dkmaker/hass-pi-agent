@@ -16,6 +16,15 @@ export interface StatsOverview {
   areas: number;
 }
 
+/** A persisted past session, for the /sessions drawer. */
+export interface SessionMeta {
+  path: string;
+  id: string;
+  title: string;
+  when: string;
+  count: number;
+}
+
 export interface ToolResult {
   kind: ToolResultKind;
   /** Freeform payload rendered per kind by <pi-tool-block>. */
@@ -26,6 +35,9 @@ export interface ToolResult {
 export type ServerEvent =
   | { type: "agent_start" }
   | { type: "stats"; data: StatsOverview }
+  | { type: "sessions"; data: SessionMeta[] }
+  | { type: "session_cleared" }
+  | { type: "history"; data: Entry[] }
   | { type: "working"; label: string }
   | { type: "message_start" }
   | { type: "thinking_delta"; delta: string }
@@ -40,7 +52,10 @@ export type ServerEvent =
 /** Client → server commands (mock). */
 export type ClientCommand =
   | { type: "prompt"; text: string; scenario?: string }
-  | { type: "abort" };
+  | { type: "abort" }
+  | { type: "list_sessions" }
+  | { type: "new_session" }
+  | { type: "open_session"; path: string };
 
 /** Timeline model (client-side). */
 export type Entry =

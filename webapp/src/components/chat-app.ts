@@ -9,7 +9,7 @@ import "./setup-wizard.js";
 import { icon } from "../icon.js";
 import { mdiRobot, mdiMenu, mdiPlus, mdiSend, mdiStop, mdiThemeLightDark, mdiWeatherSunny, mdiWeatherNight, mdiCog, mdiHistory, mdiShapeOutline, mdiRobotOutline, mdiScriptTextOutline, mdiLightbulbOutline, mdiGauge, mdiFloorPlan } from "@mdi/js";
 import { renderMarkdown } from "../md.js";
-import type { Entry, ServerEvent, ToolResult, StatsOverview } from "../types.js";
+import type { Entry, ServerEvent, ToolResult, StatsOverview, SessionMeta } from "../types.js";
 
 let idc = 0;
 const nid = () => `e${++idc}`;
@@ -57,7 +57,7 @@ export class PiChatApp extends LitElement {
     ((typeof localStorage !== "undefined" && localStorage.getItem("pi-theme")) as "auto" | "light" | "dark") || "auto";
   @state() private setupOpen = false;
   @state() private stats?: StatsOverview;
-  private sessions = cannedSessions();
+  @state() private sessions: SessionMeta[] = [];
   @query(".scroll") private scroller?: HTMLElement;
   @query("textarea") private ta?: HTMLTextAreaElement;
 
@@ -138,7 +138,7 @@ export class PiChatApp extends LitElement {
     const url = `${proto}://${location.host}/ws`;
     const ws = new WebSocket(url);
     this.ws = ws;
-    ws.onopen = () => { this.connected = true; };
+    ws.onopen = () => { this.connected = true; this.wsSend({ type: "list_sessions" }); };
     ws.onclose = () => { this.connected = false; this.busy = false; setTimeout(() => this.connect(), 1500); };
     ws.onmessage = (m) => { try { this.onEvent(JSON.parse(m.data) as ServerEvent); } catch { /* ignore */ } };
   }
@@ -153,6 +153,9 @@ export class PiChatApp extends LitElement {
     switch (ev.type) {
       case "agent_start": this.busy = true; break;
       case "stats": this.stats = ev.data; break;
+      case "sessions": this.sessions = ev.data; break;
+      case "session_cleared": this.entries = []; this.sessionTitle = "New chat"; this.busy = false; this.working = ""; this.bump(); break;
+      case "history": this.entries = ev.data.map((e) => ({ ...e })); this.busy = false; this.working = ""; this.bump(); this.scrollSoon(); break;
       case "working": this.working = ev.label; break;
       case "message_start":
         this.entries.push({ kind: "assistant", id: nid(), text: "", thinking: "", streaming: true });
@@ -199,7 +202,7 @@ export class PiChatApp extends LitElement {
     const cmd = t.toLowerCase();
     if (cmd === "/setup") { this.setupOpen = true; this.clearDraft(); return; }
     if (cmd === "/new") { this.newSession(); this.clearDraft(); return; }
-    if (cmd === "/sessions") { this.drawerOpen = true; this.clearDraft(); return; }
+    if (cmd === "/sessions") { this.openDrawer(); this.clearDraft(); return; }
     if (this.busy || !this.ws || this.ws.readyState !== WebSocket.OPEN) return;
     this.entries.push({ kind: "user", id: nid(), text: t });
     this.clearDraft();
@@ -212,19 +215,30 @@ export class PiChatApp extends LitElement {
     this.ws?.send(JSON.stringify({ type: "abort" }));
   }
 
+  private wsSend(o: unknown): void {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) this.ws.send(JSON.stringify(o));
+  }
+
+  private openDrawer(): void {
+    this.drawerOpen = true;
+    this.wsSend({ type: "list_sessions" });
+  }
+
   private newSession(): void {
     this.stop();
     this.entries = [];
     this.sessionTitle = "New chat";
     this.busy = false; this.working = "";
     this.drawerOpen = false;
+    this.wsSend({ type: "new_session" });
   }
 
-  private openSession(s: MockSession): void {
-    this.entries = s.entries.map((e) => ({ ...e }));
+  private openSession(s: SessionMeta): void {
+    this.stop();
+    this.entries = [];
     this.sessionTitle = s.title;
     this.drawerOpen = false;
-    this.scrollSoon();
+    this.wsSend({ type: "open_session", path: s.path });
   }
 
   private onKey(e: KeyboardEvent): void {
@@ -390,7 +404,7 @@ export class PiChatApp extends LitElement {
         : nothing}
 
       <header>
-        <button class="iconbtn" @click=${() => { this.drawerOpen = true; }} title="Sessions" aria-label="Sessions">
+        <button class="iconbtn" @click=${() => this.openDrawer()} title="Sessions" aria-label="Sessions">
           ${icon(mdiMenu, 22)}
         </button>
         <div class="logo">${icon(mdiRobot, 20)}</div>
