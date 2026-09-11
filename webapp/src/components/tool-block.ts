@@ -1,7 +1,9 @@
 import { LitElement, html, css, nothing, type TemplateResult } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import "@material/web/progress/circular-progress.js";
+import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { icon } from "../icon.js";
+import { renderMarkdown } from "../md.js";
 import { mdiCheck, mdiAlertCircle } from "@mdi/js";
 import type { ToolResult } from "../types.js";
 
@@ -54,6 +56,11 @@ export class PiToolBlock extends LitElement {
     .diff .ctx { color: var(--pi-text-2); display: block; }
     .kv { color: var(--pi-text-2); }
     .kv b { color: var(--pi-text); font-family: var(--pi-mono); }
+    .md p { margin: 0 0 6px; } .md p:last-child { margin: 0; }
+    .md pre.code { background: var(--pi-code-bg); border-radius: 8px; padding: 8px 10px; overflow-x: auto; font: 12.5px/1.5 var(--pi-mono); }
+    .md code { font-family: var(--pi-mono); }
+    .md ul { margin: 4px 0; padding-left: 18px; }
+    .md table { margin: 4px 0; display: block; overflow-x: auto; max-width: 100%; white-space: nowrap; }
   `;
 
   private argSummary(): string {
@@ -95,7 +102,10 @@ export class PiToolBlock extends LitElement {
       const d = r.data as { domain: string; service: string; target: string; ok: boolean };
       return html`<div class="kv">Called <b>${d.domain}.${d.service}</b> on <b>${d.target}</b> — ${d.ok ? "success" : "failed"}.</div>`;
     }
-    return html`<span class="kv">${JSON.stringify(r.data)}</span>`;
+    // Generic fallback: HA tools already emit human-formatted markdown
+    // (tables/lists/code) — render it as markdown rather than dumping raw JSON.
+    const text = typeof r.data === "string" ? r.data : "```json\n" + JSON.stringify(r.data, null, 2) + "\n```";
+    return html`<div class="md">${unsafeHTML(renderMarkdown(text))}</div>`;
   }
 
   render() {

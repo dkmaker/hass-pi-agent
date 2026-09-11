@@ -286,6 +286,10 @@ export class PiChatApp extends LitElement {
     .working { display: flex; align-items: center; gap: 10px; color: var(--pi-text-2); font-size: 14px; padding-left: 4px; }
     md-circular-progress { --md-circular-progress-size: 20px; }
 
+    .bubble table { border-collapse: collapse; font-size: 12.5px; display: block; overflow-x: auto; max-width: 100%; margin: 4px 0; }
+    .bubble th, .bubble td { text-align: left; padding: 5px 9px; border-bottom: 1px solid var(--pi-divider); white-space: nowrap; }
+    .bubble th { color: var(--pi-text-2); font-weight: 600; }
+    .bubble td:first-child { font-family: var(--pi-mono); }
     .empty { margin: auto; text-align: center; color: var(--pi-text-2); max-width: 420px; }
     .empty h2 { color: var(--pi-text); font-weight: 600; }
     .chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 14px; }
@@ -341,7 +345,8 @@ export class PiChatApp extends LitElement {
       return html`<div class="row assistant"><div style="width:100%"><pi-tool-block
         .toolName=${e.toolName} .args=${e.args} .running=${e.running} .isError=${e.isError} .result=${e.result}
       ></pi-tool-block></div></div>`;
-    // assistant
+    // assistant — skip empty bubbles (message_start with no text/thinking)
+    if (!e.text && !e.thinking && !e.streaming) return nothing;
     return html`<div class="row assistant"><div class="bubble">
       ${e.thinking ? html`<div class="thinking">${e.thinking}</div>` : nothing}
       ${unsafeHTML(renderMarkdown(e.text || (e.streaming ? "…" : "")))}

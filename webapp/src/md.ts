@@ -23,6 +23,15 @@ export function renderMarkdown(src: string): string {
   s = s.replace(/(^|[\s(])\*([^*\n]+)\*/g, "$1<em>$2</em>");
   s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
 
+  // GFM pipe tables: header row, |---| separator, then body rows
+  s = s.replace(/(?:^|\n)(\|[^\n]+\|\n\|[ :|-]+\|\n(?:\|[^\n]*\|(?:\n|$))*)/g, (_m, block: string) => {
+    const rows = block.trim().split("\n");
+    const cells = (r: string) => r.replace(/^\s*\|/, "").replace(/\|\s*$/, "").split("|").map((c) => c.trim());
+    const head = cells(rows[0]).map((c) => `<th>${c}</th>`).join("");
+    const body = rows.slice(2).map((r) => `<tr>${cells(r).map((c) => `<td>${c}</td>`).join("")}</tr>`).join("");
+    return `\n<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>\n`;
+  });
+
   // bullet lists
   s = s.replace(/(?:^|\n)((?:- .*(?:\n|$))+)/g, (_m, block: string) => {
     const items = block
@@ -37,6 +46,8 @@ export function renderMarkdown(src: string): string {
   s = s.replace(/\n/g, "<br>");
   s = `<p>${s}</p>`;
   s = s.replace(/<p>(<ul>[\s\S]*?<\/ul>)<\/p>/g, "$1");
+  s = s.replace(/<p>(<table>[\s\S]*?<\/table>)<\/p>/g, "$1");
+  s = s.replace(/<br>(<table>)/g, "$1").replace(/(<\/table>)<br>/g, "$1");
   s = s.replace(/\u0000FENCE(\d+)\u0000/g, (_m, i) => fences[Number(i)]);
   return s;
 }
