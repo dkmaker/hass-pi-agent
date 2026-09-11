@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.12.1](https://github.com/dkmaker/hass-pi-agent/compare/v0.12.0...v0.12.1) (2026-09-11)
+
+
+### Bug Fixes
+
+* coerce stringified object tool-params (GLM tool-arg serialization) ([0b366af](https://github.com/dkmaker/hass-pi-agent/commit/0b366afe3ef5d2dda8f8ed150810c43ca538722c))
+* coerce stringified object tool-params before schema validation ([5e1879d](https://github.com/dkmaker/hass-pi-agent/commit/5e1879d3f1863c096fd0ae9c070c7d63e53766b3))
+
 ## [0.12.0](https://github.com/dkmaker/hass-pi-agent/compare/v0.11.0...v0.12.0) (2026-09-11)
 
 
