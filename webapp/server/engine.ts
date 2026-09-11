@@ -17,7 +17,7 @@ import { readFileSync, mkdirSync } from "node:fs";
 import { dirname, extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { WebSocketServer, type WebSocket } from "ws";
-import { createAgentSession, DefaultResourceLoader, ModelRuntime, SessionManager, type AgentSessionEvent } from "@earendil-works/pi-coding-agent";
+import { createAgentSession, DefaultResourceLoader, ModelRuntime, SessionManager, resolveCliModel, type AgentSessionEvent } from "@earendil-works/pi-coding-agent";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dirname, "..", "..");
@@ -72,11 +72,24 @@ const loader = new DefaultResourceLoader({
 });
 await loader.reload();
 
+// Model comes from the add-on config ONLY: default_provider/default_model, surfaced
+// as PI_DEFAULT_PROVIDER / PI_DEFAULT_MODEL (same env the ttyd entrypoint reads).
+let model;
+const modelSpec = process.env.PI_DEFAULT_PROVIDER && process.env.PI_DEFAULT_MODEL
+  ? `${process.env.PI_DEFAULT_PROVIDER}/${process.env.PI_DEFAULT_MODEL}`
+  : (process.env.PI_DEFAULT_MODEL ?? "");
+if (modelSpec) {
+  const r = resolveCliModel({ cliModel: modelSpec, modelRuntime });
+  if (r.error) console.error("[engine] model resolve error:", r.error);
+  else { model = r.model; if (r.warning) console.warn("[engine]", r.warning); }
+}
+
 const sessionManager = SessionManager.inMemory(agentCwd);
 const { session } = await createAgentSession({
   resourceLoader: loader,
   cwd: agentCwd,
   sessionManager,
+  model,
   modelRuntime,
 });
 console.log("[engine] ready — model=%s tools=%d (ha_*=%d)",
