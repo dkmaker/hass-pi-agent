@@ -18,7 +18,7 @@
 import { resolve, dirname, relative, isAbsolute, join } from "node:path";
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { HA_CONFIG_PATH, PI_AGENT_DIR } from "./config.js";
+import { HA_CONFIG_PATH, PI_AGENT_DIR, HA_URL } from "./config.js";
 import { resolveYamlIncludes } from "./graph/yaml-resolver.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -26,8 +26,14 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 export type WriteGuardMode = "strict" | "warn" | "off";
 
 export function getMode(): WriteGuardMode {
-  const m = (process.env.PI_WRITE_GUARD_MODE || "strict").trim().toLowerCase();
-  return m === "off" || m === "warn" ? m : "strict";
+  const raw = process.env.PI_WRITE_GUARD_MODE?.trim().toLowerCase();
+  if (raw === "off" || raw === "warn" || raw === "strict") return raw;
+  // No explicit mode configured. The write-guard is an add-on RUNTIME protection
+  // for a live HA config — it only activates inside the add-on container (HA_URL
+  // points at the supervisor proxy). In local dev / the extension author's own
+  // session it stays OFF, so it never interferes with editing the extension
+  // source or the repo. The add-on always sets PI_WRITE_GUARD_MODE explicitly.
+  return HA_URL.includes("supervisor") ? "strict" : "off";
 }
 
 /** Agent cwd — relative write paths resolve against this. */
