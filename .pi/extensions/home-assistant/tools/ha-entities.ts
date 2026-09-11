@@ -12,6 +12,7 @@ import { wsCommand } from "../lib/ws.js";
 import type { HAState } from "../lib/types.js";
 import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
 import { backupBeforeMutation } from "../lib/mutation-log.js";
+import { appendNoteIfExists } from "../lib/agent-notes.js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -372,7 +373,7 @@ async function handleGet(entityId?: string): Promise<string> {
     }
   }
 
-  return lines.join("\n");
+  return lines.join("\n") + appendNoteIfExists(entityId);
 }
 
 async function handleDomains(includeUnavailable?: boolean): Promise<string> {

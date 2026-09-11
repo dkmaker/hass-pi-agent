@@ -13,6 +13,7 @@ import { timeSince, formatTrace, renderMarkdownResult, renderToolCall } from "..
 import type { HAState, TraceListEntry } from "../lib/types.js";
 import { toYaml } from "../lib/yaml.js";
 import { backupBeforeMutation } from "../lib/mutation-log.js";
+import { appendNoteIfExists } from "../lib/agent-notes.js";
 
 // ── Helpers ──────────────────────────────────────────────────
 
@@ -132,7 +133,7 @@ async function handleGet(params: Record<string, unknown>): Promise<string> {
     lines.push("```");
   }
 
-  return lines.join("\n");
+  return lines.join("\n") + appendNoteIfExists(resolvedEntityId!);
 }
 
 // ── Create ───────────────────────────────────────────────────

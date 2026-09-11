@@ -286,6 +286,35 @@ Actions:
 
 People link HA users to device trackers for presence detection.`,
 
+    ha_yaml: `## ha_yaml — YAML Entity Manager
+
+Parses configuration.yaml and all included files to find and inspect YAML-defined entities AND config blocks (homeassistant, recorder, logger, history, frontend, etc.).
+
+Actions:
+- list: List all YAML-defined entities and config blocks. Optional: domain (filter entities by domain)
+- get: Get full config for an entity or config block by key. Requires: key
+- files: Show all parsed YAML config files and what they contain
+
+Entity keys: domain.platform.identifier or domain.identifier (e.g. alarm_control_panel.manual.home_alarm_manual)
+Config keys: top-level key name (e.g. homeassistant, recorder, logger)
+Template entities: template.sensor.unique_id or template.binary_sensor.unique_id
+
+Handles !include, !include_dir_list, !include_dir_merge_list, !include_dir_merge_named, !include_dir_named.
+Use 'list' first to discover available keys, then 'get' for details.`,
+
+    ha_notes: `## ha_notes — Persistent Agent Notes
+
+Attach contextual notes to any HA object (entity, device, automation, etc.). Notes are automatically shown when inspecting objects with get actions.
+
+Actions:
+- get: Get note for a target. Requires: target (entity_id, device_id, etc.)
+- set: Set/replace note. Requires: target, note (full text — merges old+new yourself)
+- list: List all notes. Optional: search (text match), domain (filter by prefix)
+- delete: Remove a note. Requires: target, confirm: true
+
+Notes persist across sessions in /homeassistant/.pi-agent/notes.json.
+Notes are auto-appended to get results in ha_entities, ha_devices, ha_automations, ha_scripts, ha_scenes, ha_helpers.`,
+
     ha_mutations: `## ha_mutations — Pre-Mutation Backups and Changelog
 
 Actions:
@@ -295,7 +324,7 @@ Actions:
 - purge: Remove old backups beyond retention limit. Optional keep_count.
 
 Every write/update/delete action across all HA tools automatically snapshots the current state before applying changes.
-Backups are stored in /homeassistant/.pi-backups/mutations/ with a JSONL changelog.
+Backups are stored in /homeassistant/.pi-agent/backups/mutations/ with a JSONL changelog.
 Use the /ha-log and /ha-backups slash commands for interactive TUI views.`,
 
     ha_recorder: `## ha_recorder — Recorder and Statistics Management
@@ -429,7 +458,7 @@ Best practices:
     ha_policies: `## ha_policies — User-Defined Policies
 
 Manages naming conventions, organization preferences, and other policies the AI should follow consistently.
-Policies are stored in \`/homeassistant/pi-agent/policies.yaml\` — human-readable, survives backups/restores.
+Policies are stored in \`/homeassistant/.pi-agent/policies.yaml\` — human-readable, survives backups/restores.
 
 Actions:
 - list: Show all current policies formatted for reading.

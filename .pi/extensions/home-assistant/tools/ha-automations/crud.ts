@@ -10,6 +10,7 @@ import { validateAutomationConfig } from "../../lib/validation.js";
 import type { HAState, AutomationConfig } from "../../lib/types.js";
 import { toYaml } from "../../lib/yaml.js";
 import { backupBeforeMutation } from "../../lib/mutation-log.js";
+import { appendNoteIfExists } from "../../lib/agent-notes.js";
 
 // ── Helpers ──────────────────────────────────────────────────
 
@@ -149,7 +150,8 @@ export async function handleGet(params: Record<string, unknown>): Promise<string
     lines.push("```");
   }
 
-  return lines.join("\n");
+  const noteTarget = entityId || (automationId ? `automation.${automationId}` : null);
+  return lines.join("\n") + (noteTarget ? appendNoteIfExists(noteTarget) : "");
 }
 
 // ── Create ───────────────────────────────────────────────────

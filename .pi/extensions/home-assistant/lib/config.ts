@@ -13,7 +13,7 @@
  * Nothing else in the codebase should hardcode these values.
  */
 import { join, dirname } from "node:path";
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, mkdirSync, readdirSync, copyFileSync, unlinkSync, rmdirSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -61,8 +61,56 @@ export const HA_CONFIG_PATH = env("HA_CONFIG_PATH", "/homeassistant");
 /** .storage directory inside the config mount. */
 export const HA_STORAGE_DIR = join(HA_CONFIG_PATH, ".storage");
 
+// ── Pi Agent data directory ──────────────────────────────────
+
+/** Root directory for all Pi Agent persistent data. */
+export const PI_AGENT_DIR = join(HA_CONFIG_PATH, ".pi-agent");
+
 /** Directory where backups of storage files are kept. */
-export const BACKUP_DIR = env("HA_BACKUP_DIR", join(HA_CONFIG_PATH, ".storage-backups"));
+export const BACKUP_DIR = env("HA_BACKUP_DIR", join(PI_AGENT_DIR, "backups", "storage"));
+
+// ── Legacy migration ────────────────────────────────────────
+
+/**
+ * Migrate data from legacy locations into the unified .pi-agent directory.
+ * Runs once at import time — moves files then removes old directories.
+ */
+function migrateLegacy(): void {
+  const legacyMap: Array<{ from: string; to: string }> = [
+    { from: join(HA_CONFIG_PATH, ".storage-backups"), to: join(PI_AGENT_DIR, "backups", "storage") },
+    { from: join(HA_CONFIG_PATH, ".pi-backups", "mutations"), to: join(PI_AGENT_DIR, "backups", "mutations") },
+    { from: join(HA_CONFIG_PATH, "pi-agent", "policies.yaml"), to: join(PI_AGENT_DIR, "policies.yaml") },
+  ];
+
+  for (const { from, to } of legacyMap) {
+    if (!existsSync(from)) continue;
+    try {
+      const stat = statSync(from);
+      if (stat.isDirectory()) {
+        mkdirSync(to, { recursive: true });
+        for (const file of readdirSync(from)) {
+          const src = join(from, file);
+          const dst = join(to, file);
+          if (!existsSync(dst)) copyFileSync(src, dst);
+        }
+        // Remove legacy dir (only if we copied everything)
+        for (const file of readdirSync(from)) unlinkSync(join(from, file));
+        rmdirSync(from);
+      } else {
+        mkdirSync(dirname(to), { recursive: true });
+        if (!existsSync(to)) copyFileSync(from, to);
+        unlinkSync(from);
+      }
+    } catch { /* best-effort — don't block startup */ }
+  }
+
+  // Clean up empty legacy parent dirs
+  for (const dir of [join(HA_CONFIG_PATH, ".pi-backups"), join(HA_CONFIG_PATH, "pi-agent")]) {
+    try { if (existsSync(dir) && readdirSync(dir).length === 0) rmdirSync(dir); } catch {}
+  }
+}
+
+migrateLegacy();
 
 // ── Backup tunables ──────────────────────────────────────────
 
@@ -74,7 +122,7 @@ export const MAX_BACKUPS = envInt("HA_MAX_BACKUPS", 50);
 /** Directory for pre-mutation snapshots and changelog. */
 export const MUTATION_BACKUP_DIR = env(
   "HA_MUTATION_BACKUP_DIR",
-  join(HA_CONFIG_PATH, ".pi-backups", "mutations")
+  join(PI_AGENT_DIR, "backups", "mutations")
 );
 
 /** Maximum number of mutation backup files to retain. */

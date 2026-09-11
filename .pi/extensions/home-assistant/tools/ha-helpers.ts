@@ -26,6 +26,7 @@ import * as collectionWsBackend from "../lib/backends/collection-ws.js";
 import * as configEntryBackend from "../lib/backends/config-entry.js";
 import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
 import { backupBeforeMutation } from "../lib/mutation-log.js";
+import { appendNoteIfExists } from "../lib/agent-notes.js";
 
 
 // ── Tool registration ────────────────────────────────────────
@@ -220,7 +221,7 @@ async function handleGet(type?: string, id?: string): Promise<string> {
     : await configEntryBackend.getEntry(t, id);
 
   if (!item) return `Helper '${id}' not found in ${type}.\n\n${formatSchema(type)}`;
-  return formatHelperDetail(type, item);
+  return formatHelperDetail(type, item) + appendNoteIfExists(`${type}.${id}`);
 }
 
 async function handleAdd(type?: string, fields?: Record<string, unknown>): Promise<string> {

@@ -12,6 +12,7 @@ import { apiGet, apiPost, apiDelete } from "../lib/api.js";
 import type { HAState } from "../lib/types.js";
 import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
 import { backupBeforeMutation } from "../lib/mutation-log.js";
+import { appendNoteIfExists } from "../lib/agent-notes.js";
 
 // ── List ─────────────────────────────────────────────────────
 
@@ -111,7 +112,7 @@ async function handleGet(params: Record<string, unknown>): Promise<string> {
     }
   }
 
-  return lines.join("\n");
+  return lines.join("\n") + appendNoteIfExists(resolvedEntityId!);
 }
 
 // ── Create ───────────────────────────────────────────────────
