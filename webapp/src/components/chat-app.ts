@@ -6,7 +6,7 @@ import "@material/web/button/filled-button.js";
 import "@material/web/button/text-button.js";
 import "./tool-block.js";
 import { icon } from "../icon.js";
-import { mdiRobot, mdiMenu, mdiPlus, mdiSend, mdiStop } from "@mdi/js";
+import { mdiRobot, mdiMenu, mdiPlus, mdiSend, mdiStop, mdiThemeLightDark, mdiWeatherSunny, mdiWeatherNight } from "@mdi/js";
 import { renderMarkdown } from "../md.js";
 import type { Entry, ServerEvent, ToolResult } from "../types.js";
 
@@ -45,6 +45,8 @@ export class PiChatApp extends LitElement {
   @state() private draft = "";
   @state() private drawerOpen = false;
   @state() private sessionTitle = "New chat";
+  @state() private themeMode: "auto" | "light" | "dark" =
+    ((typeof localStorage !== "undefined" && localStorage.getItem("pi-theme")) as "auto" | "light" | "dark") || "auto";
   private sessions = cannedSessions();
   @query(".scroll") private scroller?: HTMLElement;
   @query("textarea") private ta?: HTMLTextAreaElement;
@@ -53,7 +55,23 @@ export class PiChatApp extends LitElement {
 
   connectedCallback(): void {
     super.connectedCallback();
+    this.applyTheme();
     this.connect();
+  }
+
+  private themeIcon(): string {
+    return this.themeMode === "light" ? mdiWeatherSunny : this.themeMode === "dark" ? mdiWeatherNight : mdiThemeLightDark;
+  }
+  private applyTheme(): void {
+    const el = document.documentElement;
+    if (this.themeMode === "auto") el.removeAttribute("data-theme");
+    else el.setAttribute("data-theme", this.themeMode);
+  }
+  private cycleTheme(): void {
+    const order: Array<"auto" | "light" | "dark"> = ["auto", "light", "dark"];
+    this.themeMode = order[(order.indexOf(this.themeMode) + 1) % order.length];
+    try { localStorage.setItem("pi-theme", this.themeMode); } catch { /* ignore */ }
+    this.applyTheme();
   }
 
   private connect(): void {
@@ -263,6 +281,9 @@ export class PiChatApp extends LitElement {
           <div class="sub">${this.sessionTitle}</div>
         </div>
         <div class="spacer"></div>
+        <button class="iconbtn" @click=${() => this.cycleTheme()} title="Theme: ${this.themeMode}" aria-label="Toggle theme">
+          ${icon(this.themeIcon(), 22)}
+        </button>
         <button class="iconbtn" @click=${() => this.newSession()} title="New chat" aria-label="New chat">
           ${icon(mdiPlus, 22)}
         </button>
