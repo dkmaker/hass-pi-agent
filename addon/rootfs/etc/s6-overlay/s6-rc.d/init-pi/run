@@ -20,6 +20,7 @@ printf '%s' "${SUPERVISOR_TOKEN}" > /var/run/s6/container_environment/HA_TOKEN
 printf '%s' "http://supervisor/core" > /var/run/s6/container_environment/HA_URL
 printf '%s' "/homeassistant" > /var/run/s6/container_environment/HA_CONFIG_PATH
 printf '%s' "/data/ha-docs" > /var/run/s6/container_environment/HA_DOCS_DATA_DIR
+printf '%s' "1" > /var/run/s6/container_environment/PI_SKIP_VERSION_CHECK
 
 # --- Write profile.d for interactive shells (tmux/ttyd) ---
 {
@@ -29,6 +30,7 @@ printf '%s' "/data/ha-docs" > /var/run/s6/container_environment/HA_DOCS_DATA_DIR
     echo "export HA_URL=\"http://supervisor/core\""
     echo "export HA_CONFIG_PATH=\"/homeassistant\""
     echo "export HA_DOCS_DATA_DIR=\"/data/ha-docs\""
+    echo "export PI_SKIP_VERSION_CHECK=\"1\""
 } > /etc/profile.d/pi-agent.sh
 
 # --- Default provider ---
@@ -97,6 +99,14 @@ if [[ ! -f "${PI_SETTINGS}" ]]; then
 fi
 tmp=$(mktemp)
 jq '. + {"quietStartup": true, "collapseChangelog": true}' "${PI_SETTINGS}" > "$tmp" && mv "$tmp" "${PI_SETTINGS}"
+
+# --- Pre-trust the HA config dir (pi runs with cwd=/homeassistant) ---
+PI_TRUST="${PI_DIR}/trust.json"
+if [[ ! -f "${PI_TRUST}" ]]; then
+    echo '{}' > "${PI_TRUST}"
+fi
+tmp=$(mktemp)
+jq '. + {"/homeassistant": true}' "${PI_TRUST}" > "$tmp" && mv "$tmp" "${PI_TRUST}"
 
 # --- Clean up legacy extension copy from /homeassistant volume ---
 if [[ -d /homeassistant/.pi/extensions/home-assistant ]]; then
