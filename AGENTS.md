@@ -12,7 +12,6 @@ Development workspace for **Pi Agent for Home Assistant**, a Home Assistant add-
 | `ha-core/` | Git submodule — HA backend (reference only, **do not edit**) |
 | `ha-frontend/` | Git submodule — HA frontend (reference only, **do not edit**) |
 | `tools/` | Schema extractors (extract-schemas.py, extract-automation-schemas.py) |
-| `docs/homeassistant/` | Auto-generated HA docs mirror (don't edit directly) |
 | `.env` | API token + VM config (gitignored) |
 
 ## Add-on
