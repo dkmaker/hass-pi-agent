@@ -78,8 +78,8 @@ function broadcast(msg: unknown): void {
 /** Map a real AgentSessionEvent → the frontend wire shape (src/types.ts ServerEvent). */
 function toWire(e: AgentSessionEvent): void {
   switch (e.type) {
-    case "agent_start": broadcast({ type: "agent_start" }); break;
-    case "message_start": broadcast({ type: "message_start" }); break;
+    case "agent_start": broadcast({ type: "agent_start" }); broadcast({ type: "working", label: "Thinking" }); break;
+    case "message_start": broadcast({ type: "working", label: "" }); broadcast({ type: "message_start" }); break;
     case "message_update": {
       const a = (e as { assistantMessageEvent?: { type: string; delta?: string } }).assistantMessageEvent;
       if (a?.type === "text_delta" && a.delta) broadcast({ type: "text_delta", delta: a.delta });
@@ -89,6 +89,7 @@ function toWire(e: AgentSessionEvent): void {
     case "message_end": broadcast({ type: "message_end" }); break;
     case "tool_execution_start": {
       const t = e as { toolName?: string; toolCallId?: string; id?: string; args?: unknown; input?: unknown };
+      broadcast({ type: "working", label: "" });
       broadcast({ type: "tool_start", id: t.toolCallId ?? t.id ?? "", toolName: t.toolName ?? "tool", args: (t.args ?? t.input ?? {}) as Record<string, unknown> });
       break;
     }
@@ -133,7 +134,7 @@ const server = createServer(async (req, res) => {
   } catch { res.writeHead(500).end("server error"); }
 });
 
-const wss = new WebSocketServer({ server });
+const wss = new WebSocketServer({ server, path: "/ws" });
 wss.on("connection", (ws) => {
   clients.add(ws);
   void fetchStats().then((s) => { if (s) { try { ws.send(JSON.stringify({ type: "stats", data: s })); } catch { /* dropped */ } } });

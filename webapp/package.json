@@ -6,7 +6,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "mock": "tsx server/mock-server.ts"
+    "mock": "tsx server/mock-server.ts",
+    "engine": "tsx server/engine.ts"
   },
   "dependencies": {
     "@earendil-works/pi-coding-agent": "^0.85.1",
