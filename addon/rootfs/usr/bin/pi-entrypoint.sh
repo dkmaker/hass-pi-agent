@@ -25,6 +25,10 @@ if [[ -n "${PI_DEFAULT_MODEL:-}" ]]; then
     PI_ARGS+=(--model "${PI_DEFAULT_MODEL}")
 fi
 
+# Work from the agent scratch dir (created by init-pi). Belt-and-suspenders —
+# ttyd already cd's here, but ensure it even if the session dir differs.
+cd /homeassistant/agent 2>/dev/null || true
+
 echo "Starting Pi Agent..."
 echo "Working directory: $(pwd)"
 echo ""

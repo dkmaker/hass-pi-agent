@@ -25,6 +25,10 @@ export interface ResolvedYaml {
   sources: ConfigSource[];
   /** Files that failed to read */
   errors: string[];
+  /** Absolute paths of every `!include X` target — whether or not it exists yet. */
+  includeFiles: string[];
+  /** Absolute paths of every `!include_dir_* Y` target directory. */
+  includeDirs: string[];
 }
 
 /**
@@ -34,6 +38,8 @@ export interface ResolvedYaml {
 export function resolveYamlIncludes(configPath: string): ResolvedYaml {
   const sources: ConfigSource[] = [];
   const errors: string[] = [];
+  const includeFiles = new Set<string>();
+  const includeDirs = new Set<string>();
   const visited = new Set<string>();
 
   function processFile(filePath: string): void {
@@ -61,12 +67,14 @@ export function resolveYamlIncludes(configPath: string): ResolvedYaml {
       if (line.includes("!include_dir_")) continue;
 
       const target = join(baseDir, m[1]);
+      includeFiles.add(resolve(target));
       processFile(target);
     }
 
     // Find !include_dir_* directives
     for (const m of raw.matchAll(INCLUDE_DIR_RE)) {
       const dirPath = join(baseDir, m[2]);
+      includeDirs.add(resolve(dirPath));
       processDir(dirPath);
     }
   }
@@ -105,5 +113,5 @@ export function resolveYamlIncludes(configPath: string): ResolvedYaml {
   }
 
   processFile(configPath);
-  return { sources, errors };
+  return { sources, errors, includeFiles: [...includeFiles], includeDirs: [...includeDirs] };
 }

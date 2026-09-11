@@ -13,7 +13,7 @@
  * Nothing else in the codebase should hardcode these values.
  */
 import { join, dirname } from "node:path";
-import { readFileSync, existsSync, mkdirSync, readdirSync, copyFileSync, unlinkSync, rmdirSync, statSync } from "node:fs";
+import { readFileSync, existsSync, mkdirSync, readdirSync, copyFileSync, unlinkSync, rmdirSync, rmSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -63,8 +63,12 @@ export const HA_STORAGE_DIR = join(HA_CONFIG_PATH, ".storage");
 
 // ── Pi Agent data directory ──────────────────────────────────
 
-/** Root directory for all Pi Agent persistent data. */
-export const PI_AGENT_DIR = join(HA_CONFIG_PATH, ".pi-agent");
+/**
+ * Root directory for all Pi Agent persistent data AND the agent's scratch dir.
+ * This is also the agent's working directory (cwd) in the add-on container, so
+ * notes, backups, policies and any casual/relative writes all land safely here.
+ */
+export const PI_AGENT_DIR = join(HA_CONFIG_PATH, "agent");
 
 /** Directory where backups of storage files are kept. */
 export const BACKUP_DIR = env("HA_BACKUP_DIR", join(PI_AGENT_DIR, "backups", "storage"));
@@ -72,10 +76,31 @@ export const BACKUP_DIR = env("HA_BACKUP_DIR", join(PI_AGENT_DIR, "backups", "st
 // ── Legacy migration ────────────────────────────────────────
 
 /**
- * Migrate data from legacy locations into the unified .pi-agent directory.
+ * Migrate data from legacy locations into the agent scratch dir.
  * Runs once at import time — moves files then removes old directories.
  */
+function moveTree(from: string, to: string): void {
+  mkdirSync(to, { recursive: true });
+  for (const entry of readdirSync(from)) {
+    const src = join(from, entry);
+    const dst = join(to, entry);
+    if (statSync(src).isDirectory()) moveTree(src, dst);
+    else if (!existsSync(dst)) copyFileSync(src, dst);
+  }
+}
+
 function migrateLegacy(): void {
+  // Relocate the entire legacy /homeassistant/.pi-agent dir into the new
+  // agent scratch dir (/homeassistant/agent). Merges into an existing (likely
+  // empty) target created by init-pi, then removes the old dir.
+  const legacyAgentDir = join(HA_CONFIG_PATH, ".pi-agent");
+  if (existsSync(legacyAgentDir) && legacyAgentDir !== PI_AGENT_DIR) {
+    try {
+      moveTree(legacyAgentDir, PI_AGENT_DIR);
+      rmSync(legacyAgentDir, { recursive: true, force: true });
+    } catch { /* best-effort — don't block startup */ }
+  }
+
   const legacyMap: Array<{ from: string; to: string }> = [
     { from: join(HA_CONFIG_PATH, ".storage-backups"), to: join(PI_AGENT_DIR, "backups", "storage") },
     { from: join(HA_CONFIG_PATH, ".pi-backups", "mutations"), to: join(PI_AGENT_DIR, "backups", "mutations") },

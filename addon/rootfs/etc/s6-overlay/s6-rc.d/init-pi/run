@@ -14,6 +14,9 @@ mkdir -p "${PI_DIR}/sessions"
 # --- Docs cache ---
 mkdir -p /data/ha-docs
 
+# --- Agent scratch/data dir (agent cwd; freely writable, config stays gated) ---
+mkdir -p /homeassistant/agent
+
 # --- Write s6 env vars (available to all services via with-contenv) ---
 printf '%s' "${PI_DIR}" > /var/run/s6/container_environment/PI_CODING_AGENT_DIR
 printf '%s' "${SUPERVISOR_TOKEN}" > /var/run/s6/container_environment/HA_TOKEN
@@ -88,6 +91,29 @@ for config_key in "${!API_KEY_MAP[@]}"; do
     fi
 done
 
+# --- Write-guard (filesystem write allowlist) ---
+write_guard_mode=$(bashio::config 'write_guard')
+if bashio::var.has_value "${write_guard_mode}"; then
+    printf '%s' "${write_guard_mode}" > /var/run/s6/container_environment/PI_WRITE_GUARD_MODE
+    echo "export PI_WRITE_GUARD_MODE=\"${write_guard_mode}\"" >> /etc/profile.d/pi-agent.sh
+fi
+
+# write_guard_allow is a list of extra writable globs (relative to /homeassistant).
+# Join into a comma-delimited string for the env var the extension reads.
+write_guard_allow=""
+for entry in $(bashio::config 'write_guard_allow'); do
+    if [[ -n "${write_guard_allow}" ]]; then
+        write_guard_allow="${write_guard_allow},${entry}"
+    else
+        write_guard_allow="${entry}"
+    fi
+done
+if [[ -n "${write_guard_allow}" ]]; then
+    printf '%s' "${write_guard_allow}" > /var/run/s6/container_environment/PI_WRITE_GUARD_ALLOW
+    echo "export PI_WRITE_GUARD_ALLOW=\"${write_guard_allow}\"" >> /etc/profile.d/pi-agent.sh
+    bashio::log.info "Write-guard extra allowlist: ${write_guard_allow}"
+fi
+
 # --- Persistent bash history ---
 touch /data/.bash_history
 ln -sf /data/.bash_history /root/.bash_history
@@ -100,13 +126,14 @@ fi
 tmp=$(mktemp)
 jq '. + {"quietStartup": true, "collapseChangelog": true}' "${PI_SETTINGS}" > "$tmp" && mv "$tmp" "${PI_SETTINGS}"
 
-# --- Pre-trust the HA config dir (pi runs with cwd=/homeassistant) ---
+# --- Pre-trust the agent dirs (pi runs with cwd=/homeassistant/agent; also
+#     trust /homeassistant so config edits never prompt) ---
 PI_TRUST="${PI_DIR}/trust.json"
 if [[ ! -f "${PI_TRUST}" ]]; then
     echo '{}' > "${PI_TRUST}"
 fi
 tmp=$(mktemp)
-jq '. + {"/homeassistant": true}' "${PI_TRUST}" > "$tmp" && mv "$tmp" "${PI_TRUST}"
+jq '. + {"/homeassistant": true, "/homeassistant/agent": true}' "${PI_TRUST}" > "$tmp" && mv "$tmp" "${PI_TRUST}"
 
 # --- Clean up legacy extension copy from /homeassistant volume ---
 if [[ -d /homeassistant/.pi/extensions/home-assistant ]]; then

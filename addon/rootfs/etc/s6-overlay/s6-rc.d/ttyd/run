@@ -26,8 +26,10 @@ options+=(--writable)
 ingress_port=$(bashio::addon.ingress_port)
 options+=(-p "${ingress_port}")
 
-# Change working directory
-cd /homeassistant || cd /root || bashio::exit.nok 'Unable to change working directory'
+# Change working directory to the agent scratch dir (created by init-pi).
+# This is the agent's default writable area; config.yaml + its includes remain
+# editable via the write-guard allowlist.
+cd /homeassistant/agent || cd /homeassistant || cd /root || bashio::exit.nok 'Unable to change working directory'
 
 # Run ttyd with tmux for session persistence
 exec ttyd "${options[@]}" tmux -u new -A -s pi /usr/bin/pi-entrypoint.sh

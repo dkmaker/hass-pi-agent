@@ -227,7 +227,7 @@ function spawnPi(question, overrides = {}) {
   fireLogbookEntry("Pi Agent", `asked: ${question}`);
 
   const pi = spawn("pi", args, {
-    cwd: "/homeassistant",
+    cwd: "/homeassistant/agent",
     env: piEnv,
     stdio: ["ignore", "pipe", "pipe"],
   });
