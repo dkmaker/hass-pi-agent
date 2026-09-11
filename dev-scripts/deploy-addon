@@ -177,10 +177,8 @@ info = subprocess.run(
 )
 opts = json.loads(info.stdout).get("options", {})
 
-# Replace or add ANTHROPIC_API_KEY in environment list
-env_list = [e for e in opts.get("environment", []) if not e.startswith("ANTHROPIC_API_KEY=")]
-env_list.append("ANTHROPIC_API_KEY=" + os.environ["ANTHROPIC_API_KEY"])
-opts["environment"] = env_list
+# Set the dedicated API key field
+opts["anthropic_api_key"] = os.environ["ANTHROPIC_API_KEY"]
 
 print(json.dumps({"options": opts}))
 PYEOF

@@ -4,13 +4,15 @@ AI coding agent with full Home Assistant access — manage automations, entities
 
 ## Configuration
 
+All API keys are **optional** — you can configure them here or use the `/login` command inside the agent.
+
 ### Default Provider
 
-Select the AI provider to use by default.
+Select the AI provider to use for new conversations.
 
 ### Default Model
 
-Optionally set a default model. Accepts any model pattern or ID supported by pi, for example:
+Optionally set a default model. Accepts any model ID or fuzzy pattern supported by pi:
 
 - `anthropic/claude-sonnet-4-20250514`
 - `openai/gpt-4o`
@@ -19,32 +21,37 @@ Optionally set a default model. Accepts any model pattern or ID supported by pi,
 
 Leave empty to use the provider's default model.
 
-### Environment
+### API Keys — Main Providers
 
-Set environment variables as `KEY=VALUE` pairs — one per entry. Use this for **API keys** and any other configuration.
+| Field | Provider | Where to get it |
+|-------|----------|-----------------|
+| Anthropic API Key | Anthropic (Claude) | [console.anthropic.com](https://console.anthropic.com/) → API Keys |
+| OpenAI API Key | OpenAI (GPT) | [platform.openai.com](https://platform.openai.com/) → API Keys |
+| Google (Gemini) API Key | Google Gemini | [aistudio.google.com](https://aistudio.google.com/) → API Keys |
+| OpenRouter API Key | OpenRouter | [openrouter.ai](https://openrouter.ai/) → Keys |
 
-#### API Keys
+### API Keys — Additional Providers
 
-Add your provider's API key as an environment variable:
+| Field | Provider | Where to get it |
+|-------|----------|-----------------|
+| xAI (Grok) API Key | xAI | [console.x.ai](https://console.x.ai/) → API Keys |
+| Groq API Key | Groq | [console.groq.com](https://console.groq.com/) → API Keys |
+| Mistral API Key | Mistral | [console.mistral.ai](https://console.mistral.ai/) → API Keys |
+| Cerebras API Key | Cerebras | [cloud.cerebras.ai](https://cloud.cerebras.ai/) → API Keys |
+| Hugging Face Token | Hugging Face | [huggingface.co](https://huggingface.co/) → Settings → Access Tokens |
+| GitHub Token (Copilot) | GitHub Copilot | GitHub personal access token |
+| Azure OpenAI API Key | Azure OpenAI | Azure Portal → OpenAI resource → Keys |
 
-| Provider | Environment entry |
-|----------|-------------------|
-| Anthropic (Claude) | `ANTHROPIC_API_KEY=sk-ant-...` |
-| OpenAI | `OPENAI_API_KEY=sk-...` |
-| Google (Gemini) | `GEMINI_API_KEY=AI...` |
-| OpenRouter | `OPENROUTER_API_KEY=sk-or-...` |
-| Groq | `GROQ_API_KEY=gsk_...` |
-| xAI (Grok) | `XAI_API_KEY=xai-...` |
-| Mistral | `MISTRAL_API_KEY=...` |
-| Cerebras | `CEREBRAS_API_KEY=...` |
-| Hugging Face | `HF_TOKEN=hf_...` |
-| Azure OpenAI | `AZURE_OPENAI_API_KEY=...` |
-| GitHub Copilot | `GITHUB_TOKEN=gho_...` |
-| Amazon Bedrock | `AWS_ACCESS_KEY_ID=...` |
-| | `AWS_SECRET_ACCESS_KEY=...` |
-| | `AWS_REGION=us-east-1` |
+### Amazon Bedrock
 
-You can add multiple entries to configure multiple providers or additional settings.
+For Bedrock, fill in all three fields:
+- **AWS Access Key ID**
+- **AWS Secret Access Key**
+- **AWS Region** (e.g. `us-east-1`)
+
+### Service Provider & Model
+
+Optional separate provider/model for the `pi_agent.ask` service (used by automations and voice assistants). If empty, uses the default provider.
 
 ### Additional Packages
 
