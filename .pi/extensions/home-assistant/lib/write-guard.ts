@@ -16,7 +16,7 @@
  * ha_yaml) have their own sanctioned IO + backups and are never gated here.
  */
 import { resolve, dirname, relative, isAbsolute, join } from "node:path";
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { HA_CONFIG_PATH, PI_AGENT_DIR } from "./config.js";
 import { resolveYamlIncludes } from "./graph/yaml-resolver.js";
@@ -61,44 +61,35 @@ function loadExtraGlobs(): RegExp[] {
   return patterns.map(globToRe);
 }
 
-// ── allowlist (cached, invalidated on configuration.yaml mtime) ──
-interface AllowSet {
-  files: Set<string>; // exact allowed file paths (config + includes)
-  dirs: Set<string>; // include_dir_* target dirs (new files allowed within)
-  globs: RegExp[]; // extra user/maintainer globs (relative to HA_CONFIG_PATH)
+// ── allowlist ──────────────────────────────────────────────────
+// Resolved FRESH on every check (never cached): the allowed set depends on the
+// entire !include tree, and the agent must be able to add a new include and
+// then create the file it points at (a cache keyed on configuration.yaml's
+// mtime alone would miss both cases — a catch-22). Configs are small; resolving
+// per tool-call is cheap enough for a guardrail.
+export interface AllowSet {
+  root: string; // resolved HA_CONFIG_PATH
+  scratch: string; // resolved scratch dir
+  files: Set<string>; // exact allowed file paths (config + existing + declared includes)
+  dirPrefixes: string[]; // include_dir targets — anything under these is writable
+  globs: RegExp[]; // extra user/maintainer globs (relative to root)
 }
 
-let cache: { mtime: number; set: AllowSet } | null = null;
-
-function configMtime(): number {
-  try { return statSync(CONFIG_YAML).mtimeMs; } catch { return 0; }
-}
-
-function buildAllowSet(): AllowSet {
+export function buildAllowSet(): AllowSet {
   const files = new Set<string>();
-  const dirs = new Set<string>();
+  const dirPrefixes: string[] = [];
   files.add(resolve(CONFIG_YAML));
-  const configDir = resolve(HA_CONFIG_PATH);
   if (existsSync(CONFIG_YAML)) {
-    const { sources } = resolveYamlIncludes(CONFIG_YAML);
-    for (const s of sources) {
-      const p = resolve(s.path);
-      files.add(p);
-      // The containing dir of an included file is an include target dir —
-      // allow creating sibling split-config files there. Never the config root.
-      const d = dirname(p);
-      if (d !== configDir) dirs.add(d);
-    }
+    const { sources, includeFiles, includeDirs } = resolveYamlIncludes(CONFIG_YAML);
+    for (const s of sources) files.add(resolve(s.path));
+    // Declared !include targets — allowed even if not created yet (so the agent
+    // can add an include to configuration.yaml and then write the new file).
+    for (const f of includeFiles) files.add(resolve(f));
+    // Declared !include_dir_* targets — anything under them is writable, incl.
+    // brand-new split-config files (and nested subdirs HA recurses into).
+    for (const d of includeDirs) dirPrefixes.push(resolve(d));
   }
-  return { files, dirs, globs: loadExtraGlobs() };
-}
-
-function getAllowSet(): AllowSet {
-  const mtime = configMtime();
-  if (!cache || cache.mtime !== mtime) {
-    cache = { mtime, set: buildAllowSet() };
-  }
-  return cache.set;
+  return { root: resolve(HA_CONFIG_PATH), scratch: resolve(AGENT_CWD), files, dirPrefixes, globs: loadExtraGlobs() };
 }
 
 function isUnder(child: string, parent: string): boolean {
@@ -111,21 +102,24 @@ export function resolveWritePath(p: string): string {
   return isAbsolute(p) ? resolve(p) : resolve(AGENT_CWD, p);
 }
 
+/** Check a resolved path against a prebuilt allow set (no IO). */
+export function isPathAllowed(absPath: string, set: AllowSet): boolean {
+  const p = resolve(absPath);
+  if (!isUnder(p, set.root)) return true; // out of scope (e.g. /data, /tmp, /root)
+  if (isUnder(p, set.scratch)) return true; // scratch dir
+  if (set.files.has(p)) return true;
+  for (const prefix of set.dirPrefixes) if (isUnder(p, prefix)) return true;
+  const rel = relative(set.root, p).split("\\").join("/");
+  for (const re of set.globs) if (re.test(rel)) return true;
+  return false;
+}
+
 /**
- * Decide whether a write to `absPath` is allowed.
+ * Decide whether a write to `absPath` is allowed. Resolves the allowlist fresh.
  * Paths outside /homeassistant are out of scope → allowed.
  */
 export function isWriteAllowed(absPath: string): boolean {
-  const p = resolve(absPath);
-  const root = resolve(HA_CONFIG_PATH);
-  if (!isUnder(p, root)) return true; // out of scope (e.g. /data, /tmp, /root)
-  if (isUnder(p, resolve(AGENT_CWD))) return true; // scratch dir
-  const set = getAllowSet();
-  if (set.files.has(p)) return true;
-  if (set.dirs.has(dirname(p))) return true;
-  const rel = relative(root, p).split("\\").join("/");
-  for (const re of set.globs) if (re.test(rel)) return true;
-  return false;
+  return isPathAllowed(absPath, buildAllowSet());
 }
 
 // ── bash heuristics (obvious write patterns only) ───────────────
@@ -189,9 +183,10 @@ export interface BashCheck { allowed: boolean; blocked: string[]; }
 /** Check a bash command's obvious write targets against the allowlist. */
 export function checkBashCommand(command: string): BashCheck {
   const blocked: string[] = [];
+  const set = buildAllowSet(); // resolve once for the whole command
   for (const t of extractBashWriteTargets(command)) {
     const abs = resolveWritePath(t);
-    if (!isWriteAllowed(abs)) blocked.push(abs);
+    if (!isPathAllowed(abs, set)) blocked.push(abs);
   }
   return { allowed: blocked.length === 0, blocked };
 }
