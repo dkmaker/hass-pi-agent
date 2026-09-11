@@ -34,7 +34,13 @@ export function registerIntegrationsTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_integrations",
     label: "HA Integrations",
-    description: `Manage HA integrations (config entries). Actions: list, get, disable, enable, reload, remove. Use ha_tool_docs('ha_integrations') for full usage.`,
+    description: `Manage HA integrations (config entries). Actions: list, get, disable, enable, reload, remove.`,
+    promptSnippet:
+      "Manage integration config entries: list, inspect, enable/disable, reload, remove (not add — use the UI wizard for that).",
+    promptGuidelines: [
+      "Use ha_integrations when the user asks to reload, disable, enable, or remove a configured integration.",
+      "Use ha_integrations action:reload after changing an integration's YAML or to recover a failed entry.",
+    ],
 
     parameters: Type.Object({
       action: StringEnum(["list", "get", "disable", "enable", "reload", "remove"] as const, {

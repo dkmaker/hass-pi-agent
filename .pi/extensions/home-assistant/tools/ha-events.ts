@@ -77,7 +77,13 @@ export function registerEventsTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_events",
     label: "HA Events",
-    description: `Capture live HA events for a limited duration. Actions: capture. Use ha_tool_docs('ha_events') for full usage.`,
+    description: `Capture live HA events for a limited duration. Actions: capture.`,
+    promptSnippet:
+      "Capture live HA events for a few seconds — troubleshoot triggers, watch state changes in real time.",
+    promptGuidelines: [
+      "Use ha_events action:capture to watch what events fire (state_changed, call_service, automation_triggered) when debugging.",
+      "Use ha_events with a short timeout and event_type filter to isolate a specific trigger.",
+    ],
 
     parameters: Type.Object({
       action: StringEnum(["capture"] as const, {

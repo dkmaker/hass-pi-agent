@@ -29,7 +29,12 @@ export function registerZonesTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_zones",
     label: "HA Zones",
-    description: `Manage HA zones (presence detection areas). Actions: list, get, create, update, delete. Use ha_tool_docs('ha_zones') for full usage.`,
+    description: `Manage HA zones (presence detection areas). Actions: list, get, create, update, delete.`,
+    promptSnippet:
+      "Manage geographic zones for presence detection: list, get, create, update, delete (home zone is UI-only).",
+    promptGuidelines: [
+      "Use ha_zones when the user asks to add or edit geographic zones used for presence/automations.",
+    ],
 
     parameters: Type.Object({
       action: StringEnum(["list", "get", "create", "update", "delete"] as const, {

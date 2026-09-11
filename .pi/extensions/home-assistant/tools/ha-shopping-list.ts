@@ -24,7 +24,12 @@ export function registerShoppingListTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_shopping_list",
     label: "HA Shopping List",
-    description: `Manage HA shopping list. Actions: list, add, update, remove, clear. Use ha_tool_docs('ha_shopping_list') for full usage.`,
+    description: `Manage HA shopping list. Actions: list, add, update, remove, clear.`,
+    promptSnippet:
+      "Manage the HA shopping list: list, add, update (rename/complete), remove, clear completed.",
+    promptGuidelines: [
+      "Use ha_shopping_list when the user asks to add, check off, or manage shopping list items.",
+    ],
 
     parameters: Type.Object({
       action: StringEnum(["list", "add", "update", "remove", "clear"] as const, {

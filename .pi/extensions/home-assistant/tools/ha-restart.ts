@@ -38,7 +38,14 @@ export function registerRestartTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_restart",
     label: "HA Restart",
-    description: `Restart or reload HA configuration. Actions: restart, reload-all, reload-core, reload-templates, reload-domain, validate. Use ha_tool_docs('ha_restart') for full usage.`,
+    description: `Restart or reload HA configuration. Actions: restart, reload-all, reload-core, reload-templates, reload-domain, validate.`,
+    promptSnippet:
+      "Restart HA or reload config without downtime: reload-all/core/templates/domain, validate, full restart.",
+    promptGuidelines: [
+      "Use ha_restart action:validate before any restart to catch configuration.yaml errors.",
+      "Use ha_restart reload-* after YAML changes (fast, no downtime); action:restart only when required (e.g. after direct .storage edits).",
+      "Use ha_restart action:restart with warning — it disrupts the household for ~30–60s.",
+    ],
 
     parameters: Type.Object({
       action: StringEnum(

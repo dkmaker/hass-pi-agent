@@ -60,19 +60,19 @@ You have direct read/write access to:
 ### `/setup` Command
 When the user says `/setup`, start the **guided policy setup wizard**:
 1. Call `ha_policies` with `action: 'init'` to scan the system
-2. Use the scan results to build questions for the `questionnaire` tool
-3. Present questions **one at a time** using the `questionnaire` tool — each question should have clear options with descriptions that explain the concept in plain language
-4. Use the user's **actual entities** in option descriptions as examples (e.g., "Your `sensor.shellyplug_power` would become `sensor.kitchen_fridge_power`")
-5. Key topics to cover as separate questionnaire calls:
+2. Use the scan results to build questions to ask the user conversationally
+3. Present questions **one at a time** in plain text — each with clear options explained in plain language
+4. Use the user's **actual entities** as examples (e.g., "Your `sensor.shellyplug_power` would become `sensor.kitchen_fridge_power`")
+5. Key topics to cover, one at a time:
    - **Language** — ask if they want multilingual naming (e.g., English entity IDs + Danish friendly names). If yes, this changes subsequent questions.
    - Entity ID naming pattern (location-first vs device-first) — explain with examples from their system
    - Metric sensors (power vs energy) — explain "speedometer vs odometer" analogy in the descriptions
    - Friendly name pattern — voice assistant optimization
    - Area & floor structure — if multilingual, gather English→display language mapping for each room
-   - Device type translations — if multilingual, use questionnaire to confirm/edit common device type translations
+   - Device type translations — if multilingual, confirm/edit common device type translations
    - Label strategy
    - Automation naming convention
-6. Between questionnaire calls, briefly explain the next topic and why it matters
+6. Between topics, briefly explain the next one and why it matters
 7. If multilingual: save all language mappings under `category: 'language'` including areas, device_types, metrics, common_words
 7. After all topics, show a complete summary and save with `ha_policies` `action: 'set'`
 

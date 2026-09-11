@@ -272,7 +272,13 @@ export function registerScriptsTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_scripts",
     label: "HA Scripts",
-    description: `Manage HA scripts — CRUD, run, stop, traces. Actions: list, get, create, update, delete, run, stop, traces, trace. Use ha_tool_docs('ha_scripts') for full usage.`,
+    description: `Manage HA scripts — CRUD, run, stop, traces. Actions: list, get, create, update, delete, run, stop, traces, trace.`,
+    promptSnippet:
+      "Full script lifecycle: CRUD, run/stop, execution traces — changes auto-reload.",
+    promptGuidelines: [
+      "Use ha_scripts when the user asks to create, edit, run, stop, or debug scripts.",
+      "Use ha_scripts action:run with variables to test a script; action:traces / trace to debug a run.",
+    ],
 
     parameters: Type.Object({
       action: StringEnum(ALL_ACTIONS, { description: "Action to perform" }),

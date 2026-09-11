@@ -25,7 +25,13 @@ export function registerCategoriesTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_categories",
     label: "HA Categories",
-    description: `Manage categories for automations/scripts/scenes. Actions: list, create, update, delete. Use ha_tool_docs('ha_categories') for full usage.`,
+    description: `Manage categories for automations/scripts/scenes. Actions: list, create, update, delete.`,
+    promptSnippet:
+      "Manage UI categories for organizing automations, scripts, and scenes.",
+    promptGuidelines: [
+      "Use ha_categories when the user wants to organize automations/scripts/scenes into named categories.",
+      "Use ha_categories with scope (automation/script/scene) — categories are scoped per object type.",
+    ],
 
     parameters: Type.Object({
       action: StringEnum(["list", "create", "update", "delete"] as const, {

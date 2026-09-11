@@ -51,7 +51,14 @@ export function registerDashboardsTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_dashboards",
     label: "HA Dashboards",
-    description: `Manage HA dashboards (Lovelace UI) — views and cards. Actions: list, get, create, update, delete, get-view, add-view, update-view, remove-view, move-view, add-card, update-card, remove-card, move-card, list-card-types. Use ha_tool_docs('ha_dashboards') for full usage.`,
+    description: `Manage HA dashboards (Lovelace UI) — views and cards. Actions: list, get, create, update, delete, get-view, add-view, update-view, remove-view, move-view, add-card, update-card, remove-card, move-card, list-card-types.`,
+    promptSnippet:
+      "Manage Lovelace dashboards, views, and cards: CRUD, move views/cards, list built-in card types.",
+    promptGuidelines: [
+      "Use ha_dashboards when the user asks to create, edit, or reorganize dashboards, views, or cards.",
+      "Use ha_dashboards action:list-card-types to see available card types and their fields before adding a card.",
+      "Use ha_dashboards for custom cards via the 'custom:' type prefix with freeform config fields.",
+    ],
 
     parameters: Type.Object({
       action: StringEnum([...ALL_ACTIONS], {

@@ -27,7 +27,12 @@ export function registerPeopleTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_people",
     label: "HA People",
-    description: `Manage HA people (presence detection). Actions: list, get, create, update, delete. Use ha_tool_docs('ha_people') for full usage.`,
+    description: `Manage HA people (presence detection). Actions: list, get, create, update, delete.`,
+    promptSnippet:
+      "Manage people and their device trackers for presence detection: list, get, create, update, delete.",
+    promptGuidelines: [
+      "Use ha_people when the user asks to add or manage people or link device trackers for presence.",
+    ],
 
     parameters: Type.Object({
       action: StringEnum(["list", "get", "create", "update", "delete"] as const, {

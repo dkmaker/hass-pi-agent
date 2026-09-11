@@ -90,7 +90,14 @@ export function registerEntitiesTools(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_entities",
     label: "HA Entities",
-    description: `Discover and inspect HA entities with device/area context. Actions: list, get, domains, update, remove, regenerate-ids. Use ha_tool_docs('ha_entities') for full usage.`,
+    description: `Discover and inspect HA entities with device/area context. Actions: list, get, domains, update, remove, regenerate-ids.`,
+    promptSnippet:
+      "Discover, inspect, rename, and organize HA entities with device/area context; regenerate entity IDs from device names.",
+    promptGuidelines: [
+      "Use ha_entities when the user asks to find, inspect, rename, reorganize, set area/labels, or enable/disable entities.",
+      "Use ha_entities action:regenerate-ids to preview device-name-based IDs — review the shown automation/script/scene references before confirming.",
+      "Use ha_entities action:list with domain/search/state filters for discovery; action:get for one entity's full detail.",
+    ],
 
     parameters: Type.Object({
       action: StringEnum(["list", "get", "domains", "update", "remove", "regenerate-ids"] as const, {

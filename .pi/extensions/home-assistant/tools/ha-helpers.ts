@@ -37,7 +37,13 @@ export function registerHelperTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_helpers",
     label: "HA Helpers",
-    description: `Manage HA helpers — all types, unified interface. Actions: list-types, list, get, add, update, remove. Use ha_tool_docs('ha_helpers') for full usage.`,
+    description: `Manage HA helpers — all types, unified interface. Actions: list-types, list, get, add, update, remove.`,
+    promptSnippet:
+      "Manage all helper types (input_*, counter, timer, template, utility_meter, derivative, etc.) — list/add/update/remove, live with no restart.",
+    promptGuidelines: [
+      "Use ha_helpers when the user asks to create or manage helpers like input_boolean, counter, timer, template sensors, or utility meters.",
+      "Use ha_helpers action:list-types to see supported types and their field schemas before adding.",
+    ],
 
     parameters: Type.Object({
       action: StringEnum(

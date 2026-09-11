@@ -18,7 +18,13 @@ export function registerRecorderTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_recorder",
     label: "HA Recorder",
-    description: `Manage HA recorder and statistics. Actions: adjust, change-unit, clear, purge, info. Use ha_tool_docs('ha_recorder') for full usage.`,
+    description: `Manage HA recorder and statistics. Actions: adjust, change-unit, clear, purge, info.`,
+    promptSnippet:
+      "Manage recorder + long-term statistics: adjust values, change units, clear, purge, info.",
+    promptGuidelines: [
+      "Use ha_recorder to correct a statistic (adjust sum, change-unit) — e.g. fixing a utility meter reading or unit mismatch.",
+      "Use ha_recorder action:purge to trim recorder database history.",
+    ],
 
     parameters: Type.Object({
       action: StringEnum(["adjust", "change-unit", "clear", "purge", "info"] as const, {

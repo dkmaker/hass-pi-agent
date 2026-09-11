@@ -13,7 +13,13 @@ export function registerSystemTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_system",
     label: "HA System",
-    description: `View HA system information. Actions: info, host, os, network, resolution. Use ha_tool_docs('ha_system') for full usage.`,
+    description: `View HA system information. Actions: info, host, os, network, resolution.`,
+    promptSnippet:
+      "View HA system info: supervisor, host, HAOS, network, and resolution-center health issues.",
+    promptGuidelines: [
+      "Use ha_system when the user asks about versions, disk/network, board, or overall system health.",
+      "Use ha_system action:resolution to surface known health issues and suggested fixes.",
+    ],
 
     parameters: Type.Object({
       action: StringEnum(

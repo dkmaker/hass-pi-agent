@@ -67,7 +67,13 @@ export function registerLogbookTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_logbook",
     label: "HA Logbook",
-    description: `Query HA activity log for event timeline. Actions: events. Use ha_tool_docs('ha_logbook') for full usage.`,
+    description: `Query HA activity log for event timeline. Actions: events.`,
+    promptSnippet:
+      "Query the HA activity log timeline for entities, devices, or everything over a time range.",
+    promptGuidelines: [
+      "Use ha_logbook when the user asks what happened / who did what, or wants a human-readable activity timeline.",
+      "Use ha_logbook filtered by entity_ids or device_ids to trace a specific thing's activity.",
+    ],
 
     parameters: Type.Object({
       action: StringEnum(["events"] as const, {

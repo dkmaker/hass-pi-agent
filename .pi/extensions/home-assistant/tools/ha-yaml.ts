@@ -25,7 +25,14 @@ export function registerYamlTool(ctx: ExtensionAPI) {
       "Manage YAML-defined entities and config blocks in Home Assistant configuration files. " +
       "Parses configuration.yaml and all included files. " +
       "All write operations automatically backup the file before modifying it. " +
-      "Actions: list, get, files, update, create, delete. Use ha_tool_docs('ha_yaml') for full usage.",
+      "Actions: list, get, files, update, create, delete.",
+    promptSnippet:
+      "Inspect and edit YAML-defined entities + config blocks across configuration.yaml and !includes — list/get/files, and update/create/delete with backup.",
+    promptGuidelines: [
+      "Use ha_yaml when the user asks about entities or config defined in YAML files (not the UI/registry).",
+      "Use ha_yaml action:list first to discover keys, then action:get for one block's config.",
+      "Use ha_yaml write actions (update/create/delete) for YAML entities — each backs up the file first; reload/restart to apply.",
+    ],
     parameters: Type.Object({
       action: StringEnum(["list", "get", "files", "update", "create", "delete"] as const, {
         description: "Action to perform",

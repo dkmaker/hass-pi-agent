@@ -29,7 +29,13 @@ export function registerBlueprintsTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_blueprints",
     label: "HA Blueprints",
-    description: `Manage HA blueprints (reusable templates). Actions: list, import, delete. Use ha_tool_docs('ha_blueprints') for full usage.`,
+    description: `Manage HA blueprints (reusable templates). Actions: list, import, delete.`,
+    promptSnippet:
+      "Manage blueprints: list, import from a URL (forums/GitHub), and delete reusable automation/script templates.",
+    promptGuidelines: [
+      "Use ha_blueprints when the user asks to add, list, or remove automation/script blueprints.",
+      "Use ha_blueprints action:import with a community-forum or GitHub URL to install a blueprint.",
+    ],
 
     parameters: Type.Object({
       action: StringEnum(["list", "import", "delete"] as const, {

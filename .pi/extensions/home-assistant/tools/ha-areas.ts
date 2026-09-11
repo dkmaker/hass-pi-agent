@@ -52,7 +52,13 @@ export function registerAreasTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_areas",
     label: "HA Areas",
-    description: `Manage HA areas and floors. Actions: list, get, create-area, update-area, delete-area, list-floors, create-floor, update-floor, delete-floor. Use ha_tool_docs('ha_areas') for full usage.`,
+    description: `Manage HA areas and floors. Actions: list, get, create-area, update-area, delete-area, list-floors, create-floor, update-floor, delete-floor.`,
+    promptSnippet:
+      "Manage HA areas and floors: create/update/delete, list grouped by floor with device/entity counts.",
+    promptGuidelines: [
+      "Use ha_areas when the user asks to create, rename, delete, or list areas and floors, or assign areas to floors.",
+      "Use ha_areas action:list to see areas grouped by floor with device/entity counts before reorganizing.",
+    ],
 
     parameters: Type.Object({
       action: StringEnum(

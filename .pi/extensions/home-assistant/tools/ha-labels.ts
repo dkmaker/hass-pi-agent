@@ -27,7 +27,12 @@ export function registerLabelsTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_labels",
     label: "HA Labels",
-    description: `Manage HA labels. Actions: list, create, update, delete. Use ha_tool_docs('ha_labels') for full usage.`,
+    description: `Manage HA labels. Actions: list, create, update, delete.`,
+    promptSnippet:
+      "Manage labels: list, create, update, delete (name, color, icon, description) — applied live.",
+    promptGuidelines: [
+      "Use ha_labels when the user asks to create, rename, recolor, or delete labels used to categorize entities/devices/areas.",
+    ],
 
     parameters: Type.Object({
       action: StringEnum(["list", "create", "update", "delete"] as const, {

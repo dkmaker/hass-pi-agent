@@ -14,7 +14,13 @@ export function registerNotesTool(ctx: ExtensionAPI) {
     description:
       "Manage persistent agent notes on HA objects (entities, devices, automations, etc.). " +
       "Notes are automatically shown when inspecting objects. " +
-      "Actions: get, set, list, delete. Use ha_tool_docs('ha_notes') for full usage.",
+      "Actions: get, set, list, delete.",
+    promptSnippet:
+      "Attach persistent contextual notes to any HA object; auto-shown when inspecting that object.",
+    promptGuidelines: [
+      "Use ha_notes to record context about an entity/device/automation that should resurface next time it's inspected.",
+      "Use ha_notes action:set with the full note text (it replaces, not appends).",
+    ],
     parameters: Type.Object({
       action: StringEnum(["get", "set", "list", "delete"] as const, {
         description: "Action to perform",

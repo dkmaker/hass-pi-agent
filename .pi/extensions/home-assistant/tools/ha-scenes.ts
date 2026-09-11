@@ -210,7 +210,13 @@ export function registerScenesTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_scenes",
     label: "HA Scenes",
-    description: `Manage HA scenes — CRUD, activate, snapshot. Actions: list, get, create, update, delete, activate, snapshot. Use ha_tool_docs('ha_scenes') for full usage.`,
+    description: `Manage HA scenes — CRUD, activate, snapshot. Actions: list, get, create, update, delete, activate, snapshot.`,
+    promptSnippet:
+      "Manage scenes: list/get/create/update/delete, activate, or snapshot current entity states into a scene.",
+    promptGuidelines: [
+      "Use ha_scenes when the user asks to create, edit, activate, or capture scenes.",
+      "Use ha_scenes action:snapshot to build a scene from entities' current states.",
+    ],
 
     parameters: Type.Object({
       action: StringEnum(ALL_ACTIONS, { description: "Action to perform" }),

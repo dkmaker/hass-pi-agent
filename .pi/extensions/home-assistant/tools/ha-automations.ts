@@ -51,7 +51,15 @@ export function registerAutomationsTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_automations",
     label: "HA Automations",
-    description: `Manage HA automations — CRUD, builder, enable/disable, trigger, traces. Actions: list, get, create, update, delete, trigger, enable, disable, traces, trace + builder actions (new, load, save, add-trigger, add-condition, add-action, etc). Use ha_tool_docs('ha_automations') for full usage.`,
+    description: `Manage HA automations — CRUD, builder, enable/disable, trigger, traces. Actions: list, get, create, update, delete, trigger, enable, disable, traces, trace + builder actions (new, load, save, add-trigger, add-condition, add-action, etc).`,
+    promptSnippet:
+      "Full automation lifecycle: CRUD, manual trigger, enable/disable, execution traces, plus a step-by-step builder for triggers/conditions/actions.",
+    promptGuidelines: [
+      "Use ha_automations when the user asks to create, edit, delete, trigger, enable/disable, or debug automations.",
+      "Use ha_automations builder actions (new, add-trigger, add-condition, add-action, save) to construct an automation step-by-step; save validates and auto-reloads.",
+      "Use ha_automations action:traces / trace to inspect why an automation did or didn't fire.",
+      "Use ha_automations action:get-service-schema when building a service-call action to fetch valid fields.",
+    ],
 
     parameters: Type.Object({
       action: StringEnum(ALL_ACTIONS, { description: "Action to perform" }),

@@ -27,7 +27,12 @@ export function registerTagsTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_tags",
     label: "HA Tags",
-    description: `Manage HA tags (NFC/QR). Actions: list, get, create, update, delete. Use ha_tool_docs('ha_tags') for full usage.`,
+    description: `Manage HA tags (NFC/QR). Actions: list, get, create, update, delete.`,
+    promptSnippet:
+      "Manage NFC/QR tags: list, get, create, update, delete — scanned tags fire the tag_scanned event.",
+    promptGuidelines: [
+      "Use ha_tags when the user asks to create or manage NFC/QR tags used to trigger automations.",
+    ],
 
     parameters: Type.Object({
       action: StringEnum(["list", "get", "create", "update", "delete"] as const, {

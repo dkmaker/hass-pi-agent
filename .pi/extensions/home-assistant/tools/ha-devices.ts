@@ -128,7 +128,14 @@ export function registerDevicesTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_devices",
     label: "HA Devices",
-    description: `Discover, inspect, and manage HA devices. Actions: list, get, update, tree. Use ha_tool_docs('ha_devices') for full usage.`,
+    description: `Discover, inspect, and manage HA devices. Actions: list, get, update, tree.`,
+    promptSnippet:
+      "Discover, inspect, and manage HA devices: filter/list, full detail, rename, move to area, set labels, enable/disable, view hub→child tree.",
+    promptGuidelines: [
+      "Use ha_devices when the user asks to find, inspect, rename, re-area, or enable/disable a physical device.",
+      "Use ha_devices action:tree to see hub/bridge devices and their children.",
+      "Use ha_devices action:get for hardware info + all of a device's entities and states.",
+    ],
 
     parameters: Type.Object({
       action: StringEnum(["list", "get", "update", "tree"] as const, {
