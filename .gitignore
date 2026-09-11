@@ -61,4 +61,10 @@ node_modules/
 # Lean ruleset — machine-local per user preference
 .pi/lean.json
 
+# planner / package state — machine-local, not used
+.pi/plans/
+.pi/plan_history.json
+.pi/mypackages.json
+.pi/git/
+
 # <<< pi state-files (auto-managed) <<<
