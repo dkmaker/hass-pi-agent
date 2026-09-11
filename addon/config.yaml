@@ -47,6 +47,7 @@ options:
   additional_packages: []
   write_guard: strict
   write_guard_allow: []
+  hide_thinking: true
 schema:
   default_provider: >-
     list(anthropic|openai|google|openrouter|groq|xai|mistral|cerebras|huggingface|github-copilot|amazon-bedrock|google-vertex|azure-openai-responses)
@@ -74,3 +75,4 @@ schema:
   write_guard: list(strict|warn|off)?
   write_guard_allow:
     - str?
+  hide_thinking: bool?
