@@ -14,6 +14,9 @@ mkdir -p "${PI_DIR}/sessions"
 # --- Docs cache ---
 mkdir -p /data/ha-docs
 
+# --- Agent scratch/data dir (agent cwd; freely writable, config stays gated) ---
+mkdir -p /homeassistant/agent
+
 # --- Write s6 env vars (available to all services via with-contenv) ---
 printf '%s' "${PI_DIR}" > /var/run/s6/container_environment/PI_CODING_AGENT_DIR
 printf '%s' "${SUPERVISOR_TOKEN}" > /var/run/s6/container_environment/HA_TOKEN
@@ -100,13 +103,14 @@ fi
 tmp=$(mktemp)
 jq '. + {"quietStartup": true, "collapseChangelog": true}' "${PI_SETTINGS}" > "$tmp" && mv "$tmp" "${PI_SETTINGS}"
 
-# --- Pre-trust the HA config dir (pi runs with cwd=/homeassistant) ---
+# --- Pre-trust the agent dirs (pi runs with cwd=/homeassistant/agent; also
+#     trust /homeassistant so config edits never prompt) ---
 PI_TRUST="${PI_DIR}/trust.json"
 if [[ ! -f "${PI_TRUST}" ]]; then
     echo '{}' > "${PI_TRUST}"
 fi
 tmp=$(mktemp)
-jq '. + {"/homeassistant": true}' "${PI_TRUST}" > "$tmp" && mv "$tmp" "${PI_TRUST}"
+jq '. + {"/homeassistant": true, "/homeassistant/agent": true}' "${PI_TRUST}" > "$tmp" && mv "$tmp" "${PI_TRUST}"
 
 # --- Clean up legacy extension copy from /homeassistant volume ---
 if [[ -d /homeassistant/.pi/extensions/home-assistant ]]; then
