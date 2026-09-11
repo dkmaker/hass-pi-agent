@@ -98,6 +98,7 @@ export class PiChatApp extends LitElement {
   }
 
   static styles = css`
+    * { box-sizing: border-box; }
     :host { display: flex; flex-direction: column; height: 100dvh; max-width: var(--pi-maxw); margin: 0 auto; }
     header {
       display: flex; align-items: center; gap: 10px;
@@ -206,7 +207,7 @@ export class PiChatApp extends LitElement {
           rows="1"
           placeholder="Message Pi Agent…"
           .value=${this.draft}
-          @input=${(e: Event) => { const t = e.target as HTMLTextAreaElement; this.draft = t.value; t.style.height = "auto"; t.style.height = `${Math.min(Math.max(t.scrollHeight, 44), 140)}px`; }}
+          @input=${(e: Event) => { const t = e.target as HTMLTextAreaElement; this.draft = t.value; t.style.height = "auto"; t.style.height = `${Math.min(Math.max(t.scrollHeight + 2, 44), 140)}px`; }}
           @keydown=${this.onKey}
         ></textarea>
         ${this.busy

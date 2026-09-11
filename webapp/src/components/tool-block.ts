@@ -13,6 +13,7 @@ export class PiToolBlock extends LitElement {
   @property({ type: Object }) result?: ToolResult;
 
   static styles = css`
+    * { box-sizing: border-box; }
     :host { display: block; }
     .card {
       border: 1px solid var(--pi-divider);
