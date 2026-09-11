@@ -25,6 +25,7 @@ import {
 import * as collectionWsBackend from "../lib/backends/collection-ws.js";
 import * as configEntryBackend from "../lib/backends/config-entry.js";
 import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
+import { backupBeforeMutation } from "../lib/mutation-log.js";
 
 
 // ── Tool registration ────────────────────────────────────────
@@ -259,6 +260,16 @@ async function handleUpdate(type?: string, id?: string, fields?: Record<string, 
     return `Validation errors:\n${validation.errors.map((e) => `  - ${e}`).join("\n")}\n\n${formatSchema(type)}`;
   }
 
+  // Snapshot before mutation
+  try {
+    if (t.storageType === "collection") {
+      const current = await collectionWsBackend.getItem(t, id);
+      if (current) backupBeforeMutation("ha_helpers", "update", `${type}.${id}`, current);
+    } else {
+      backupBeforeMutation("ha_helpers", "update", `${type}.${id}`, { type, id, fields });
+    }
+  } catch { /* best-effort */ }
+
   if (t.storageType === "collection") {
     const result = await collectionWsBackend.updateItem(t, id, fields);
     if (!result.success) return `Error: ${result.message}`;
@@ -277,6 +288,16 @@ async function handleRemove(type?: string, id?: string, confirm?: boolean): Prom
   }
   const t = requireType(type);
   if (typeof t === "string") return t;
+
+  // Snapshot before deletion
+  try {
+    if (t.storageType === "collection") {
+      const current = await collectionWsBackend.getItem(t, id);
+      if (current) backupBeforeMutation("ha_helpers", "remove", `${type}.${id}`, current);
+    } else {
+      backupBeforeMutation("ha_helpers", "remove", `${type}.${id}`, { type, id });
+    }
+  } catch { /* best-effort */ }
 
   if (t.storageType === "collection") {
     const result = await collectionWsBackend.removeItem(t, id);

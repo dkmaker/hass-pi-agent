@@ -286,6 +286,18 @@ Actions:
 
 People link HA users to device trackers for presence detection.`,
 
+    ha_mutations: `## ha_mutations — Pre-Mutation Backups and Changelog
+
+Actions:
+- log: Show recent mutation changelog entries (newest first). Filter by tool, action_filter, target. Limit defaults to 30.
+- list: List backup snapshot files (newest first). Filter by tool, target.
+- show: Show contents of a specific backup snapshot. Requires filename.
+- purge: Remove old backups beyond retention limit. Optional keep_count.
+
+Every write/update/delete action across all HA tools automatically snapshots the current state before applying changes.
+Backups are stored in /homeassistant/.pi-backups/mutations/ with a JSONL changelog.
+Use the /ha-log and /ha-backups slash commands for interactive TUI views.`,
+
     ha_recorder: `## ha_recorder — Recorder and Statistics Management
 
 Actions:

@@ -3,6 +3,7 @@
  *
  * All modifications fetch the full config, modify views[], and save back.
  */
+import { backupBeforeMutation } from "../../lib/mutation-log.js";
 import {
   fetchDashboardConfig,
   saveDashboardConfig,
@@ -77,6 +78,9 @@ export async function handleUpdateView(params: Record<string, unknown>): Promise
     params.view_path as string | undefined
   );
 
+  // Snapshot view before mutation
+  backupBeforeMutation("ha_dashboards", "update-view", `${urlPath ?? "default"}.view-${idx}`, config.views[idx]);
+
   // Merge: new config overrides existing fields
   config.views[idx] = { ...config.views[idx], ...viewConfig };
 
@@ -102,6 +106,9 @@ export async function handleRemoveView(params: Record<string, unknown>, confirm?
   if (!confirm) {
     return `⚠️ **Confirm remove-view**: view ${idx} '${view?.title || "(untitled)"}' (${view?.cards?.length ?? 0} cards)\n\nCall again with \`confirm: true\` to proceed.`;
   }
+
+  // Snapshot view before deletion
+  backupBeforeMutation("ha_dashboards", "remove-view", `${urlPath ?? "default"}.view-${idx}`, view);
 
   const removed = config.views.splice(idx, 1)[0];
   await saveDashboardConfig(urlPath, config);

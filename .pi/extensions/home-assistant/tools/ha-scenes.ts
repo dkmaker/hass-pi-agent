@@ -11,6 +11,7 @@ import { wsCommand } from "../lib/ws.js";
 import { apiGet, apiPost, apiDelete } from "../lib/api.js";
 import type { HAState } from "../lib/types.js";
 import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
+import { backupBeforeMutation } from "../lib/mutation-log.js";
 
 // ── List ─────────────────────────────────────────────────────
 
@@ -142,6 +143,8 @@ async function handleUpdate(params: Record<string, unknown>): Promise<string> {
     throw new Error(`Scene '${sceneId}' not found`);
   }
 
+  backupBeforeMutation("ha_scenes", "update", sceneId, existing);
+
   const { id: _id, ...rest } = existing;
   const merged = { ...rest, ...config };
 
@@ -158,6 +161,12 @@ async function handleDelete(params: Record<string, unknown>): Promise<string> {
   if (!params.confirm) {
     return `⚠️ **Confirm delete**: scene \`${sceneId}\`\n\nCall again with \`confirm: true\` to proceed.`;
   }
+
+  try {
+    const existing = await apiGet(`/api/config/scene/config/${sceneId}`);
+    backupBeforeMutation("ha_scenes", "delete", sceneId, existing);
+  } catch { /* best-effort */ }
+
   await apiDelete(`/api/config/scene/config/${sceneId}`);
   return `✅ Deleted scene '${sceneId}'`;
 }
