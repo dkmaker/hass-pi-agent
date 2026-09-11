@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.13.1](https://github.com/dkmaker/hass-pi-agent/compare/v0.13.0...v0.13.1) (2026-09-11)
+
+
+### Bug Fixes
+
+* ha_yaml AST writer (no more YAML corruption) + clearer ha_scripts update error ([cad3d6e](https://github.com/dkmaker/hass-pi-agent/commit/cad3d6e9b211b986f77a4fe9745637647c3ab509))
+* **ha-scripts:** update reports the real cause, not a blanket 'not found' ([815f910](https://github.com/dkmaker/hass-pi-agent/commit/815f910fc065ce92340d2a99ac61415d79b8818a))
+* **ha-yaml:** mutate YAML via library AST, never by line-splicing ([2aaf874](https://github.com/dkmaker/hass-pi-agent/commit/2aaf8746c69ee2ab451c8355dd9b6c4e250100cb))
+
 ## [0.13.0](https://github.com/dkmaker/hass-pi-agent/compare/v0.12.1...v0.13.0) (2026-09-11)
 
 
