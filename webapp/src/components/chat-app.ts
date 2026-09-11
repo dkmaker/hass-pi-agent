@@ -11,6 +11,29 @@ import type { Entry, ServerEvent, ToolResult } from "../types.js";
 let idc = 0;
 const nid = () => `e${++idc}`;
 
+interface MockSession { id: string; title: string; when: string; entries: Entry[]; }
+
+/** Canned past sessions for the /sessions drawer (mock). */
+function cannedSessions(): MockSession[] {
+  return [
+    {
+      id: "s1", title: "Kitchen lights", when: "2h ago",
+      entries: [
+        { kind: "user", id: nid(), text: "Turn off the kitchen light" },
+        { kind: "tool", id: nid(), toolName: "ha_services", args: { domain: "light", service: "turn_off", entity_id: "light.kitchen" }, running: false, isError: false, result: { kind: "service", data: { domain: "light", service: "turn_off", target: "light.kitchen", ok: true } } },
+        { kind: "assistant", id: nid(), text: "\u2705 Turned off **light.kitchen**.", thinking: "", streaming: false },
+      ],
+    },
+    {
+      id: "s2", title: "Porch light script", when: "Yesterday",
+      entries: [
+        { kind: "user", id: nid(), text: "Raise the porch light brightness" },
+        { kind: "assistant", id: nid(), text: "Updated the `porch_light` script \u2014 brightness **60% \u2192 85%**. YAML re-parsed cleanly.", thinking: "", streaming: false },
+      ],
+    },
+  ];
+}
+
 @customElement("pi-chat-app")
 export class PiChatApp extends LitElement {
   @state() private entries: Entry[] = [];
@@ -18,6 +41,9 @@ export class PiChatApp extends LitElement {
   @state() private working = "";
   @state() private connected = false;
   @state() private draft = "";
+  @state() private drawerOpen = false;
+  @state() private sessionTitle = "New chat";
+  private sessions = cannedSessions();
   @query(".scroll") private scroller?: HTMLElement;
   @query("textarea") private ta?: HTMLTextAreaElement;
 
@@ -90,6 +116,21 @@ export class PiChatApp extends LitElement {
     this.ws?.send(JSON.stringify({ type: "abort" }));
   }
 
+  private newSession(): void {
+    this.stop();
+    this.entries = [];
+    this.sessionTitle = "New chat";
+    this.busy = false; this.working = "";
+    this.drawerOpen = false;
+  }
+
+  private openSession(s: MockSession): void {
+    this.entries = s.entries.map((e) => ({ ...e }));
+    this.sessionTitle = s.title;
+    this.drawerOpen = false;
+    this.scrollSoon();
+  }
+
   private onKey(e: KeyboardEvent): void {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -113,6 +154,25 @@ export class PiChatApp extends LitElement {
     header .spacer { flex: 1; }
     .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--pi-ok); }
     .dot.off { background: var(--pi-danger); }
+    .iconbtn { display: grid; place-items: center; width: 38px; height: 38px; border: none; background: transparent; color: var(--pi-text-2); border-radius: 10px; cursor: pointer; }
+    .iconbtn:hover { background: var(--pi-surface-2); color: var(--pi-text); }
+    .iconbtn svg { width: 22px; height: 22px; }
+
+    .scrim { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45); z-index: 5; }
+    .drawer {
+      position: fixed; top: 0; left: 0; bottom: 0; width: 82%; max-width: 320px; z-index: 6;
+      background: var(--pi-surface); border-right: 1px solid var(--pi-divider);
+      padding: 16px 12px calc(16px + env(safe-area-inset-bottom));
+      display: flex; flex-direction: column; gap: 4px; box-shadow: 2px 0 24px rgba(0, 0, 0, 0.25);
+    }
+    .drawer-head { font: 600 12px var(--pi-font); color: var(--pi-text-2); text-transform: uppercase; letter-spacing: 0.05em; padding: 4px 8px 8px; }
+    .newchat { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border: 1px solid var(--pi-divider); background: var(--pi-bg); color: var(--pi-text); border-radius: 12px; cursor: pointer; font: 600 14px var(--pi-font); margin-bottom: 8px; }
+    .newchat svg { width: 18px; height: 18px; }
+    .newchat:hover { border-color: var(--pi-primary); }
+    .sess { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 11px 14px; border: none; background: transparent; color: var(--pi-text); border-radius: 12px; cursor: pointer; text-align: left; width: 100%; }
+    .sess:hover { background: var(--pi-surface-2); }
+    .sess-t { font-size: 14px; font-weight: 500; }
+    .sess-w { font-size: 12px; color: var(--pi-text-2); }
 
     .scroll { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
     .row { display: flex; }
@@ -174,13 +234,36 @@ export class PiChatApp extends LitElement {
   render() {
     const empty = this.entries.length === 0;
     return html`
+      ${this.drawerOpen
+        ? html`
+            <div class="scrim" @click=${() => { this.drawerOpen = false; }}></div>
+            <aside class="drawer">
+              <div class="drawer-head">Sessions</div>
+              <button class="newchat" @click=${() => this.newSession()}>
+                <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" /></svg>
+                New chat
+              </button>
+              ${this.sessions.map(
+                (s) => html`<button class="sess" @click=${() => this.openSession(s)}>
+                  <span class="sess-t">${s.title}</span><span class="sess-w">${s.when}</span>
+                </button>`,
+              )}
+            </aside>`
+        : nothing}
+
       <header>
+        <button class="iconbtn" @click=${() => { this.drawerOpen = true; }} title="Sessions" aria-label="Sessions">
+          <svg viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" /></svg>
+        </button>
         <div class="logo">π</div>
         <div>
           <div class="title">Pi Agent</div>
-          <div class="sub">Home Assistant · mock</div>
+          <div class="sub">${this.sessionTitle}</div>
         </div>
         <div class="spacer"></div>
+        <button class="iconbtn" @click=${() => this.newSession()} title="New chat" aria-label="New chat">
+          <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" /></svg>
+        </button>
         <div class="dot ${this.connected ? "" : "off"}" title=${this.connected ? "connected" : "reconnecting"}></div>
       </header>
 
