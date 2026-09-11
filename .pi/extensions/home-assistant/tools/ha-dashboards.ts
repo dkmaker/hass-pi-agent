@@ -13,6 +13,7 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "@earendil-works/pi-ai";
 import { StringEnum } from "@earendil-works/pi-ai";
 import { wsCommand } from "../lib/ws.js";
+import { coerceJsonParams } from "../lib/tool-args.js";
 import {
   fetchDashboardConfig,
   saveDashboardConfig,
@@ -50,6 +51,7 @@ const ALL_ACTIONS = [
 export function registerDashboardsTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_dashboards",
+    prepareArguments: (args) => coerceJsonParams(args, ["card_config", "view_config"]),
     label: "HA Dashboards",
     description: `Manage HA dashboards (Lovelace UI) — views and cards. Actions: list, get, create, update, delete, get-view, add-view, update-view, remove-view, move-view, add-card, update-card, remove-card, move-card, list-card-types.`,
     promptSnippet:

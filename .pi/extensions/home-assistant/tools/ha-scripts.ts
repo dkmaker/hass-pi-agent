@@ -8,6 +8,7 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "@earendil-works/pi-ai";
 import { StringEnum } from "@earendil-works/pi-ai";
 import { wsCommand } from "../lib/ws.js";
+import { coerceJsonParams } from "../lib/tool-args.js";
 import { apiGet, apiPost, apiDelete } from "../lib/api.js";
 import { timeSince, formatTrace, renderMarkdownResult, renderToolCall } from "../lib/format.js";
 import type { HAState, TraceListEntry } from "../lib/types.js";
@@ -271,6 +272,7 @@ const ALL_ACTIONS = [
 export function registerScriptsTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_scripts",
+    prepareArguments: (args) => coerceJsonParams(args, ["config", "variables"]),
     label: "HA Scripts",
     description: `Manage HA scripts — CRUD, run, stop, traces. Actions: list, get, create, update, delete, run, stop, traces, trace.`,
     promptSnippet:

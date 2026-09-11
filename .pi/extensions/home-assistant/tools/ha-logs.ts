@@ -7,6 +7,7 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "@earendil-works/pi-ai";
 import { StringEnum } from "@earendil-works/pi-ai";
 import { apiGet, apiPost } from "../lib/api.js";
+import { coerceJsonParams } from "../lib/tool-args.js";
 import { wsCommand } from "../lib/ws.js";
 import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
 
@@ -120,6 +121,7 @@ const ALL_ACTIONS = ["get", "list", "set-level", "clear"] as const;
 export function registerLogsTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_logs",
+    prepareArguments: (args) => coerceJsonParams(args, ["levels"]),
     label: "HA Logs",
     description: `View HA system logs and control logger levels. Actions: get, list, set-level, clear.`,
     promptSnippet:

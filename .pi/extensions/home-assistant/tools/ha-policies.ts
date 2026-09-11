@@ -23,6 +23,7 @@ import {
   type PolicyCategory,
   type Policies,
 } from "../lib/policies.js";
+import { coerceJsonParams } from "../lib/tool-args.js";
 import { apiGet } from "../lib/api.js";
 import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
 
@@ -43,6 +44,7 @@ const POLICY_CATEGORIES: PolicyCategory[] = [
 export function registerPoliciesTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_policies",
+    prepareArguments: (args) => coerceJsonParams(args, ["fields"]),
     label: "HA Policies",
     description:
       "Manage user-defined policies (naming conventions, organization preferences). " +

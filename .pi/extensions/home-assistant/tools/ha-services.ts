@@ -8,6 +8,7 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "@earendil-works/pi-ai";
 import { StringEnum } from "@earendil-works/pi-ai";
 import { apiGet, requireToken } from "../lib/api.js";
+import { coerceJsonParams } from "../lib/tool-args.js";
 import { HA_URL, HA_TOKEN } from "../lib/config.js";
 import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
 
@@ -35,6 +36,7 @@ interface ServiceDomain {
 export function registerServicesTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_services",
+    prepareArguments: (args) => coerceJsonParams(args, ["data"]),
     label: "HA Services",
     description: `Discover and call HA services. Actions: list, get, call.`,
     promptSnippet:
