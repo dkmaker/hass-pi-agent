@@ -13,11 +13,11 @@
  */
 import { createServer } from "node:http";
 import { readFile, stat } from "node:fs/promises";
-import { readFileSync } from "node:fs";
+import { readFileSync, mkdirSync } from "node:fs";
 import { dirname, extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { WebSocketServer, type WebSocket } from "ws";
-import { createAgentSession, ModelRuntime, SessionManager, type AgentSessionEvent } from "@earendil-works/pi-coding-agent";
+import { createAgentSession, DefaultResourceLoader, ModelRuntime, SessionManager, type AgentSessionEvent } from "@earendil-works/pi-coding-agent";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dirname, "..", "..");
@@ -54,10 +54,28 @@ async function fetchStats(): Promise<StatsOverview | null> {
 // ── Boot the embedded agent ─────────────────────────────────
 console.log("[engine] booting ModelRuntime…");
 const modelRuntime = await ModelRuntime.create();
-const sessionManager = SessionManager.inMemory(repoRoot);
+
+// Load ONLY the Home Assistant extension, explicitly — no cwd/.pi auto-discovery,
+// no dev-env tool leak. Configurable path so the add-on points at /opt/ha-extension.
+const HA_EXTENSION = process.env.HA_EXTENSION_PATH || resolve(repoRoot, ".pi", "extensions", "home-assistant", "index.ts");
+// Agent working dir = the HA agent scratch (mounted config in dev, /homeassistant/agent in prod).
+const agentCwd = process.env.HA_CONFIG_PATH ? resolve(process.env.HA_CONFIG_PATH, "agent") : resolve(repoRoot, ".engine-scratch");
+// Isolated agentDir with no extensions/ so nothing auto-discovers; auth comes from ModelRuntime.
+const engineAgentDir = resolve(__dirname, "..", ".engine-agentdir");
+mkdirSync(agentCwd, { recursive: true });
+mkdirSync(engineAgentDir, { recursive: true });
+
+const loader = new DefaultResourceLoader({
+  cwd: agentCwd,
+  agentDir: engineAgentDir,
+  additionalExtensionPaths: [HA_EXTENSION],
+});
+await loader.reload();
+
+const sessionManager = SessionManager.inMemory(agentCwd);
 const { session } = await createAgentSession({
-  cwd: repoRoot,
-  agentDir: resolve(process.env.HOME ?? "", ".pi", "agent"),
+  resourceLoader: loader,
+  cwd: agentCwd,
   sessionManager,
   modelRuntime,
 });

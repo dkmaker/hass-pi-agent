@@ -47,22 +47,10 @@ import {
   isMockContext,
   type HAContext,
 } from "./lib/context.js";
-import { readFileSync } from "fs";
-import { join, dirname } from "path";
-import { fileURLToPath } from "url";
+import { HA_SYSTEM_PROMPT } from "./system-prompt.js";
 
-
-// Load APPEND_SYSTEM.md from the extension directory
-const __dirname = dirname(fileURLToPath(import.meta.url));
-let systemPromptAppend = "";
-try {
-  systemPromptAppend = readFileSync(
-    join(__dirname, "APPEND_SYSTEM.md"),
-    "utf-8"
-  );
-} catch {
-  // Not found — running outside the add-on container
-}
+// System prompt embedded in code (system-prompt.ts) — no runtime file dependency.
+const systemPromptAppend = HA_SYSTEM_PROMPT;
 
 export default function (pi: ExtensionAPI) {
   registerHelperTool(pi);
