@@ -7,7 +7,7 @@ import "@material/web/button/text-button.js";
 import "./tool-block.js";
 import "./setup-wizard.js";
 import { icon } from "../icon.js";
-import { mdiRobot, mdiMenu, mdiPlus, mdiSend, mdiStop, mdiThemeLightDark, mdiWeatherSunny, mdiWeatherNight, mdiCog } from "@mdi/js";
+import { mdiRobot, mdiMenu, mdiPlus, mdiSend, mdiStop, mdiThemeLightDark, mdiWeatherSunny, mdiWeatherNight, mdiCog, mdiHistory } from "@mdi/js";
 import { renderMarkdown } from "../md.js";
 import type { Entry, ServerEvent, ToolResult } from "../types.js";
 
@@ -36,6 +36,13 @@ function cannedSessions(): MockSession[] {
     },
   ];
 }
+
+/** Slash commands surfaced when the composer holds just "/". */
+const COMMANDS: { cmd: string; desc: string; icon: string }[] = [
+  { cmd: "/new", desc: "Start a new chat", icon: mdiPlus },
+  { cmd: "/sessions", desc: "Open past sessions", icon: mdiHistory },
+  { cmd: "/setup", desc: "Set up conventions", icon: mdiCog },
+];
 
 @customElement("pi-chat-app")
 export class PiChatApp extends LitElement {
@@ -284,6 +291,15 @@ export class PiChatApp extends LitElement {
     .chip svg { width: 16px; height: 16px; }
     .chip:hover { border-color: var(--pi-primary); }
 
+    .cmd-menu { margin: 0 12px 8px; background: var(--pi-surface); border: 1px solid var(--pi-divider); border-radius: 14px; overflow: hidden; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18); }
+    .cmd { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 14px; border: none; background: transparent; color: var(--pi-text); cursor: pointer; text-align: left; }
+    .cmd:hover { background: var(--pi-surface-2); }
+    .cmd + .cmd { border-top: 1px solid var(--pi-divider); }
+    .cmd svg { width: 20px; height: 20px; color: var(--pi-text-2); flex: 0 0 auto; }
+    .cmd-t { display: flex; flex-direction: column; }
+    .cmd-t b { font-size: 14px; font-family: var(--pi-mono); }
+    .cmd-d { font-size: 12px; color: var(--pi-text-2); }
+
     .composer {
       border-top: 1px solid var(--pi-divider); background: var(--pi-surface);
       padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
@@ -388,6 +404,17 @@ export class PiChatApp extends LitElement {
           ? html`<div class="working"><md-circular-progress indeterminate></md-circular-progress>${this.working}…</div>`
           : nothing}
       </div>
+
+      ${this.draft.trim() === "/"
+        ? html`<div class="cmd-menu">
+            ${COMMANDS.map(
+              (c) => html`<button class="cmd" @click=${() => this.send(c.cmd)}>
+                ${icon(c.icon, 20)}
+                <span class="cmd-t"><b>${c.cmd}</b><span class="cmd-d">${c.desc}</span></span>
+              </button>`,
+            )}
+          </div>`
+        : nothing}
 
       <div class="composer">
         <textarea
