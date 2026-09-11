@@ -1,0 +1,22 @@
+{
+  "name": "pi-agent-webapp",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "mock": "tsx server/mock-server.ts"
+  },
+  "dependencies": {
+    "@material/web": "^2.3.0",
+    "lit": "^3.2.1"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.5.13",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.7",
+    "ws": "^8.18.0"
+  }
+}
