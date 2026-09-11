@@ -22,6 +22,7 @@ import {
   validateFields,
   formatSchema,
 } from "../lib/registry.js";
+import { coerceJsonParams } from "../lib/tool-args.js";
 import * as collectionWsBackend from "../lib/backends/collection-ws.js";
 import * as configEntryBackend from "../lib/backends/config-entry.js";
 import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
@@ -36,6 +37,7 @@ export function registerHelperTool(pi: ExtensionAPI): void {
 
   pi.registerTool({
     name: "ha_helpers",
+    prepareArguments: (args) => coerceJsonParams(args, ["fields"]),
     label: "HA Helpers",
     description: `Manage HA helpers — all types, unified interface. Actions: list-types, list, get, add, update, remove.`,
     promptSnippet:

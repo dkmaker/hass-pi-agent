@@ -28,6 +28,7 @@ import { handleListTypes, handleAddElement, handleUpdateElement, handleRemoveEle
 import { handleGetServiceSchema } from "./ha-automations/service-schema.js";
 import { handleImportYaml } from "./ha-automations/import.js";
 import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
+import { coerceJsonParams } from "../lib/tool-args.js";
 
 // ── Tool registration ────────────────────────────────────────
 
@@ -50,6 +51,7 @@ const ALL_ACTIONS = [
 export function registerAutomationsTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_automations",
+    prepareArguments: (args) => coerceJsonParams(args, ["config"]),
     label: "HA Automations",
     description: `Manage HA automations — CRUD, builder, enable/disable, trigger, traces. Actions: list, get, create, update, delete, trigger, enable, disable, traces, trace + builder actions (new, load, save, add-trigger, add-condition, add-action, etc).`,
     promptSnippet:

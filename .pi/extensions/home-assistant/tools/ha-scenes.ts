@@ -8,6 +8,7 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "@earendil-works/pi-ai";
 import { StringEnum } from "@earendil-works/pi-ai";
 import { wsCommand } from "../lib/ws.js";
+import { coerceJsonParams } from "../lib/tool-args.js";
 import { apiGet, apiPost, apiDelete } from "../lib/api.js";
 import type { HAState } from "../lib/types.js";
 import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
@@ -209,6 +210,7 @@ const ALL_ACTIONS = [
 export function registerScenesTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_scenes",
+    prepareArguments: (args) => coerceJsonParams(args, ["config"]),
     label: "HA Scenes",
     description: `Manage HA scenes — CRUD, activate, snapshot. Actions: list, get, create, update, delete, activate, snapshot.`,
     promptSnippet:

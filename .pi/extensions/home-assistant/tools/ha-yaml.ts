@@ -16,10 +16,12 @@ import { StringEnum } from "@earendil-works/pi-ai";
 import { handleList, handleGet, handleFiles } from "./ha-yaml/read.js";
 import { handleUpdate, handleCreate, handleDelete } from "./ha-yaml/write.js";
 import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
+import { coerceJsonParams } from "../lib/tool-args.js";
 
 export function registerYamlTool(ctx: ExtensionAPI) {
   ctx.registerTool({
     name: "ha_yaml",
+    prepareArguments: (args) => coerceJsonParams(args, ["config"]),
     label: "HA YAML",
     description:
       "Manage YAML-defined entities and config blocks in Home Assistant configuration files. " +

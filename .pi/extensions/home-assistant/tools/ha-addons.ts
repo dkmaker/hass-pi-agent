@@ -9,6 +9,7 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "@earendil-works/pi-ai";
 import { StringEnum } from "@earendil-works/pi-ai";
 import { supervisorApi } from "../lib/supervisor.js";
+import { coerceJsonParams } from "../lib/tool-args.js";
 import { apiGet } from "../lib/api.js";
 import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
 
@@ -63,6 +64,7 @@ interface StoreRepo {
 export function registerAddonsTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "ha_addons",
+    prepareArguments: (args) => coerceJsonParams(args, ["options"]),
     label: "HA Add-ons",
     description: `Manage HA add-ons (install, start/stop, config, logs, store). Actions: list, get, start, stop, restart, install, uninstall, update, logs, stats, config, set-config, store, store-refresh, list-repos, add-repo, remove-repo.`,
     promptSnippet:
