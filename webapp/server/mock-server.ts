@@ -42,7 +42,13 @@ const server = createServer(async (req, res) => {
       return;
     }
     const body = await readFile(file);
-    res.writeHead(200, { "content-type": MIME[extname(file)] ?? "application/octet-stream" });
+    const ext = extname(file);
+    // index.html must never be cached (iOS Safari is aggressive) so a refresh
+    // always fetches the latest hashed asset names; hashed assets are immutable.
+    const cache = ext === ".html"
+      ? "no-store, must-revalidate"
+      : "public, max-age=31536000, immutable";
+    res.writeHead(200, { "content-type": MIME[ext] ?? "application/octet-stream", "cache-control": cache });
     res.end(body);
   } catch (err) {
     res.writeHead(500, { "content-type": "text/plain" });
