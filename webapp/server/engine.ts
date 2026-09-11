@@ -52,18 +52,23 @@ async function fetchStats(): Promise<StatsOverview | null> {
 }
 
 // ── Boot the embedded agent ─────────────────────────────────
-console.log("[engine] booting ModelRuntime…");
-const modelRuntime = await ModelRuntime.create();
-
 // Load ONLY the Home Assistant extension, explicitly — no cwd/.pi auto-discovery,
 // no dev-env tool leak. Configurable path so the add-on points at /opt/ha-extension.
 const HA_EXTENSION = process.env.HA_EXTENSION_PATH || resolve(repoRoot, ".pi", "extensions", "home-assistant", "index.ts");
 // Agent working dir = the HA agent scratch (mounted config in dev, /homeassistant/agent in prod).
 const agentCwd = process.env.HA_CONFIG_PATH ? resolve(process.env.HA_CONFIG_PATH, "agent") : resolve(repoRoot, ".engine-scratch");
-// Isolated agentDir with no extensions/ so nothing auto-discovers; auth comes from ModelRuntime.
+// Isolated agentDir/auth so nothing auto-discovers AND we never read the operator's
+// global ~/.pi auth.json (which holds a subscription Anthropic rejects here). Auth
+// comes ONLY from add-on-config env keys (OPENROUTER_API_KEY, ANTHROPIC_API_KEY, …).
 const engineAgentDir = resolve(__dirname, "..", ".engine-agentdir");
 mkdirSync(agentCwd, { recursive: true });
 mkdirSync(engineAgentDir, { recursive: true });
+
+console.log("[engine] booting ModelRuntime…");
+const modelRuntime = await ModelRuntime.create({
+  authPath: resolve(engineAgentDir, "auth.json"),
+  modelsPath: resolve(engineAgentDir, "models.json"),
+});
 
 const loader = new DefaultResourceLoader({
   cwd: agentCwd,
