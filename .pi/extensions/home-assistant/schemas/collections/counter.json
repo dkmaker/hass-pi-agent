@@ -14,7 +14,6 @@
       "field": "initial",
       "required": false,
       "type": "integer",
-      "minimum": 0,
       "default": 0
     },
     {

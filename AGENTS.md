@@ -52,11 +52,21 @@ Tools live in `.pi/extensions/home-assistant/tools/ha-*.ts`, shared code in `lib
 
 ## Schema Extraction
 
+Submodules are pinned to matching HA **release tags** (not `dev` — it's unstable and huge to fetch). ha-core and ha-frontend track the versions that ship together in a given release (e.g. core `2026.9.1` ↔ frontend `20260826.6`, per core's `package_constraints.txt`).
+
+To bump to a new release:
+
 ```bash
-git submodule update --remote --merge
-python3 tools/extract-schemas.py                  # ha-core/ → schemas/collections|config_entries|registries
+# Pin each submodule to the target release tag (shallow = fast)
+git -C ha-core     fetch --depth 1 origin tag <core-tag>       && git -C ha-core     checkout <core-tag>
+git -C ha-frontend fetch --depth 1 origin tag <frontend-tag>   && git -C ha-frontend checkout <frontend-tag>
+
+python3 tools/extract-schemas.py                  # ha-core/ → .pi/extensions/home-assistant/schemas/{collections,config_entries,registries}
 python3 tools/extract-automation-schemas.py       # ha-frontend/ → schemas/automation-elements.json
+python3 tools/extract-card-schemas.py             # ha-frontend/ → schemas/card-schemas.json
 ```
+
+Find the matching frontend tag with: `gh api repos/home-assistant/core/contents/homeassistant/package_constraints.txt?ref=<core-tag> --jq '.content' | base64 -d | grep home-assistant-frontend`.
 
 ## Policies
 

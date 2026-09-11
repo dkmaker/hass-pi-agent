@@ -25,7 +25,7 @@
       "field": "device_class",
       "required": false,
       "type": "unknown",
-      "raw": "SelectSelector( SelectSelectorConfig( options=[ cls.value for cls in SensorDeviceClass if cls != SensorDeviceClass.ENUM ], sort=True, mode=SelectSelectorMode.DROPDOWN, translation_key=\"sensor_device_class\", ), )"
+      "raw": "DeviceClassSelector( DeviceClassSelectorConfig(domain=Platform.NUMBER) )"
     },
     {
       "field": "unit_of_measurement",

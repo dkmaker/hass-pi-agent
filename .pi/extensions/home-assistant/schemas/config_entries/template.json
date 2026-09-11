@@ -81,7 +81,7 @@
         "format": "device_id"
       },
       {
-        "field": "advanced_options",
+        "field": "additional_options",
         "required": false,
         "type": "unknown",
         "raw": "section( vol.Schema( {"
@@ -118,7 +118,7 @@
         "format": "device_id"
       },
       {
-        "field": "advanced_options",
+        "field": "additional_options",
         "required": false,
         "type": "unknown",
         "raw": "section( vol.Schema( {"
@@ -155,7 +155,7 @@
         "format": "device_id"
       },
       {
-        "field": "advanced_options",
+        "field": "additional_options",
         "required": false,
         "type": "unknown",
         "raw": "section( vol.Schema( {"
@@ -210,7 +210,56 @@
         "format": "device_id"
       },
       {
-        "field": "advanced_options",
+        "field": "additional_options",
+        "required": false,
+        "type": "unknown",
+        "raw": "section( vol.Schema( {"
+      },
+      {
+        "field": "availability",
+        "required": false,
+        "type": "string",
+        "format": "template"
+      }
+    ],
+    "device_tracker": [
+      {
+        "field": "name",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "field": "in_zones",
+        "required": false,
+        "type": "string",
+        "format": "template"
+      },
+      {
+        "field": "latitude",
+        "required": false,
+        "type": "string",
+        "format": "template"
+      },
+      {
+        "field": "longitude",
+        "required": false,
+        "type": "string",
+        "format": "template"
+      },
+      {
+        "field": "location_accuracy",
+        "required": false,
+        "type": "string",
+        "format": "template"
+      },
+      {
+        "field": "device_id",
+        "required": false,
+        "type": "string",
+        "format": "device_id"
+      },
+      {
+        "field": "additional_options",
         "required": false,
         "type": "unknown",
         "raw": "section( vol.Schema( {"
@@ -253,7 +302,7 @@
         "format": "device_id"
       },
       {
-        "field": "advanced_options",
+        "field": "additional_options",
         "required": false,
         "type": "unknown",
         "raw": "section( vol.Schema( {"
@@ -315,7 +364,7 @@
         "format": "device_id"
       },
       {
-        "field": "advanced_options",
+        "field": "additional_options",
         "required": false,
         "type": "unknown",
         "raw": "section( vol.Schema( {"
@@ -352,7 +401,7 @@
         "format": "device_id"
       },
       {
-        "field": "advanced_options",
+        "field": "additional_options",
         "required": false,
         "type": "unknown",
         "raw": "section( vol.Schema( {"
@@ -431,7 +480,7 @@
         "format": "device_id"
       },
       {
-        "field": "advanced_options",
+        "field": "additional_options",
         "required": false,
         "type": "unknown",
         "raw": "section( vol.Schema( {"
@@ -486,7 +535,7 @@
         "format": "device_id"
       },
       {
-        "field": "advanced_options",
+        "field": "additional_options",
         "required": false,
         "type": "unknown",
         "raw": "section( vol.Schema( {"
@@ -503,6 +552,12 @@
         "field": "name",
         "required": true,
         "type": "string"
+      },
+      {
+        "field": "device_class",
+        "required": false,
+        "type": "string",
+        "format": "select"
       },
       {
         "field": "state",
@@ -546,7 +601,7 @@
         "format": "device_id"
       },
       {
-        "field": "advanced_options",
+        "field": "additional_options",
         "required": false,
         "type": "unknown",
         "raw": "section( vol.Schema( {"
@@ -589,7 +644,7 @@
         "format": "device_id"
       },
       {
-        "field": "advanced_options",
+        "field": "additional_options",
         "required": false,
         "type": "unknown",
         "raw": "section( vol.Schema( {"
@@ -638,7 +693,7 @@
         "format": "device_id"
       },
       {
-        "field": "advanced_options",
+        "field": "additional_options",
         "required": false,
         "type": "unknown",
         "raw": "section( vol.Schema( {"
@@ -681,7 +736,7 @@
         "format": "device_id"
       },
       {
-        "field": "advanced_options",
+        "field": "additional_options",
         "required": false,
         "type": "unknown",
         "raw": "section( vol.Schema( {"
@@ -770,7 +825,7 @@
         "format": "device_id"
       },
       {
-        "field": "advanced_options",
+        "field": "additional_options",
         "required": false,
         "type": "unknown",
         "raw": "section( vol.Schema( {"
@@ -855,7 +910,7 @@
         "format": "device_id"
       },
       {
-        "field": "advanced_options",
+        "field": "additional_options",
         "required": false,
         "type": "unknown",
         "raw": "section( vol.Schema( {"
@@ -916,7 +971,7 @@
         "format": "device_id"
       },
       {
-        "field": "advanced_options",
+        "field": "additional_options",
         "required": false,
         "type": "unknown",
         "raw": "section( vol.Schema( {"

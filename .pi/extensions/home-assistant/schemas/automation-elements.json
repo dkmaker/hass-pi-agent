@@ -59,6 +59,10 @@
     "state": {
       "description": "Fires when an entity's state or attribute changes",
       "fields": {
+        "note": {
+          "type": "string",
+          "required": false
+        },
         "entity_id": {
           "type": "string|string[]",
           "required": true
@@ -88,6 +92,10 @@
     "numeric_state": {
       "description": "Fires when an entity's numeric value crosses a threshold",
       "fields": {
+        "note": {
+          "type": "string",
+          "required": false
+        },
         "entity_id": {
           "type": "string|string[]",
           "required": true
@@ -121,6 +129,10 @@
     "time": {
       "description": "Fires at a specific time of day",
       "fields": {
+        "note": {
+          "type": "string",
+          "required": false
+        },
         "at": {
           "type": "string|{ entity_id: string; offset?: string }",
           "required": true
@@ -138,6 +150,10 @@
     "time_pattern": {
       "description": "Fires on a recurring time pattern",
       "fields": {
+        "note": {
+          "type": "string",
+          "required": false
+        },
         "hours": {
           "type": "number|string",
           "required": false
@@ -158,6 +174,10 @@
     "sun": {
       "description": "Fires at sunrise or sunset with optional offset",
       "fields": {
+        "note": {
+          "type": "string",
+          "required": false
+        },
         "offset": {
           "type": "number",
           "required": true
@@ -176,8 +196,12 @@
     "zone": {
       "description": "Fires when a person/device enters or leaves a zone",
       "fields": {
-        "entity_id": {
+        "note": {
           "type": "string",
+          "required": false
+        },
+        "entity_id": {
+          "type": "string|string[]",
           "required": true
         },
         "zone": {
@@ -191,7 +215,7 @@
       },
       "default": {
         "trigger": "zone",
-        "entity_id": "",
+        "entity_id": [],
         "zone": "",
         "event": "enter"
       }
@@ -199,6 +223,10 @@
     "homeassistant": {
       "description": "Fires when Home Assistant starts or shuts down",
       "fields": {
+        "note": {
+          "type": "string",
+          "required": false
+        },
         "event": {
           "type": "enum(start,shutdown)",
           "required": true
@@ -212,6 +240,10 @@
     "event": {
       "description": "Fires when a specific event is fired on the event bus",
       "fields": {
+        "note": {
+          "type": "string",
+          "required": false
+        },
         "event_type": {
           "type": "string",
           "required": true
@@ -233,6 +265,10 @@
     "template": {
       "description": "Fires when a Jinja2 template evaluates to true",
       "fields": {
+        "note": {
+          "type": "string",
+          "required": false
+        },
         "value_template": {
           "type": "string",
           "required": true
@@ -250,6 +286,10 @@
     "webhook": {
       "description": "Fires when an HTTP webhook is received",
       "fields": {
+        "note": {
+          "type": "string",
+          "required": false
+        },
         "webhook_id": {
           "type": "string",
           "required": true
@@ -273,6 +313,10 @@
     "tag": {
       "description": "Fires when an NFC tag is scanned",
       "fields": {
+        "note": {
+          "type": "string",
+          "required": false
+        },
         "tag_id": {
           "type": "string",
           "required": true
@@ -290,6 +334,10 @@
     "calendar": {
       "description": "Fires when a calendar event starts or ends",
       "fields": {
+        "note": {
+          "type": "string",
+          "required": false
+        },
         "event": {
           "type": "enum(start,end)",
           "required": true
@@ -313,6 +361,10 @@
     "conversation": {
       "description": "Fires when a voice/text command matches",
       "fields": {
+        "note": {
+          "type": "string",
+          "required": false
+        },
         "command": {
           "type": "string|string[]",
           "required": true
@@ -326,6 +378,10 @@
     "persistent_notification": {
       "description": "Fires when a persistent notification is created/removed",
       "fields": {
+        "note": {
+          "type": "string",
+          "required": false
+        },
         "notification_id": {
           "type": "string",
           "required": false
@@ -344,6 +400,10 @@
     "geo_location": {
       "description": "Fires when a geo-location source enters/leaves a zone",
       "fields": {
+        "note": {
+          "type": "string",
+          "required": false
+        },
         "source": {
           "type": "string",
           "required": true
@@ -367,6 +427,10 @@
     "mqtt": {
       "description": "Fires when an MQTT message is received on a topic",
       "fields": {
+        "note": {
+          "type": "string",
+          "required": false
+        },
         "topic": {
           "type": "string",
           "required": true
@@ -382,6 +446,10 @@
     "state": {
       "description": "Tests if an entity is in a specific state",
       "fields": {
+        "note": {
+          "type": "string",
+          "required": false
+        },
         "entity_id": {
           "type": "string",
           "required": true
@@ -412,6 +480,10 @@
     "numeric_state": {
       "description": "Tests if an entity's numeric value is above/below a threshold",
       "fields": {
+        "note": {
+          "type": "string",
+          "required": false
+        },
         "entity_id": {
           "type": "string",
           "required": true
@@ -441,6 +513,10 @@
     "sun": {
       "description": "Tests if it's before/after sunrise or sunset",
       "fields": {
+        "note": {
+          "type": "string",
+          "required": false
+        },
         "after_offset": {
           "type": "number",
           "required": false
@@ -459,12 +535,17 @@
         }
       },
       "default": {
-        "condition": "sun"
+        "condition": "sun",
+        "before": null
       }
     },
     "zone": {
       "description": "Tests if a person/device is in a zone",
       "fields": {
+        "note": {
+          "type": "string",
+          "required": false
+        },
         "entity_id": {
           "type": "string",
           "required": true
@@ -483,6 +564,10 @@
     "time": {
       "description": "Tests if the current time is within a range",
       "fields": {
+        "note": {
+          "type": "string",
+          "required": false
+        },
         "after": {
           "type": "string",
           "required": false
@@ -503,6 +588,10 @@
     "template": {
       "description": "Tests if a Jinja2 template evaluates to true",
       "fields": {
+        "note": {
+          "type": "string",
+          "required": false
+        },
         "value_template": {
           "type": "string",
           "required": true
@@ -516,6 +605,10 @@
     "trigger": {
       "description": "Tests which trigger fired (by trigger ID)",
       "fields": {
+        "note": {
+          "type": "string",
+          "required": false
+        },
         "id": {
           "type": "string",
           "required": true
@@ -529,6 +622,10 @@
     "and": {
       "description": "All sub-conditions must be true",
       "fields": {
+        "note": {
+          "type": "string",
+          "required": false
+        },
         "conditions": {
           "type": "Condition[]",
           "required": true
@@ -542,6 +639,10 @@
     "or": {
       "description": "Any sub-condition must be true",
       "fields": {
+        "note": {
+          "type": "string",
+          "required": false
+        },
         "conditions": {
           "type": "Condition[]",
           "required": true
@@ -555,6 +656,10 @@
     "not": {
       "description": "All sub-conditions must be false",
       "fields": {
+        "note": {
+          "type": "string",
+          "required": false
+        },
         "conditions": {
           "type": "Condition[]",
           "required": true
@@ -570,6 +675,10 @@
     "service": {
       "description": "Call a Home Assistant service/action (e.g., light.turn_on)",
       "fields": {
+        "note": {
+          "type": "string",
+          "required": false
+        },
         "service_template": {
           "type": "string",
           "required": false
@@ -603,6 +712,10 @@
     "delay": {
       "description": "Pause execution for a specified duration",
       "fields": {
+        "note": {
+          "type": "string",
+          "required": false
+        },
         "delay": {
           "type": "number|object|string",
           "required": true
@@ -615,6 +728,10 @@
     "wait_template": {
       "description": "Wait until a Jinja2 template evaluates to true",
       "fields": {
+        "note": {
+          "type": "string",
+          "required": false
+        },
         "wait_template": {
           "type": "string",
           "required": true
@@ -629,13 +746,16 @@
         }
       },
       "default": {
-        "wait_template": "",
-        "continue_on_timeout": true
+        "wait_template": ""
       }
     },
     "wait_for_trigger": {
       "description": "Wait for a trigger to fire before continuing",
       "fields": {
+        "note": {
+          "type": "string",
+          "required": false
+        },
         "wait_for_trigger": {
           "type": "Trigger[]",
           "required": true
@@ -656,6 +776,10 @@
     "event": {
       "description": "Fire a custom event on the event bus",
       "fields": {
+        "note": {
+          "type": "string",
+          "required": false
+        },
         "event": {
           "type": "string",
           "required": true
@@ -677,6 +801,10 @@
     "choose": {
       "description": "Select an action branch based on conditions (like switch/case)",
       "fields": {
+        "note": {
+          "type": "string",
+          "required": false
+        },
         "choose": {
           "type": "Option[]",
           "required": true
@@ -698,6 +826,10 @@
     "if": {
       "description": "Simple conditional: if/then/else",
       "fields": {
+        "note": {
+          "type": "string",
+          "required": false
+        },
         "if": {
           "type": "string|Condition[]",
           "required": true
@@ -719,6 +851,10 @@
     "repeat": {
       "description": "Loop actions: count, while, until, or for_each",
       "fields": {
+        "note": {
+          "type": "string",
+          "required": false
+        },
         "repeat": {
           "type": "RepeatConfig",
           "required": true
@@ -734,6 +870,10 @@
     "sequence": {
       "description": "Run actions in order (grouping)",
       "fields": {
+        "note": {
+          "type": "string",
+          "required": false
+        },
         "sequence": {
           "type": "Action[]",
           "required": true
@@ -750,6 +890,10 @@
     "parallel": {
       "description": "Run actions simultaneously",
       "fields": {
+        "note": {
+          "type": "string",
+          "required": false
+        },
         "parallel": {
           "type": "Action[]",
           "required": true
@@ -762,6 +906,10 @@
     "stop": {
       "description": "Stop the automation or script",
       "fields": {
+        "note": {
+          "type": "string",
+          "required": false
+        },
         "stop": {
           "type": "string",
           "required": true
@@ -782,6 +930,10 @@
     "variables": {
       "description": "Set variables for subsequent actions",
       "fields": {
+        "note": {
+          "type": "string",
+          "required": false
+        },
         "variables": {
           "type": "object",
           "required": true
@@ -791,6 +943,10 @@
     "set_conversation_response": {
       "description": "Set the response text for a conversation trigger",
       "fields": {
+        "note": {
+          "type": "string",
+          "required": false
+        },
         "set_conversation_response": {
           "type": "string",
           "required": true
@@ -803,6 +959,10 @@
     "device": {
       "description": "Device-specific action (integration-dependent fields)",
       "fields": {
+        "note": {
+          "type": "string",
+          "required": false
+        },
         "type": {
           "type": "string",
           "required": true
@@ -825,6 +985,10 @@
   "repeat_variants": {
     "count": {
       "fields": {
+        "note": {
+          "type": "string",
+          "required": false
+        },
         "sequence": {
           "type": "Action[]",
           "required": true
@@ -837,6 +1001,10 @@
     },
     "while": {
       "fields": {
+        "note": {
+          "type": "string",
+          "required": false
+        },
         "sequence": {
           "type": "Action[]",
           "required": true
@@ -849,6 +1017,10 @@
     },
     "until": {
       "fields": {
+        "note": {
+          "type": "string",
+          "required": false
+        },
         "sequence": {
           "type": "Action[]",
           "required": true
@@ -861,6 +1033,10 @@
     },
     "for_each": {
       "fields": {
+        "note": {
+          "type": "string",
+          "required": false
+        },
         "sequence": {
           "type": "Action[]",
           "required": true

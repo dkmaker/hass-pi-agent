@@ -205,11 +205,11 @@
           "required": false
         },
         "clock_style": {
-          "type": "\"digital\"|\"analog\"",
+          "type": "enum(digital,analog)",
           "required": false
         },
         "clock_size": {
-          "type": "optional(",
+          "type": "enum(small,medium,large)",
           "required": false
         },
         "show_seconds": {
@@ -225,11 +225,15 @@
           "required": false
         },
         "time_zone": {
-          "type": "enums(Object.keys(timezones",
+          "type": "enums(getTimezoneOptions().map((option) => option.id",
           "required": false
         },
         "no_background": {
           "type": "boolean",
+          "required": false
+        },
+        "date_format": {
+          "type": "defaulted(array(enums(CLOCK_CARD_DATE_PARTS)), []",
           "required": false
         },
         "border": {
@@ -345,6 +349,58 @@
       },
       "source": "interface"
     },
+    "energy-date-selection": {
+      "description": "energy-date-selection",
+      "fields": {
+        "disable_compare": {
+          "type": "boolean",
+          "required": false
+        },
+        "collection_key": {
+          "type": "string",
+          "required": false
+        },
+        "vertical_opening_direction": {
+          "type": "optional(",
+          "required": false
+        },
+        "opening_direction": {
+          "type": "optional(",
+          "required": false
+        }
+      },
+      "source": "editor"
+    },
+    "energy-devices": {
+      "description": "energy-devices",
+      "fields": {
+        "title": {
+          "type": "string",
+          "required": false
+        },
+        "collection_key": {
+          "type": "string",
+          "required": false
+        },
+        "max_devices": {
+          "type": "number",
+          "required": false
+        },
+        "modes": {
+          "type": "\"bar\"|\"pie\"[]",
+          "required": false
+        },
+        "hide_compound_stats": {
+          "type": "boolean",
+          "required": false
+        },
+        "expand_legend": {
+          "type": "boolean",
+          "required": false
+        }
+      },
+      "source": "editor"
+    },
     "energy-devices-detail-graph": {
       "description": "energy-devices-detail-graph",
       "fields": {
@@ -358,6 +414,10 @@
         },
         "max_devices": {
           "type": "number",
+          "required": false
+        },
+        "expand_legend": {
+          "type": "boolean",
           "required": false
         }
       },
@@ -384,6 +444,10 @@
         },
         "modes": {
           "type": "enum(bar,pie)",
+          "required": false
+        },
+        "expand_legend": {
+          "type": "boolean",
           "required": false
         }
       },
@@ -421,6 +485,32 @@
       },
       "source": "interface"
     },
+    "energy-graph": {
+      "description": "energy-graph",
+      "fields": {
+        "title": {
+          "type": "string",
+          "required": false
+        },
+        "collection_key": {
+          "type": "string",
+          "required": false
+        },
+        "show_legend": {
+          "type": "boolean",
+          "required": false
+        },
+        "expand_legend": {
+          "type": "boolean",
+          "required": false
+        },
+        "link_dashboard": {
+          "type": "boolean",
+          "required": false
+        }
+      },
+      "source": "editor"
+    },
     "energy-grid-neutrality-gauge": {
       "description": "energy-grid-neutrality-gauge",
       "fields": {
@@ -447,7 +537,7 @@
           "required": false
         },
         "layout": {
-          "type": "enum(vertical,horizontal,auto)",
+          "type": "optional(",
           "required": false
         },
         "group_by_floor": {
@@ -457,9 +547,13 @@
         "group_by_area": {
           "type": "boolean",
           "required": false
+        },
+        "max_devices": {
+          "type": "number",
+          "required": false
         }
       },
-      "source": "interface"
+      "source": "interface+editor"
     },
     "energy-self-sufficiency-gauge": {
       "description": "energy-self-sufficiency-gauge",
@@ -515,7 +609,7 @@
           "required": false
         },
         "types": {
-          "type": "(string)[]",
+          "type": "optional(",
           "required": false
         },
         "show_only_totals": {
@@ -523,7 +617,7 @@
           "required": false
         }
       },
-      "source": "interface"
+      "source": "interface+editor"
     },
     "energy-usage-graph": {
       "description": "energy-usage-graph",
@@ -534,6 +628,14 @@
         },
         "title": {
           "type": "string",
+          "required": false
+        },
+        "show_legend": {
+          "type": "boolean",
+          "required": false
+        },
+        "expand_legend": {
+          "type": "boolean",
           "required": false
         }
       },
@@ -586,6 +688,10 @@
         },
         "state_color": {
           "type": "boolean",
+          "required": false
+        },
+        "color": {
+          "type": "string",
           "required": false
         },
         "entity": {
@@ -759,6 +865,10 @@
         "state_color": {
           "type": "boolean",
           "required": false
+        },
+        "color": {
+          "type": "string",
+          "required": false
         }
       },
       "source": "interface+editor"
@@ -819,7 +929,7 @@
       "description": "History graph for one or more entities",
       "fields": {
         "entities": {
-          "type": "EntityConfig[]",
+          "type": "graphEntitiesConfigStruct[]",
           "required": true
         },
         "hours_to_show": {
@@ -1025,6 +1135,10 @@
         "state_filter": {
           "type": "string[]",
           "required": false
+        },
+        "name_detail": {
+          "type": "enums(NAME_DETAILS",
+          "required": false
         }
       },
       "source": "interface+editor"
@@ -1052,6 +1166,10 @@
           "type": "number",
           "required": false
         },
+        "show_all": {
+          "type": "boolean",
+          "required": false
+        },
         "entities": {
           "type": "mapEntitiesConfigStruct[]",
           "required": false
@@ -1065,7 +1183,7 @@
           "required": false
         },
         "dark_mode": {
-          "type": "boolean",
+          "type": "optional(boolean()), // legacy option",
           "required": false
         },
         "theme_mode": {
@@ -1078,6 +1196,10 @@
         },
         "conditions": {
           "type": "any",
+          "required": false
+        },
+        "scale_ruler": {
+          "type": "boolean",
           "required": false
         }
       },
@@ -1112,6 +1234,18 @@
         },
         "show_empty": {
           "type": "boolean",
+          "required": false
+        },
+        "tap_action": {
+          "type": "supportedActions(actionConfigStruct, TAP_ACTIONS",
+          "required": false
+        },
+        "hold_action": {
+          "type": "supportedActions(actionConfigStruct, TAP_ACTIONS",
+          "required": false
+        },
+        "double_tap_action": {
+          "type": "optional(",
           "required": false
         }
       },
@@ -1232,6 +1366,10 @@
       "fields": {
         "entity": {
           "type": "string",
+          "required": false
+        },
+        "show_entity_picture": {
+          "type": "boolean",
           "required": false
         },
         "name": {
@@ -1393,7 +1531,7 @@
           "required": false
         },
         "layout": {
-          "type": "enum(vertical,horizontal,auto)",
+          "type": "enum(auto,vertical,horizontal)",
           "required": false
         },
         "group_by_floor": {
@@ -1402,6 +1540,10 @@
         },
         "group_by_area": {
           "type": "boolean",
+          "required": false
+        },
+        "max_devices": {
+          "type": "number",
           "required": false
         }
       },
@@ -1419,6 +1561,10 @@
           "required": false
         },
         "show_legend": {
+          "type": "boolean",
+          "required": false
+        },
+        "expand_legend": {
           "type": "boolean",
           "required": false
         }
@@ -1501,6 +1647,44 @@
       },
       "source": "interface+editor"
     },
+    "shortcut": {
+      "description": "shortcut",
+      "fields": {
+        "label": {
+          "type": "string",
+          "required": false
+        },
+        "description": {
+          "type": "string",
+          "required": false
+        },
+        "icon": {
+          "type": "string",
+          "required": false
+        },
+        "color": {
+          "type": "string",
+          "required": false
+        },
+        "vertical": {
+          "type": "boolean",
+          "required": false
+        },
+        "tap_action": {
+          "type": "ActionConfig",
+          "required": false
+        },
+        "hold_action": {
+          "type": "ActionConfig",
+          "required": false
+        },
+        "double_tap_action": {
+          "type": "ActionConfig",
+          "required": false
+        }
+      },
+      "source": "editor"
+    },
     "stack": {
       "description": "stack",
       "fields": {
@@ -1518,6 +1702,10 @@
     "statistic": {
       "description": "Long-term statistics display",
       "fields": {
+        "collection_key": {
+          "type": "string",
+          "required": false
+        },
         "name": {
           "type": "string",
           "required": false
@@ -1531,11 +1719,15 @@
           "required": false
         },
         "calendar": {
-          "type": "{ period: string; offset: number }",
+          "type": "{ period: string; offset?: number }",
           "required": false
         },
         "rolling_window": {
           "type": "{ duration: object; offset: object }",
+          "required": false
+        },
+        "energy_date_selection": {
+          "type": "boolean",
           "required": false
         },
         "stat_type": {
@@ -1565,10 +1757,6 @@
         "footer": {
           "type": "HeaderFooterConfig",
           "required": false
-        },
-        "collection_key": {
-          "type": "string",
-          "required": false
         }
       },
       "source": "interface+editor"
@@ -1580,12 +1768,8 @@
           "type": "string",
           "required": false
         },
-        "title": {
-          "type": "string",
-          "required": false
-        },
         "entities": {
-          "type": "EntityConfig[]",
+          "type": "graphEntitiesConfigStruct[]",
           "required": true
         },
         "unit": {
@@ -1605,7 +1789,7 @@
           "required": false
         },
         "chart_type": {
-          "type": "\"bar\"|\"line\"",
+          "type": "optional(",
           "required": false
         },
         "min_y_axis": {
@@ -1634,6 +1818,10 @@
         },
         "expand_legend": {
           "type": "boolean",
+          "required": false
+        },
+        "title": {
+          "type": "string",
           "required": false
         }
       },
@@ -1731,6 +1919,10 @@
         "features_position": {
           "type": "enum(bottom,inline)",
           "required": false
+        },
+        "time_format": {
+          "type": "timeFormatConfigStruct",
+          "required": false
         }
       },
       "source": "interface+editor"
@@ -1764,6 +1956,14 @@
         },
         "sort": {
           "type": "string",
+          "required": false
+        },
+        "due_date_period": {
+          "type": "{",
+          "required": false
+        },
+        "calendar": {
+          "type": "{ period: string; offset?: number }",
           "required": false
         }
       },
@@ -1843,7 +2043,7 @@
           "required": false
         },
         "layout": {
-          "type": "enum(vertical,horizontal,auto)",
+          "type": "enum(auto,vertical,horizontal)",
           "required": false
         },
         "group_by_floor": {
@@ -1852,6 +2052,10 @@
         },
         "group_by_area": {
           "type": "boolean",
+          "required": false
+        },
+        "max_devices": {
+          "type": "number",
           "required": false
         }
       },
@@ -1869,7 +2073,7 @@
           "required": false
         },
         "layout": {
-          "type": "enum(vertical,horizontal,auto)",
+          "type": "enum(auto,vertical,horizontal)",
           "required": false
         },
         "group_by_floor": {
@@ -1878,6 +2082,10 @@
         },
         "group_by_area": {
           "type": "boolean",
+          "required": false
+        },
+        "max_devices": {
+          "type": "number",
           "required": false
         }
       },

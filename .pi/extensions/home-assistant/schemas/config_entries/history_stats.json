@@ -57,7 +57,7 @@
       "raw": "SelectSelector( SelectSelectorConfig( options=state_class_options, translation_key=CONF_STATE_CLASS, mode=SelectSelectorMode.DROPDOWN, ), )"
     },
     {
-      "field": "section_advanced_settings",
+      "field": "section_additional_settings",
       "required": false,
       "type": "unknown",
       "raw": "section( vol.Schema( {"

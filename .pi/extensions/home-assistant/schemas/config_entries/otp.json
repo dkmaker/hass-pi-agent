@@ -1,0 +1,27 @@
+{
+  "domain": "otp",
+  "storage_key": "core.config_entries",
+  "storage_type": "config_entry",
+  "name": "One-Time Password (OTP)",
+  "integration_type": "helper",
+  "documentation": "https://www.home-assistant.io/integrations/otp",
+  "fields": [
+    {
+      "field": "token",
+      "required": false,
+      "type": "string"
+    },
+    {
+      "field": "new_token",
+      "required": false,
+      "type": "unknown",
+      "raw": "BooleanSelector(BooleanSelectorConfig())"
+    },
+    {
+      "field": "name",
+      "required": true,
+      "type": "string",
+      "default": "OTP Sensor"
+    }
+  ]
+}
