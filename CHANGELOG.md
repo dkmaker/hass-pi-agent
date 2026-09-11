@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.12.0](https://github.com/dkmaker/hass-pi-agent/compare/v0.11.0...v0.12.0) (2026-09-11)
+
+
+### Features
+
+* add filesystem write-guard for built-in write/edit/bash tools ([19b7819](https://github.com/dkmaker/hass-pi-agent/commit/19b7819e54a34c88ad799ce748fbf123f5773ecc))
+* add write_guard config options + user docs ([73dd9ea](https://github.com/dkmaker/hass-pi-agent/commit/73dd9ea27c87d992239c56a8035f9c219ab25585))
+* filesystem write-guard + agent scratch dir ([1209ba0](https://github.com/dkmaker/hass-pi-agent/commit/1209ba075103a232be99f34c3a131f75493fd3e0))
+* move agent cwd + data to /homeassistant/agent scratch dir ([32c7c64](https://github.com/dkmaker/hass-pi-agent/commit/32c7c64fda0cccab26726c389b41391c4d0f3acd))
+* teach write boundaries + ha_notes responsibility in system prompt ([59b5c02](https://github.com/dkmaker/hass-pi-agent/commit/59b5c029854030a2c85321fbe355656d5a6edb39))
+
+
+### Bug Fixes
+
+* resolve write allowlist fresh + honor declared-but-missing includes ([2a21250](https://github.com/dkmaker/hass-pi-agent/commit/2a21250790131b0e40c2c76f82d8d7a72c941922))
+
 ## [0.11.0](https://github.com/dkmaker/hass-pi-agent/compare/v0.10.2...v0.11.0) (2026-09-11)
 
 
