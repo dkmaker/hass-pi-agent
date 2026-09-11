@@ -191,9 +191,15 @@ export class PiChatApp extends LitElement {
   private onWizardComplete(e: CustomEvent): void {
     this.setupOpen = false;
     const summary = (e.detail?.summary as { topic: string; choice: string }[]) ?? [];
-    const lines = summary.map((s) => `- **${s.topic}:** ${s.choice}`).join("\n");
-    this.entries.push({ kind: "assistant", id: nid(), text: `Setup complete — saved your conventions:\n${lines}\n\nI'll follow these when naming and organizing things.`, thinking: "", streaming: false });
-    this.bump();
+    const lines = summary.map((s) => `- ${s.topic}: ${s.choice}`).join("\n");
+    // Persist the chosen conventions for real: ask the agent to map them onto the
+    // correct ha_policies categories (naming / organization / automations / language)
+    // and save them via ha_policies action:set.
+    const prompt =
+      "Save these Home Assistant conventions to my policies using the ha_policies tool " +
+      "(action:set), mapping each choice onto the correct category (naming, organization, " +
+      "automations, language). Then confirm briefly what you saved.\n\n" + lines;
+    this.send(prompt);
   }
 
   private send(text: string): void {
