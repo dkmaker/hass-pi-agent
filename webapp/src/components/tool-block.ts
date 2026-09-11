@@ -61,6 +61,8 @@ export class PiToolBlock extends LitElement {
     .md code { font-family: var(--pi-mono); }
     .md ul { margin: 4px 0; padding-left: 18px; }
     .md table { margin: 4px 0; display: block; overflow-x: auto; max-width: 100%; white-space: nowrap; }
+    .md h1, .md h2, .md h3, .md h4 { margin: 8px 0 4px; font-weight: 700; line-height: 1.25; }
+    .md h1 { font-size: 1.2em; } .md h2 { font-size: 1.1em; } .md h3 { font-size: 1.02em; }
   `;
 
   private argSummary(): string {

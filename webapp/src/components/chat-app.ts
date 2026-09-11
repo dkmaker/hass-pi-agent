@@ -291,6 +291,9 @@ export class PiChatApp extends LitElement {
     .thinking-ind .dots i:nth-child(3) { animation-delay: .4s; }
     @keyframes pi-blink { 0%, 80%, 100% { opacity: .2 } 40% { opacity: 1 } }
 
+    .bubble h1, .bubble h2, .bubble h3, .bubble h4 { margin: 12px 0 4px; line-height: 1.25; font-weight: 700; color: var(--pi-text); }
+    .bubble h1 { font-size: 1.35em; } .bubble h2 { font-size: 1.18em; } .bubble h3 { font-size: 1.05em; } .bubble h4 { font-size: 1em; }
+    .bubble h1:first-child, .bubble h2:first-child, .bubble h3:first-child, .bubble h4:first-child { margin-top: 0; }
     .bubble table { border-collapse: collapse; font-size: 12.5px; display: block; overflow-x: auto; max-width: 100%; margin: 4px 0; }
     .bubble th, .bubble td { text-align: left; padding: 5px 9px; border-bottom: 1px solid var(--pi-divider); white-space: nowrap; }
     .bubble th { color: var(--pi-text-2); font-weight: 600; }

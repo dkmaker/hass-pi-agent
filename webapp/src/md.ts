@@ -32,6 +32,9 @@ export function renderMarkdown(src: string): string {
     return `\n<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>\n`;
   });
 
+  // headings (#, ##, …, ######) — optional trailing #'s stripped
+  s = s.replace(/^(#{1,6})\s+(.+?)\s*#*$/gm, (_m, h: string, txt: string) => `<h${h.length}>${txt}</h${h.length}>`);
+
   // bullet lists
   s = s.replace(/(?:^|\n)((?:- .*(?:\n|$))+)/g, (_m, block: string) => {
     const items = block
@@ -48,6 +51,8 @@ export function renderMarkdown(src: string): string {
   s = s.replace(/<p>(<ul>[\s\S]*?<\/ul>)<\/p>/g, "$1");
   s = s.replace(/<p>(<table>[\s\S]*?<\/table>)<\/p>/g, "$1");
   s = s.replace(/<br>(<table>)/g, "$1").replace(/(<\/table>)<br>/g, "$1");
+  s = s.replace(/<p>(<h[1-6]>[\s\S]*?<\/h[1-6]>)<\/p>/g, "$1");
+  s = s.replace(/<br>(<h[1-6]>)/g, "$1").replace(/(<\/h[1-6]>)<br>/g, "$1");
   s = s.replace(/\u0000FENCE(\d+)\u0000/g, (_m, i) => fences[Number(i)]);
   return s;
 }
