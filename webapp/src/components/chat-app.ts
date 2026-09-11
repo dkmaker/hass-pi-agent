@@ -5,6 +5,8 @@ import "@material/web/progress/circular-progress.js";
 import "@material/web/button/filled-button.js";
 import "@material/web/button/text-button.js";
 import "./tool-block.js";
+import { icon } from "../icon.js";
+import { mdiRobot, mdiMenu, mdiPlus, mdiSend, mdiStop } from "@mdi/js";
 import { renderMarkdown } from "../md.js";
 import type { Entry, ServerEvent, ToolResult } from "../types.js";
 
@@ -21,7 +23,7 @@ function cannedSessions(): MockSession[] {
       entries: [
         { kind: "user", id: nid(), text: "Turn off the kitchen light" },
         { kind: "tool", id: nid(), toolName: "ha_services", args: { domain: "light", service: "turn_off", entity_id: "light.kitchen" }, running: false, isError: false, result: { kind: "service", data: { domain: "light", service: "turn_off", target: "light.kitchen", ok: true } } },
-        { kind: "assistant", id: nid(), text: "\u2705 Turned off **light.kitchen**.", thinking: "", streaming: false },
+        { kind: "assistant", id: nid(), text: "Turned off **light.kitchen**.", thinking: "", streaming: false },
       ],
     },
     {
@@ -240,7 +242,7 @@ export class PiChatApp extends LitElement {
             <aside class="drawer">
               <div class="drawer-head">Sessions</div>
               <button class="newchat" @click=${() => this.newSession()}>
-                <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" /></svg>
+                ${icon(mdiPlus, 18)}
                 New chat
               </button>
               ${this.sessions.map(
@@ -253,16 +255,16 @@ export class PiChatApp extends LitElement {
 
       <header>
         <button class="iconbtn" @click=${() => { this.drawerOpen = true; }} title="Sessions" aria-label="Sessions">
-          <svg viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" /></svg>
+          ${icon(mdiMenu, 22)}
         </button>
-        <div class="logo">π</div>
+        <div class="logo">${icon(mdiRobot, 20)}</div>
         <div>
           <div class="title">Pi Agent</div>
           <div class="sub">${this.sessionTitle}</div>
         </div>
         <div class="spacer"></div>
         <button class="iconbtn" @click=${() => this.newSession()} title="New chat" aria-label="New chat">
-          <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" /></svg>
+          ${icon(mdiPlus, 22)}
         </button>
         <div class="dot ${this.connected ? "" : "off"}" title=${this.connected ? "connected" : "reconnecting"}></div>
       </header>
@@ -270,7 +272,7 @@ export class PiChatApp extends LitElement {
       <div class="scroll">
         ${empty
           ? html`<div class="empty">
-              <div class="logo" style="margin:0 auto 12px">π</div>
+              <div class="logo" style="margin:0 auto 12px">${icon(mdiRobot, 20)}</div>
               <h2>How can I help with your home?</h2>
               <div>Ask about entities, automations, scripts, or the dashboard.</div>
               <div class="chips">
@@ -294,12 +296,8 @@ export class PiChatApp extends LitElement {
           @keydown=${this.onKey}
         ></textarea>
         ${this.busy
-          ? html`<button class="sendbtn stop" @click=${this.stop} title="Stop">
-              <svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2" /></svg>
-            </button>`
-          : html`<button class="sendbtn" ?disabled=${!this.draft.trim()} @click=${() => this.send(this.draft)} title="Send">
-              <svg viewBox="0 0 24 24"><path d="M4 20l16-8L4 4v6l10 2-10 2z" /></svg>
-            </button>`}
+          ? html`<button class="sendbtn stop" @click=${this.stop} title="Stop">${icon(mdiStop, 22)}</button>`
+          : html`<button class="sendbtn" ?disabled=${!this.draft.trim()} @click=${() => this.send(this.draft)} title="Send">${icon(mdiSend, 20)}</button>`}
       </div>`;
   }
 }

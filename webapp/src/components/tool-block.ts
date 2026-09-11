@@ -1,6 +1,8 @@
 import { LitElement, html, css, nothing, type TemplateResult } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import "@material/web/progress/circular-progress.js";
+import { icon } from "../icon.js";
+import { mdiCheck, mdiAlertCircle } from "@mdi/js";
 import type { ToolResult } from "../types.js";
 
 /** Per-tool render block: a titled card whose body depends on the result kind. */
@@ -34,7 +36,8 @@ export class PiToolBlock extends LitElement {
     .head .spacer { flex: 1; }
     .body { padding: 10px 12px; font: 13px/1.5 var(--pi-font); }
     md-circular-progress { --md-circular-progress-size: 18px; }
-    .badge { font: 600 11px/1 var(--pi-font); padding: 3px 7px; border-radius: 999px; }
+    .badge { display: inline-flex; align-items: center; gap: 4px; font: 600 11px/1 var(--pi-font); padding: 4px 8px; border-radius: 999px; }
+    .badge svg { width: 13px; height: 13px; }
     .badge.ok { background: color-mix(in srgb, var(--pi-ok) 18%, transparent); color: var(--pi-ok); }
     .badge.err { background: color-mix(in srgb, var(--pi-danger) 18%, transparent); color: var(--pi-danger); }
 
@@ -104,7 +107,7 @@ export class PiToolBlock extends LitElement {
           <span class="spacer"></span>
           ${this.running
             ? html`<md-circular-progress indeterminate aria-label="running"></md-circular-progress>`
-            : html`<span class="badge ${this.isError ? "err" : "ok"}">${this.isError ? "error" : "done"}</span>`}
+            : html`<span class="badge ${this.isError ? "err" : "ok"}">${icon(this.isError ? mdiAlertCircle : mdiCheck, 13)}${this.isError ? "error" : "done"}</span>`}
         </div>
         <div class="body">${this.renderBody()}</div>
       </div>`;

@@ -76,7 +76,7 @@ function thinking(text: string): Step[] {
 function scenario(prompt: string): Step[] {
   const p = prompt.toLowerCase();
 
-  if (/entit|light|sensor|devices?/.test(p)) {
+  if (/entit|light|sensor|devices?/.test(p) && !/\bturn\b|\boff\b|\bon\b|lock|arm|disarm|call/.test(p)) {
     return [
       { ev: { type: "agent_start" } },
       { ev: { type: "working", label: "Thinking" }, wait: 400 },
@@ -158,7 +158,7 @@ function scenario(prompt: string): Step[] {
         }, wait: 500,
       },
       { ev: { type: "message_start" } },
-      ...stream("✅ Turned off **light.kitchen**. Anything else?"),
+      ...stream("Turned off **light.kitchen**. Anything else?"),
       { ev: { type: "message_end" } },
       { ev: { type: "turn_end" } },
       { ev: { type: "agent_end" } },
