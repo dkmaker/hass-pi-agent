@@ -57,4 +57,8 @@ node_modules/
 # Per-project pi session JSONL storage (when sessionDir=.pi/sessions) — machine-local activity log
 .pi/sessions/
 
+# lean
+# Lean ruleset — machine-local per user preference
+.pi/lean.json
+
 # <<< pi state-files (auto-managed) <<<
