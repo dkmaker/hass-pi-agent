@@ -159,8 +159,7 @@ export class PiChatApp extends LitElement {
         this.working = ""; this.bump(); break;
       case "text_delta":
         if (this.last?.kind === "assistant") { this.last.text += ev.delta; this.bump(); } break;
-      case "thinking_delta":
-        if (this.last?.kind === "assistant") { this.last.thinking += ev.delta; this.bump(); } break;
+      case "thinking_delta": break; // thinking content is hidden — the streaming bubble shows a "Thinking …" indicator
       case "message_end":
         if (this.last?.kind === "assistant") { this.last.streaming = false; this.bump(); } break;
       case "tool_start":
@@ -285,6 +284,12 @@ export class PiChatApp extends LitElement {
     .notice { align-self: center; font-size: 12px; color: var(--pi-text-2); background: var(--pi-surface-2); padding: 4px 12px; border-radius: 999px; }
     .working { display: flex; align-items: center; gap: 10px; color: var(--pi-text-2); font-size: 14px; padding-left: 4px; }
     md-circular-progress { --md-circular-progress-size: 20px; }
+    .thinking-ind { display: inline-flex; align-items: baseline; gap: 1px; color: var(--pi-text-2); font-style: italic; }
+    .thinking-ind .dots { display: inline-flex; font-style: normal; }
+    .thinking-ind .dots i { animation: pi-blink 1.2s infinite both; }
+    .thinking-ind .dots i:nth-child(2) { animation-delay: .2s; }
+    .thinking-ind .dots i:nth-child(3) { animation-delay: .4s; }
+    @keyframes pi-blink { 0%, 80%, 100% { opacity: .2 } 40% { opacity: 1 } }
 
     .bubble table { border-collapse: collapse; font-size: 12.5px; display: block; overflow-x: auto; max-width: 100%; margin: 4px 0; }
     .bubble th, .bubble td { text-align: left; padding: 5px 9px; border-bottom: 1px solid var(--pi-divider); white-space: nowrap; }
@@ -345,11 +350,12 @@ export class PiChatApp extends LitElement {
       return html`<div class="row assistant"><div style="width:100%"><pi-tool-block
         .toolName=${e.toolName} .args=${e.args} .running=${e.running} .isError=${e.isError} .result=${e.result}
       ></pi-tool-block></div></div>`;
-    // assistant — skip empty bubbles (message_start with no text/thinking)
-    if (!e.text && !e.thinking && !e.streaming) return nothing;
+    // assistant — while streaming with no text yet, show an animated "Thinking …" indicator (reasoning hidden)
+    if (!e.text && !e.streaming) return nothing;
     return html`<div class="row assistant"><div class="bubble">
-      ${e.thinking ? html`<div class="thinking">${e.thinking}</div>` : nothing}
-      ${unsafeHTML(renderMarkdown(e.text || (e.streaming ? "…" : "")))}
+      ${e.text
+        ? unsafeHTML(renderMarkdown(e.text))
+        : html`<span class="thinking-ind">Thinking<span class="dots"><i>.</i><i>.</i><i>.</i></span></span>`}
     </div></div>`;
   }
 
