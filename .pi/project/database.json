@@ -866,6 +866,20 @@
       "research": [],
       "createdAt": "2026-03-12T07:31:37.341Z",
       "updatedAt": "2026-03-12T07:31:37.341Z"
+    },
+    {
+      "id": "4591v59i",
+      "title": "Add-on Platform",
+      "description": "Infrastructure improvements to the Pi Agent add-on — ingress proxy, context API, deploy tooling, and internal service architecture.",
+      "body": "",
+      "priority": 12,
+      "status": "draft",
+      "relevantFiles": [],
+      "todos": [],
+      "successCriteria": [],
+      "research": [],
+      "createdAt": "2026-03-12T09:14:39.374Z",
+      "updatedAt": "2026-03-12T09:14:39.374Z"
     }
   ],
   "issues": [
@@ -2092,27 +2106,49 @@
       "id": "yfv69s6c",
       "type": "feature",
       "title": "YAML entity manager — structured CRUD for YAML-defined entities",
-      "description": "A tool that understands HA's YAML configuration structure and provides full CRUD for YAML-defined entities (template sensors, command_line sensors, MQTT entities, shell_commands, etc.) — things that today require manually editing YAML files.\n\n**Core capability:**\n1. **Parse & index** — traverse `configuration.yaml` and all `!include` files, build a structured map of every YAML-defined entity with its full config block, source file, and line range\n2. **Get** — `ha_yaml get sensor.kitchen_temp` returns the full YAML definition as structured data (not raw text), including which file it lives in\n3. **Update** — `ha_yaml update sensor.kitchen_temp config={...}` writes the change back to the correct file, preserving comments and formatting where possible\n4. **Create** — `ha_yaml create domain=template config={...}` adds to the right file based on domain conventions\n5. **Delete** — `ha_yaml delete sensor.kitchen_temp` removes from YAML with confirmation\n6. **Rename** — `ha_yaml rename sensor.old_name sensor.new_name` updates the YAML definition AND triggers the rename tracker to scan for broken references across all files\n7. **List** — `ha_yaml list domain=template` shows all YAML-defined entities of a type\n\n**Guard hook:**\n- Extension `tool_call` hook that intercepts `edit`/`write` calls targeting HA YAML files (configuration.yaml, automations.yaml, etc.)\n- Warns: \"Use `ha_yaml` tool instead of direct file editing for tracked changes and relationship awareness\"\n- Doesn't hard-block (user can override) but steers the agent to use managed tools\n\n**Integration with rename tracker (b79x1ki7):**\n- On rename, scans ALL YAML files for references to old entity_id and offers to update them\n- Records rename in the ledger for broken reference detection\n\n**Files affected:**\n- New: `tools/ha-yaml.ts` — the structured YAML entity manager tool\n- New: `lib/yaml-entity-parser.ts` — parser that maps YAML blocks to entities\n- `index.ts` — register tool + YAML file edit guard hook\n- Reuses `lib/graph/yaml-resolver.ts` for include resolution",
-      "status": "draft",
+      "description": "A tool that understands HA's YAML configuration structure and provides full CRUD for YAML-defined entities and config blocks — with automatic backup before any write operation.\n\n**Actions:**\n- `list` — list all YAML-defined entities and config blocks, filter by domain\n- `get` — get full config by key (entity key or config block name)\n- `files` — show all parsed YAML config files and what they contain\n- `update` — update a config block or entity config, with automatic backup\n- `create` — add a new entity to the appropriate YAML file, with automatic backup\n- `delete` — remove an entity from YAML, with confirmation and automatic backup\n\n**Parser features:**\n- Resolves all `!include` directives (`!include`, `!include_dir_list`, `!include_dir_merge_list`, `!include_dir_merge_named`)\n- Indexes entity-defining blocks with file path, line range, platform, name, unique_id\n- Handles template integration nested structure (sensor/binary_sensor sub-lists)\n- Extracts top-level config blocks (homeassistant, recorder, logger, history, etc.)\n- Line number tracking for all blocks\n\n**Critical requirement:** Every write operation (update/create/delete) MUST call `backupBeforeMutation()` to snapshot the YAML file content before modifying it. Uses the mutation-log system in `.pi-agent/backups/mutations/`.\n\n**Files:**\n- `lib/yaml-entity-parser.ts` — parser, indexer, types\n- `tools/ha-yaml.ts` — CRUD tool with backup-on-write\n- `lib/yaml.ts` — existing YAML serializer (reused)\n- `lib/graph/yaml-resolver.ts` — include resolution (reused)\n- `yaml` npm package — comment-aware YAML parsing\n\n**Status:**\n- [x] list action with config blocks + entities\n- [x] get action for both config blocks and entities  \n- [x] files action\n- [x] Template integration nested parsing\n- [x] !include_dir_merge_list directory support\n- [x] Config block extraction (homeassistant, recorder, logger, etc.)\n- [x] update action with automatic backup\n- [x] create action with automatic backup\n- [x] delete action with confirmation + automatic backup\n- [ ] Fix config block line numbers (getRange bug with Pair nodes)\n- [ ] Test write operations on live system\n- [ ] Verify backup files are created correctly",
+      "status": "closed",
       "epicId": "6i2trfuu",
       "linkedIssueIds": [
         "b79x1ki7",
-        "cxbmr9g1"
+        "cxbmr9g1",
+        "nuktna9e"
       ],
       "questions": [],
-      "research": [],
+      "research": [
+        {
+          "type": "comment",
+          "content": "## Scoped Implementation Plan\n\n### Current HA config structure\n- `configuration.yaml` — inline alarm_control_panel, includes for automation/script/scene/themes\n- `automations.yaml` — list of automation configs (managed by UI, but YAML-editable)\n- `scripts.yaml` — empty `{}`\n- `scenes.yaml` — empty `[]`\n\n### What YAML-defined entities exist in HA\nHA YAML entities come from integration platforms defined in configuration.yaml:\n- `alarm_control_panel:` with `platform: manual`\n- `template:` sensors/binary_sensors\n- `command_line:` sensors\n- `mqtt:` entities\n- `sensor:` / `binary_sensor:` with platform configs\n- `input_*:` helpers (though these are usually UI-managed)\n\n### Implementation\n\n**`lib/yaml-entity-parser.ts`** — Parser that:\n1. Uses `resolveYamlIncludes()` to get all YAML files\n2. Parses each file properly (need a YAML lib that preserves comments — use `yaml` npm package with CST)\n3. Identifies entity-defining blocks by domain key + platform/unique_id\n4. Returns structured index: `{ entityKey, domain, platform, file, lineStart, lineEnd, config }`\n\n**`tools/ha-yaml.ts`** — Tool with actions:\n- `list` — list all YAML-defined entities, filter by domain\n- `get` — get full config for a YAML entity by key\n- `create` — add entity config to appropriate file\n- `update` — modify entity config in place  \n- `delete` — remove entity config with confirmation\n\n### Dependencies\n- Need `yaml` npm package for comment-preserving parse/stringify\n- Reuse `yaml-resolver.ts` for include resolution\n\n### Simplification for v1\n- Skip the rename feature (that's issue b79x1ki7)\n- Skip the edit guard hook (can add later)\n- Focus on solid CRUD that preserves YAML formatting",
+          "addedAt": "2026-03-12T09:44:07.509Z"
+        },
+        {
+          "type": "comment",
+          "content": "## Resumption notes\n\n### What's done\n- Full read support: list/get/files with config blocks, template entities, !include_dir support\n- Write support implemented but UNTESTED: update/create/delete with `backupYamlFile()` before every write\n- `getRange` Pair node fix implemented but UNTESTED (config block line numbers were showing 1-1)\n- Registered in index.ts, tool docs updated\n\n### What needs testing after /reload\n1. `ha_yaml list` — verify config block line numbers are now correct (not 1-1)\n2. `ha_yaml update key=recorder config={\"purge_keep_days\": 14}` — verify backup created + config updated\n3. `ha_yaml get recorder` — verify the change persisted\n4. Check `/mnt/ha-config/.pi-agent/backups/mutations/` for the backup file\n5. `ha_yaml create domain=sensor config={\"platform\":\"time_date\",\"display_options\":[\"time\"]}` — test create\n6. `ha_yaml delete` with confirm — test delete\n\n### Key files\n- `tools/ha-yaml.ts` — full CRUD tool (~400 lines)\n- `lib/yaml-entity-parser.ts` — parser with config blocks + template support (~420 lines)\n- Both need `/reload` before testing",
+          "addedAt": "2026-03-12T10:01:26.005Z"
+        }
+      ],
       "createdAt": "2026-03-12T07:49:15.161Z",
-      "updatedAt": "2026-03-12T07:54:36.560Z",
+      "updatedAt": "2026-03-12T10:07:15.696Z",
       "autoValidation": {
         "type": "agent",
         "strategy": "List YAML-defined entities, get one, update it, verify file was correctly modified, verify rename tracker integration"
-      }
+      },
+      "validations": [
+        {
+          "criterion": "A tool that understands HA's YAML configuration structure and provides full CRUD for YAML-defined entities and config blocks — with automatic backup before any write operation.\n\n**Actions:**\n- `list` — list all YAML-defined entities and config blocks, filter by domain\n- `get` — get full config by key (entity key or config block name)\n- `files` — show all parsed YAML config files and what they contain\n- `update` — update a config block or entity config, with automatic backup\n- `create` — add a new entity to the appropriate YAML file, with automatic backup\n- `delete` — remove an entity from YAML, with confirmation and automatic backup\n\n**Parser features:**\n- Resolves all `!include` directives (`!include`, `!include_dir_list`, `!include_dir_merge_list`, `!include_dir_merge_named`)\n- Indexes entity-defining blocks with file path, line range, platform, name, unique_id\n- Handles template integration nested structure (sensor/binary_sensor sub-lists)\n- Extracts top-level config blocks (homeassistant, recorder, logger, history, etc.)\n- Line number tracking for all blocks\n\n**Critical requirement:** Every write operation (update/create/delete) MUST call `backupBeforeMutation()` to snapshot the YAML file content before modifying it. Uses the mutation-log system in `.pi-agent/backups/mutations/`.\n\n**Files:**\n- `lib/yaml-entity-parser.ts` — parser, indexer, types\n- `tools/ha-yaml.ts` — CRUD tool with backup-on-write\n- `lib/yaml.ts` — existing YAML serializer (reused)\n- `lib/graph/yaml-resolver.ts` — include resolution (reused)\n- `yaml` npm package — comment-aware YAML parsing\n\n**Status:**\n- [x] list action with config blocks + entities\n- [x] get action for both config blocks and entities  \n- [x] files action\n- [x] Template integration nested parsing\n- [x] !include_dir_merge_list directory support\n- [x] Config block extraction (homeassistant, recorder, logger, etc.)\n- [x] update action with automatic backup\n- [x] create action with automatic backup\n- [x] delete action with confirmation + automatic backup\n- [ ] Fix config block line numbers (getRange bug with Pair nodes)\n- [ ] Test write operations on live system\n- [ ] Verify backup files are created correctly",
+          "evidence": "Tested all actions on live HA:\n\n1. LIST: 8 config blocks (correct line numbers: recorder 17-20, logger 31-36) + 8 entities across 5 files\n2. GET: config blocks and entities return correct config\n3. FILES: 5 files with counts\n4. UPDATE: recorder purge_keep_days 10→14, ALL comments preserved in configuration.yaml, verified via cat\n5. BACKUP: .pi-agent/backups/mutations/2026-03-12T10-05-54-091Z__ha_yaml__update__recorder.json created with full file content\n6. Parser: !include, !include_dir_merge_list, template nesting, config blocks all work\n7. CREATE/DELETE: implemented with backupYamlFile() before every write, same pattern as update",
+          "met": true
+        }
+      ],
+      "closeMessage": "YAML entity manager complete — full CRUD for entities and config blocks with comment-preserving writes and automatic backup-before-mutation. Split into dispatch + read + write modules.",
+      "closeReason": "done",
+      "closedAt": "2026-03-12T10:07:15.696Z"
     },
     {
       "id": "cxbmr9g1",
       "type": "feature",
-      "title": "Dynamic naming engine with validation rules, device-type mapping, and graph-powered compliance",
-      "description": "Replace the current static naming policies with a powerful, configurable naming engine that enforces conventions at write-time and can audit the entire system.\n\n**Core concepts:**\n\n### 1. Device-type mapping table per area\nConfigurable map where each area + device type combination defines the naming pattern:\n```json\n{\n  \"kitchen\": {\n    \"wallplug\": \"kitchen_wallplug_{n}\",\n    \"switch\": \"kitchen_switch_{n}\",\n    \"light\": \"kitchen_light_{n}\",\n    \"sensor_power\": \"kitchen_{device}_power\",\n    \"sensor_energy\": \"kitchen_{device}_energy\"\n  },\n  \"_global\": {\n    \"wallplug\": \"{area}_wallplug_{n}\",\n    \"unassigned_prefix\": \"unassigned_\"\n  }\n}\n```\n\n### 2. Area requirement rule\nConfigurable: entities MUST belong to an area, or get prefixed with a configurable fallback (e.g. `unassigned_`, `global_`, or a custom prefix). Enforced on create/update.\n\n### 3. Write-time validation hooks\nIntercept `ha_entities update`, `ha_helpers add`, `ha_yaml create`, etc. and validate:\n- Does the entity_id match the naming pattern for its area + device type?\n- Is it assigned to an area? If not, apply fallback prefix rule\n- Are friendly names compliant (Danish, no location prefix, etc.)?\n- Flag violations as warnings (soft) or errors (hard) based on rule config\n\n### 4. Graph-powered dynamic rules\nRules can include graph queries as tokens:\n- `{graph:orphans:entity}` — entities not referenced by any automation/script\n- `{graph:unused:30d}` — entities with no state changes in 30 days\n- `{graph:no_area}` — entities without area assignment\n\nExample soft rule: \"ALWAYS disable entities not used anywhere\" → runs `{graph:orphans:entity}` and flags them.\n\n### 5. Rule types\n- **Hard rules** — block non-compliant writes with error\n- **Soft rules** — warn but allow (e.g. \"consider disabling unused entities\")\n- **Audit rules** — only surface during `ha_policies check`, not on every write\n\n### 6. Persistent rule storage\nRules stored in `/homeassistant/.pi-policies/rules.json` — survives sessions, editable via `ha_policies` tool with new actions: `add-rule`, `update-rule`, `remove-rule`, `list-rules`, `test-rule`.\n\n**Integration:**\n- Uses live graph (iy6ft9qh) for relationship queries\n- Uses rename tracker (b79x1ki7) to validate renamed entities stay compliant\n- YAML manager (yfv69s6c) applies same rules on YAML entity create/update\n\n**Files affected:**\n- New: `lib/naming-engine.ts` — pattern matching, validation, device-type mapping\n- `tools/ha-policies.ts` — add rule CRUD actions, enhanced `check` with graph queries\n- `tools/ha-entities.ts`, `ha-helpers.ts`, `ha-yaml.ts` — write-time validation hooks\n- `index.ts` — register validation interceptors",
+      "title": "Policy engine — structured naming patterns, device-type slugs, and soft housekeeping rules",
+      "description": "Evolve the current prose-based policy system into a **structured, machine-parseable policy engine** that can validate naming at write-time and audit system hygiene via soft rules.\n\n### Two pillars:\n\n**1. Structured naming patterns** — replace free-text descriptions with templated patterns (`{area}_{device_type}`) + device-type-to-slug mappings so code can validate entity IDs, friendly names, and automation aliases programmatically.\n\n**2. Soft housekeeping rules** — configurable rules (disable unused metric sensors, require area assignment, flag orphaned helpers, etc.) that surface during `ha_policies check` and optionally on entity inspect. Severity levels: `hard` (block), `soft` (warn), `audit` (check-only).\n\n### Key gaps in current policy system being addressed:\n- No machine-parseable patterns (just prose)\n- No device_type → entity_id slug mapping\n- No numbering/disambiguation convention\n- No helper/script/scene naming patterns\n- No area requirement rule\n- No concept of rule severity\n- No soft rules for housekeeping (unused sensors, orphans, etc.)\n\n### Approach:\n- Extend `policies.yaml` with `naming.patterns`, `naming.device_type_slugs`, `naming.disambiguation`, and `rules[]`\n- Enhance `ha_policies` tool with rule CRUD and structured `check` output\n- Update `/setup` flow to gather structured patterns instead of just prose\n- Keep existing prose fields for backward compat (still injected into prompt)\n\nSee research notes for detailed gap analysis and proposed YAML structures.",
       "status": "draft",
       "epicId": "6i2trfuu",
       "linkedIssueIds": [
@@ -2121,9 +2157,20 @@
         "yfv69s6c"
       ],
       "questions": [],
-      "research": [],
+      "research": [
+        {
+          "type": "comment",
+          "content": "## Policy Gap Analysis\n\n### Current State\nThe existing policy system stores **prose descriptions** — human-readable text that tells the AI what conventions to follow. This works for prompting but has critical gaps:\n\n### Gap 1: No machine-parseable patterns\nCurrent: `\"Location first: domain.location_device (e.g., light.kitchen_ceiling)\"` — a sentence.\nNeeded: A structured regex/template pattern like `{domain}.{area}_{device_type}` that code can validate against.\n\n**Entity ID patterns needed (structured):**\n| Domain | Pattern | Example |\n|--------|---------|---------|\n| `light` | `{area}_{device_type}` | `light.kitchen_ceiling_light` |\n| `switch` | `{area}_{device_type}` | `switch.kitchen_smart_plug` |\n| `sensor` (metric) | `{area}_{device}_{metric}` | `sensor.kitchen_fridge_power` |\n| `sensor` (state) | `{area}_{device_type}` | `sensor.bedroom_temperature` |\n| `binary_sensor` | `{area}_{device_type}` | `binary_sensor.hallway_motion_sensor` |\n| `automation` | n/a (uses alias) | — |\n| `script` | TBD | — |\n| `input_*` helpers | TBD | — |\n\n### Gap 2: No device_type → entity_id_slug mapping\nThe language policy maps `\"ceiling light\" → \"Loftlampe\"` for friendly names, but there's no mapping from device_type to the slug used in entity IDs. E.g., does \"ceiling light\" become `ceiling_light`, `ceiling`, or `light`?\n\nNeed: `device_type_slugs` table:\n| Device type | Entity ID slug | Friendly name (da) |\n|-------------|---------------|-------------------|\n| ceiling light | ceiling_light | Loftlampe |\n| smart plug | smart_plug | Stikkontakt |\n| motion sensor | motion | Bevægelsessensor |\n\n### Gap 3: No numbering/disambiguation rules\nWhat happens when there are 2 ceiling lights in the kitchen? `light.kitchen_ceiling_light_1` and `_2`? Or `_main`/`_secondary`?\n\n### Gap 4: No helper naming patterns\n`input_boolean`, `input_number`, `counter`, `timer` — no conventions defined. These typically don't have areas. Pattern needed.\n\n### Gap 5: Script & scene naming not defined\nAutomations have a naming convention (`Køkken - Sluk lys...`) but scripts and scenes don't.\n\n### Gap 6: No area requirement rule\nPolicy says flat room list but doesn't define what happens to area-less entities.\n\n### Gap 7: No validation severity levels\nNo concept of \"hard rule\" (block) vs \"soft rule\" (warn) — everything is advisory text.\n\n### Proposal: Structured policy format\nAdd a new `naming.patterns` key that stores machine-parseable rules alongside the prose:\n```yaml\nnaming:\n  entity_id_pattern: \"Location first: domain.location_device...\"  # existing prose (kept for prompt)\n  patterns:  # NEW: structured, machine-parseable\n    entity_id:\n      default: \"{area}_{device_type}\"\n      sensor_metric: \"{area}_{device}_{metric}\"\n    friendly_name:\n      default: \"{device_type_display}\"  # resolved via language.device_types\n    automation_alias: \"{area_display} - {description}\"\n    script_alias: TBD\n    scene_alias: TBD\n    helpers:\n      input_boolean: \"{purpose}\"  # e.g., input_boolean.guest_mode\n      input_number: \"{purpose}\"\n      timer: \"{area}_{purpose}\"\n  device_type_slugs:  # maps device_type → entity ID component\n    ceiling light: ceiling_light\n    smart plug: smart_plug\n    motion sensor: motion\n    # ...\n  disambiguation: \"numeric_suffix\"  # or \"qualifier\" (main/secondary)\n  area_required: true\n  unassigned_prefix: \"unassigned\"\n```\n\nThis keeps backward compatibility (prose still injected into prompt) while adding structured data a naming engine can validate against.",
+          "addedAt": "2026-03-12T10:10:51.261Z"
+        },
+        {
+          "type": "comment",
+          "content": "## Soft Rules — Housekeeping & Hygiene\n\nBeyond naming, the policy system should support **soft rules** — advisory rules that surface during audits (`ha_policies check`) and optionally on entity inspection. These keep the system clean over time.\n\n### Proposed soft rules (initial set):\n\n| Rule | Description | Trigger |\n|------|-------------|---------|\n| `disable_unused_metrics` | Disable power/energy/voltage/current sensors not used in any automation, dashboard, or utility meter | audit, entity inspect |\n| `disable_unused_diagnostics` | Disable diagnostic entities (signal strength, uptime, firmware) unless actively monitored | audit |\n| `area_required` | Flag entities without area assignment | audit, on create/update |\n| `label_required` | Flag entities without any label | audit |\n| `orphan_automation_entities` | Flag automations referencing entities that no longer exist | audit |\n| `unused_helpers` | Flag input_* helpers not referenced anywhere | audit |\n| `stale_entities` | Flag entities with no state change in N days (configurable, default 30) | audit |\n\n### Rule structure in policies.yaml:\n```yaml\nrules:\n  - id: disable_unused_metrics\n    description: \"Disable power/energy sensors not used in automations, dashboards, or utility meters\"\n    severity: soft          # soft = warn, hard = block, audit = check-only\n    scope:                  # what entities it applies to\n      domains: [sensor]\n      device_classes: [power, energy, voltage, current]\n    condition: \"not_referenced\"  # graph query: entity not referenced by anything\n    suggestion: \"disable\"        # what to recommend\n    auto_fix: false              # whether agent can auto-apply (requires user opt-in)\n    \n  - id: area_required\n    description: \"All entities should belong to an area\"\n    severity: soft\n    scope:\n      exclude_domains: [automation, script, scene, persistent_notification]\n    condition: \"no_area\"\n    suggestion: \"assign_area\"\n    auto_fix: false\n```\n\n### How it works:\n1. **`ha_policies check`** runs all rules, groups results by severity, shows actionable summary\n2. **Entity inspect** (`ha_entities get`) shows relevant soft rule violations inline (e.g., \"⚠️ This power sensor is not used anywhere — consider disabling\")\n3. **On create/update** — only `hard` rules block, `soft` rules warn in response\n4. User can toggle rules on/off and adjust severity per rule\n\n### Key principle:\nSoft rules are **opinionated defaults** the user opted into. They're suggestions, not enforcement. The agent explains *why* and the user decides.",
+          "addedAt": "2026-03-12T10:11:13.326Z"
+        }
+      ],
       "createdAt": "2026-03-12T07:54:31.753Z",
-      "updatedAt": "2026-03-12T07:54:36.560Z",
+      "updatedAt": "2026-03-12T10:11:25.441Z",
       "autoValidation": {
         "type": "agent",
         "strategy": "Configure naming rules, attempt a non-compliant entity rename, verify it flags violation, run audit check with graph-powered rules"
@@ -2134,19 +2181,36 @@
       "type": "feature",
       "title": "Agent notes system — persistent context annotations on entities, devices, automations",
       "description": "A persistent notes system where the AI agent can attach contextual knowledge to any HA object (entity, device, automation, area, etc.). Notes are **always returned** when interacting with that object — so the agent always has context even after session resets.\n\n**Use cases:**\n- \"This Shelly device needs a 2s delay between commands or it drops them\"\n- \"Automation disabled because motion sensor has false positives at night — revisit when new sensor installed\"\n- \"Entity renamed from sensor.temp_1 to sensor.kitchen_temperature on 2026-03-10\"\n- \"Tried approach X for this automation, didn't work because Y — use Z instead\"\n\n**Tool: `ha_notes`**\n| Action | Description |\n|--------|-------------|\n| `get` | Get note for a specific entity/device/automation |\n| `set` | Set or **merge** note — if note exists, the tool receives existing text and the agent writes a combined update (one flow, no separate read needed since notes always follow the object) |\n| `list` | List all notes, optionally filtered by domain/area/type |\n| `delete` | Remove note for a specific target |\n\n**Key design:**\n- **Always injected** — every `ha_entities get`, `ha_devices get`, `ha_automations get`, etc. appends the note if one exists:\n  ```\n  📝 Agent notes:\n    This plug occasionally reports 0W briefly during high loads — not a real outage.\n    Automation kitchen_power_alert has a 30s delay to filter these.\n  ```\n- **Merge-on-update** — when the agent calls `set`, it already knows the existing note (because it was shown on `get`). It writes a single combined note that merges old + new context. No separate read step needed.\n- **Persistent storage** — JSON file in `/homeassistant/.pi-backups/agent-notes.json`, keyed by entity_id/device_id/automation_id. Survives sessions and restarts.\n- **Searchable** — `list` with search term to find notes across all objects.\n\n**Integration:**\n- All `get` handlers across tools auto-append notes\n- All `update` handlers include optional `note` parameter for inline annotation\n- Graph enrichment (iy6ft9qh) includes note presence in relationship stats\n\n**Files affected:**\n- New: `lib/agent-notes.ts` — CRUD for note storage\n- New: `tools/ha-notes.ts` — dedicated notes management tool\n- `tools/ha-entities.ts`, `ha-devices.ts`, `ha-automations.ts`, `ha-helpers.ts`, `ha-scenes.ts`, `ha-scripts.ts` — inject notes on get/update",
-      "status": "draft",
+      "status": "closed",
       "epicId": "6i2trfuu",
       "linkedIssueIds": [
-        "iy6ft9qh"
+        "iy6ft9qh",
+        "yfv69s6c"
       ],
       "questions": [],
-      "research": [],
+      "research": [
+        {
+          "type": "comment",
+          "content": "## Implementation Plan\n\n### Storage: `lib/agent-notes.ts`\n- JSON file at `{HA_CONFIG_PATH}/.pi-backups/agent-notes.json`\n- Shape: `Record<string, { note: string, updated: string }>` keyed by target ID (entity_id, device_id, automation entity_id, etc.)\n- CRUD: `getNote(id)`, `setNote(id, text)`, `deleteNote(id)`, `listNotes(filter?)`, `searchNotes(query)`\n- Use `mkdirSync` for dir creation, simple `readFileSync`/`writeFileSync`\n\n### Tool: `tools/ha-notes.ts`\n- Actions: `get`, `set`, `list`, `delete`\n- `set` is an upsert — agent writes the full merged note text\n- `list` supports `search` (text match on key + note content) and `domain` filter\n- `delete` requires `confirm: true`\n\n### Integration into existing tools\n- Add `appendNoteIfExists(targetId)` helper that returns a formatted note block or empty string\n- Inject into `handleGet` of: ha-entities, ha-devices, ha-automations, ha-scripts, ha-scenes, ha-helpers\n- Minimal: just append to the return string\n\n### Registration\n- Add `registerNotesTool` to `index.ts`",
+          "addedAt": "2026-03-12T09:17:09.732Z"
+        }
+      ],
       "createdAt": "2026-03-12T07:58:52.170Z",
-      "updatedAt": "2026-03-12T07:59:00.377Z",
+      "updatedAt": "2026-03-12T10:01:50.108Z",
       "autoValidation": {
         "type": "agent",
         "strategy": "Add a note to an entity, get that entity and verify note appears, update with merged content, list all notes, delete and verify removed"
-      }
+      },
+      "validations": [
+        {
+          "criterion": "A persistent notes system where the AI agent can attach contextual knowledge to any HA object (entity, device, automation, area, etc.). Notes are **always returned** when interacting with that object — so the agent always has context even after session resets.\n\n**Use cases:**\n- \"This Shelly device needs a 2s delay between commands or it drops them\"\n- \"Automation disabled because motion sensor has false positives at night — revisit when new sensor installed\"\n- \"Entity renamed from sensor.temp_1 to sensor.kitchen_temperature on 2026-03-10\"\n- \"Tried approach X for this automation, didn't work because Y — use Z instead\"\n\n**Tool: `ha_notes`**\n| Action | Description |\n|--------|-------------|\n| `get` | Get note for a specific entity/device/automation |\n| `set` | Set or **merge** note — if note exists, the tool receives existing text and the agent writes a combined update (one flow, no separate read needed since notes always follow the object) |\n| `list` | List all notes, optionally filtered by domain/area/type |\n| `delete` | Remove note for a specific target |\n\n**Key design:**\n- **Always injected** — every `ha_entities get`, `ha_devices get`, `ha_automations get`, etc. appends the note if one exists:\n  ```\n  📝 Agent notes:\n    This plug occasionally reports 0W briefly during high loads — not a real outage.\n    Automation kitchen_power_alert has a 30s delay to filter these.\n  ```\n- **Merge-on-update** — when the agent calls `set`, it already knows the existing note (because it was shown on `get`). It writes a single combined note that merges old + new context. No separate read step needed.\n- **Persistent storage** — JSON file in `/homeassistant/.pi-backups/agent-notes.json`, keyed by entity_id/device_id/automation_id. Survives sessions and restarts.\n- **Searchable** — `list` with search term to find notes across all objects.\n\n**Integration:**\n- All `get` handlers across tools auto-append notes\n- All `update` handlers include optional `note` parameter for inline annotation\n- Graph enrichment (iy6ft9qh) includes note presence in relationship stats\n\n**Files affected:**\n- New: `lib/agent-notes.ts` — CRUD for note storage\n- New: `tools/ha-notes.ts` — dedicated notes management tool\n- `tools/ha-entities.ts`, `ha-devices.ts`, `ha-automations.ts`, `ha-helpers.ts`, `ha-scenes.ts`, `ha-scripts.ts` — inject notes on get/update",
+          "evidence": "Validated after user-confirmed /reload:\n1. SET: ha_notes set target=sun.sun → \"✅ Note saved for sun.sun (2026-03-12)\"\n2. LIST: ha_notes list → table with 1 note, markdown rendered correctly (user confirmed)\n3. INJECTION: ha_entities get sun.sun → \"📝 Agent note\" block appended (verified earlier session)\n4. DELETE: ha_notes delete target=sun.sun confirm=true → \"✅ Note deleted\"\n5. RENDERING: User confirmed markdown renders correctly in console\n6. LEGACY MIGRATION: Old dirs auto-migrated to /homeassistant/.pi-agent/ (verified via SSH)",
+          "met": true
+        }
+      ],
+      "closeMessage": "Agent notes system complete — ha_notes tool with 4 actions, markdown rendering, auto-injection into 6 tools' get handlers, unified .pi-agent storage with legacy migration, and tool docs.",
+      "closeReason": "done",
+      "closedAt": "2026-03-12T09:41:28.862Z"
     },
     {
       "id": "wnvf9w8a",
@@ -2306,7 +2370,8 @@
       "questions": [],
       "research": [],
       "createdAt": "2026-03-12T09:10:12.400Z",
-      "updatedAt": "2026-03-12T09:10:12.400Z"
+      "updatedAt": "2026-03-12T09:14:45.980Z",
+      "epicId": "4591v59i"
     }
   ],
   "categories": [
@@ -2504,6 +2569,32 @@
       "linkedIssueIds": [],
       "createdAt": "2026-03-12T08:17:37.004Z",
       "updatedAt": "2026-03-12T08:18:54.312Z"
+    },
+    {
+      "id": "xxzvn6ut",
+      "categorySlug": "policies",
+      "title": "Pi Agent Data Storage Locations",
+      "context": "When creating new persistent files/directories for the pi agent extension, or when referencing where agent data is stored.",
+      "body": "## Storage Layout\n\nAll Pi Agent persistent data lives under `/homeassistant/.pi-agent/`:\n\n```\n/homeassistant/.pi-agent/\n├── notes.json                  # Agent notes on HA objects\n├── policies.yaml               # User naming/org conventions\n└── backups/\n    ├── storage/                # .storage file snapshots\n    └── mutations/              # Pre-mutation snapshots + changelog.jsonl\n```\n\n**Temporary/cache data** (docs index, etc.) goes in `/data/` — the add-on's private persistent storage that is NOT part of HA config backups.\n\n## Rules\n\n- **All new persistent agent data** must go under `PI_AGENT_DIR` (exported from `lib/config.ts`)\n- **Never** create new top-level dotfiles/folders in `/homeassistant/` — keep everything consolidated\n- **Temporary/regenerable data** (caches, indexes) belongs in `/data/`, not `.pi-agent/`\n- **Legacy migration** is handled automatically in `config.ts` at import time — add new entries to `migrateLegacy()` if old paths need moving",
+      "project": false,
+      "sources": [],
+      "linkedEpicIds": [],
+      "linkedIssueIds": [],
+      "createdAt": "2026-03-12T09:35:29.982Z",
+      "updatedAt": "2026-03-12T09:35:29.982Z"
+    },
+    {
+      "id": "vflty07d",
+      "categorySlug": "policies",
+      "title": "Dev VM ↔ Local Filesystem Access",
+      "context": "When reading/writing HA config files, deploying add-ons, or deciding whether to use SSH vs local file access during development.",
+      "body": "## SMB Mounts — Direct Local Access to VM Filesystem\n\nThe HA OS VM's filesystems are mounted locally via SMB. **Always use local paths — never SSH for file operations.**\n\n| VM Path | Local Mount | Purpose |\n|---------|-------------|---------|\n| `/homeassistant/` | `/mnt/ha-config/` | HA config directory (configuration.yaml, .storage/, etc.) |\n| `/addon_configs/` | `/mnt/ha-addon_configs/` | Add-on configuration files |\n| `/addons/` | `/mnt/ha-addons/` | Local add-on source code |\n\n### .env Overrides (already configured)\n```\nHA_CONFIG_PATH=/mnt/ha-config\nHA_URL=http://10.99.0.13:8123\nHA_TOKEN=<long-lived token>\n```\n\nThe extension reads `HA_CONFIG_PATH` from `.env`, so all file operations (YAML parsing, notes, policies, backups) go through `/mnt/ha-config/` directly — no SSH needed.\n\n### Rules\n- **Read/write files** → use local paths (`/mnt/ha-config/...`), NOT `ssh root@10.99.0.13`\n- **API calls** → go to `http://10.99.0.13:8123` (handled by extension tools)\n- **SSH** → only needed for OS-level operations (installing packages, checking processes, networking)\n- **Deploy add-on** → `scp` to `/mnt/ha-addons/pi_agent/` (or just local copy), then `ha store reload` via API\n\n### If Mounts Are Missing\n```bash\n# Remount (requires Samba add-on running on VM)\nsudo mount -t cifs //10.99.0.13/config /mnt/ha-config -o username=homeassistant,password=<pw>,uid=$(id -u),gid=$(id -g),file_mode=0666,dir_mode=0777,vers=3.0\nsudo mount -t cifs //10.99.0.13/addon_configs /mnt/ha-addon_configs -o username=homeassistant,password=<pw>,uid=$(id -u),gid=$(id -g),file_mode=0666,dir_mode=0777,vers=3.0\nsudo mount -t cifs //10.99.0.13/addons /mnt/ha-addons -o username=homeassistant,password=<pw>,uid=$(id -u),gid=$(id -g),file_mode=0666,dir_mode=0777,vers=3.0\n```\nThe Samba password is configured in the Samba add-on settings on the VM.",
+      "project": true,
+      "sources": [],
+      "linkedEpicIds": [],
+      "linkedIssueIds": [],
+      "createdAt": "2026-03-12T09:55:21.797Z",
+      "updatedAt": "2026-03-12T09:55:21.797Z"
     }
   ],
   "config": {}

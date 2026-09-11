@@ -7,3 +7,100 @@ node_modules/
 .pi/extensions/pi-docs
 .pi/extensions/project
 .pi/extensions/web-search.ts
+
+# >>> pi state-files (auto-managed) — do not edit >>>
+# convention dirs — always machine-local
+.pi/state/
+.pi/cache/
+
+# @dkmaker/pi-extension-package-manager
+# pi platform settings (enabled packages, model prefs, UI) — per-machine
+.pi/settings.json
+
+# auto-context
+# Auto-context-reset working files — machine-local
+.pi/auto-restart/
+
+# browser
+!.pi/browser/config.json
+
+# confirm-mode
+# Per-session approval decisions — machine-local
+.pi/approval_state.json
+
+# context
+!.pi/context/
+
+# git-commands
+# Pi platform: project-scoped git-sourced package clones — machine-local
+.pi/git/
+# Pi platform: project-scoped npm package installs — machine-local
+.pi/npm/
+!.pi/gitconfig.json
+!.pi/SYSTEM.md
+!.pi/APPEND_SYSTEM.md
+!.pi/extensions/
+!.pi/skills/
+!.pi/themes/
+!.pi/prompts/
+
+# http
+# Active session baseUrl/headers — machine-local
+.pi/http/session.json
+# On-disk response cache — machine-local
+.http_response/
+!.pi/http/
+!.pi/http/templates/
+!.pi/http/variables/
+
+# issues
+# API key / URL override — machine-local
+.pi/issues_auth.json
+!.pi/issues.json
+
+# lean
+!.pi/lean.json
+
+# planner
+# Machine-local active-plan pointer
+.pi/plan_state.json
+
+# problem-management
+!.pi/problem-management/
+
+# processes
+# Live process state — machine-local
+.pi/processes/*
+!.pi/processes/templates.json
+
+# project-management
+!.pi/project/
+
+# research
+!.pi/research/
+
+# runbooks
+!.pi/runbooks/
+!.pi/handoffs/
+!.pi/workflows/
+
+# subagents-new
+!.pi/agents/
+!.pi/chains/
+
+# terse-mode
+# Terse-mode UI preference — machine-local
+.pi/terse.json
+
+# thoughts
+!.pi/thoughts.jsonl
+
+# tmux
+# tmux session registry, recovery metadata, pipe-pane transcripts — all machine-local
+.pi/tmux/
+
+# transcript
+# Per-project pi session JSONL storage (when sessionDir=.pi/sessions) — machine-local activity log
+.pi/sessions/
+
+# <<< pi state-files (auto-managed) <<<

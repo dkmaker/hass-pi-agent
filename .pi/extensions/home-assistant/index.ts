@@ -36,6 +36,8 @@ import { registerToolDocsTool } from "./tools/ha-tool-docs.js";
 import { registerPoliciesTool } from "./tools/ha-policies.js";
 import { registerQuestionnaireTool } from "./tools/questionnaire.js";
 import { registerMutationsTool } from "./tools/ha-mutations.js";
+import { registerNotesTool } from "./tools/ha-notes.js";
+import { registerYamlTool } from "./tools/ha-yaml.js";
 import { readChangelog } from "./lib/mutation-log.js";
 import { policiesExist, loadPolicies, formatPoliciesForPrompt } from "./lib/policies.js";
 import { wsClose } from "./lib/ws.js";
@@ -100,6 +102,8 @@ export default function (pi: ExtensionAPI) {
   registerPoliciesTool(pi);
   registerQuestionnaireTool(pi);
   registerMutationsTool(pi);
+  registerNotesTool(pi);
+  registerYamlTool(pi);
 
   // /ha-log slash command — show recent mutation changelog
   pi.registerCommand("ha-log", {
