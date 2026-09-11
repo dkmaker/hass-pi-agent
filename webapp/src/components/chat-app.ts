@@ -284,7 +284,7 @@ export class PiChatApp extends LitElement {
     .notice { align-self: center; font-size: 12px; color: var(--pi-text-2); background: var(--pi-surface-2); padding: 4px 12px; border-radius: 999px; }
     .working { display: flex; align-items: center; gap: 10px; color: var(--pi-text-2); font-size: 14px; padding-left: 4px; }
     md-circular-progress { --md-circular-progress-size: 20px; }
-    .thinking-ind { display: inline-flex; align-items: baseline; gap: 1px; color: var(--pi-text-2); font-style: italic; }
+    .thinking-ind { display: inline-flex; align-items: baseline; gap: 1px; padding: 2px 6px; font-size: 13px; color: var(--pi-text-2); font-style: italic; }
     .thinking-ind .dots { display: inline-flex; font-style: normal; }
     .thinking-ind .dots i { animation: pi-blink 1.2s infinite both; }
     .thinking-ind .dots i:nth-child(2) { animation-delay: .2s; }
@@ -353,13 +353,11 @@ export class PiChatApp extends LitElement {
       return html`<div class="row assistant"><div style="width:100%"><pi-tool-block
         .toolName=${e.toolName} .args=${e.args} .running=${e.running} .isError=${e.isError} .result=${e.result}
       ></pi-tool-block></div></div>`;
-    // assistant — while streaming with no text yet, show an animated "Thinking …" indicator (reasoning hidden)
+    // assistant
     if (!e.text && !e.streaming) return nothing;
-    return html`<div class="row assistant"><div class="bubble">
-      ${e.text
-        ? unsafeHTML(renderMarkdown(e.text))
-        : html`<span class="thinking-ind">Thinking<span class="dots"><i>.</i><i>.</i><i>.</i></span></span>`}
-    </div></div>`;
+    // Thinking indicator — no bubble, sits directly on the background, small + italic; gone once text arrives
+    if (!e.text) return html`<div class="row assistant"><span class="thinking-ind">Thinking<span class="dots"><i>.</i><i>.</i><i>.</i></span></span></div>`;
+    return html`<div class="row assistant"><div class="bubble">${unsafeHTML(renderMarkdown(e.text))}</div></div>`;
   }
 
   render() {
