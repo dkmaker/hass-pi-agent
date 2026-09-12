@@ -11,9 +11,9 @@
  */
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { renderMarkdownResult, renderToolCall } from "./format.js";
+import { renderMarkdownResult, renderToolCall, timeSince } from "./format.js";
 
-export type Col = { key: string; label: string };
+export type Col = { key: string; label: string; type?: "reltime" };
 export type Row = { cells: Record<string, string>; entity_id?: string; icon?: string; state?: string };
 export type Field = { label: string; value: string };
 
@@ -76,7 +76,8 @@ function renderTableMd(d: Extract<HaDetails, { kind: "table" }>): string {
   if (d.title) lines.push(`**${d.title}**`, "");
   lines.push(`| ${d.columns.map((c) => c.label).join(" | ")} |`);
   lines.push(`|${d.columns.map(() => "---").join("|")}|`);
-  for (const r of d.rows) lines.push(`| ${d.columns.map((c) => mdEscape(r.cells[c.key] ?? "")).join(" | ")} |`);
+  const fmt = (c: Col, v: string) => (c.type === "reltime" ? (v ? timeSince(v) : "—") : v);
+  for (const r of d.rows) lines.push(`| ${d.columns.map((c) => mdEscape(fmt(c, r.cells[c.key] ?? ""))).join(" | ")} |`);
   const summary = d.note
     ?? (d.page && d.page.total > d.rows.length
       ? `Showing ${d.page.offset + 1}-${Math.min(d.page.offset + d.page.limit, d.page.total)} of ${d.page.total}`

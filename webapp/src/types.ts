@@ -7,7 +7,7 @@
 export type ToolResultKind = "entities" | "yaml_diff" | "service" | "automation_trace" | "text" | "details";
 
 /** Unified structured tool payload (mirrors the extension's lib/tool-render HaDetails). */
-export type ToolCol = { key: string; label: string };
+export type ToolCol = { key: string; label: string; type?: "reltime" };
 export type ToolRow = { cells: Record<string, string>; entity_id?: string; icon?: string; state?: string };
 export type ToolField = { label: string; value: string };
 export type ToolDetails =

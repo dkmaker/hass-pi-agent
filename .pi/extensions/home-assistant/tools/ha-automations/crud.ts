@@ -71,7 +71,7 @@ export async function handleList(params: Record<string, unknown>): Promise<HaDet
         state: a.state,
         entity: a.entity_id,
         mode: (a.attributes.mode as string) || "single",
-        last: lastTriggered ? timeSince(lastTriggered) : "—",
+        last: lastTriggered || "",
       },
     };
   });
@@ -87,7 +87,7 @@ export async function handleList(params: Record<string, unknown>): Promise<HaDet
       { key: "state", label: "State" },
       { key: "entity", label: "Entity" },
       { key: "mode", label: "Mode" },
-      { key: "last", label: "Last triggered" },
+      { key: "last", label: "Last triggered", type: "reltime" },
     ],
     rows,
     page: { offset, limit, total },

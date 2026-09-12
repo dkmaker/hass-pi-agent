@@ -8,6 +8,7 @@ import { mdiCheck, mdiAlertCircle, mdiInformationOutline, mdiClose } from "@mdi/
 import type { ToolResult, ToolDetails, ToolCol, ToolRow } from "../types.js";
 import { toolMeta } from "../tool-meta.js";
 import { t as tr, col } from "../i18n.js";
+import { relTime } from "../reltime.js";
 import "../ha-icons.js";
 
 const escapeHtml = (s: string): string => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -147,6 +148,7 @@ export class PiToolBlock extends LitElement {
         ? html`<td><button class="elink" title=${row.entity_id} @click=${() => this.emitEntity(row.entity_id!)}>${inner}</button></td>`
         : html`<td><span class="firstc">${inner}</span></td>`;
     }
+    if (c.type === "reltime") return html`<td>${val ? relTime(val) : "—"}</td>`;
     if (c.key === "state") return html`<td class=${val === "on" || val === "home" ? "state-on" : "state-off"}>${val}</td>`;
     return html`<td>${val}</td>`;
   }
