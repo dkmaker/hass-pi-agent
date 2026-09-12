@@ -149,7 +149,7 @@ export class PiProviderSetup extends LitElement {
       <div class="scrim" @click=${(e: Event) => { if (canClose && e.target === e.currentTarget) this.close(); }}>
         <div class="panel">
           <div class="head">
-            <span class="t">${this.mustConfigure ? tl("welcome") : tl("title")}</span>
+            <span class="t">${tl("title")}</span>
             ${canClose ? html`<button class="iconbtn" @click=${() => this.close()} aria-label="close">${icon(mdiClose, 22)}</button>` : nothing}
           </div>
           <div class="body">
