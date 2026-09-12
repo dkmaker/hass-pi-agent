@@ -2,7 +2,7 @@ import { LitElement, html, css, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { icon } from "../icon.js";
 import { mdiClose, mdiCheck, mdiArrowLeft, mdiCheckCircle } from "@mdi/js";
-import { t, lang } from "../i18n.js";
+import { t, lang, type Lang } from "../i18n.js";
 
 interface Opt { value: string; label: string; example?: string; }
 interface Step { id: string; topic: string; title: string; help: string; options: Opt[]; }
@@ -67,18 +67,49 @@ const STEPS: Step[] = [
   },
 ];
 
-// Danish content for the steps (option examples are code/entity-IDs — language-neutral, kept as-is).
-const DA_STEPS: Record<string, { topic: string; title: string; help: string; options: Record<string, string> }> = {
-  language: { topic: "Sprog", title: "Hvordan skal ting navngives?", help: "Vælg om entitets-ID'er og visningsnavne deler ét sprog eller opdeles (tekniske ID'er på engelsk, visningsnavne på dit sprog).", options: { english: "Kun engelsk", multilingual: "Flersproget (engelske ID'er + danske navne)" } },
-  entity_naming: { topic: "Entitets-ID'er", title: "Navnemønster for entitets-ID", help: "Hvor skal placeringen stå i entity_id?", options: { location_first: "Placering først", device_first: "Enhed først" } },
-  metrics: { topic: "Målesensorer", title: "Effekt vs. energi-navngivning", help: "Skeln øjeblikkelig (speedometer) fra akkumuleret (kilometertæller), så enheder forbliver klare.", options: { suffix: "Suffiks _power / _energy", explicit: "Eksplicit enhed i navnet" } },
-  friendly: { topic: "Visningsnavne", title: "Stil for visningsnavne", help: "Hvor detaljerede skal visningsnavne være? Stemmeassistenter foretrækker fulde, entydige navne.", options: { voice: "Stemme-optimeret (fuld)", short: "Kort" } },
-  areas: { topic: "Områder & etager", title: "Områdestruktur", help: "Hvordan skal rum organiseres?", options: { floors: "Etager → områder", flat: "Flade områder" } },
-  labels: { topic: "Labels", title: "Label-strategi", help: "Brug labels til at gå på tværs af områder (fx efter funktion eller automatisering).", options: { yes: "Brug labels", no: "Ingen labels" } },
-  automations: { topic: "Automatiseringer", title: "Navngivning af automatiseringer", help: "Hvordan skal automatiseringer navngives for nem overskuelighed?", options: { descriptive: "Beskrivende", prefixed: "Præfikset" } },
+// Localized step content (da/no/sv/de). English is the base STEPS above.
+// Option examples are code/entity-IDs — language-neutral, kept as-is.
+type StepTr = { topic: string; title: string; help: string; options: Record<string, string> };
+const STEP_L10N: Partial<Record<Lang, Record<string, StepTr>>> = {
+  da: {
+    language: { topic: "Sprog", title: "Hvordan skal ting navngives?", help: "Vælg om entitets-ID'er og visningsnavne deler ét sprog eller opdeles (tekniske ID'er på engelsk, visningsnavne på dit sprog).", options: { english: "Kun engelsk", multilingual: "Flersproget (engelske ID'er + danske navne)" } },
+    entity_naming: { topic: "Entitets-ID'er", title: "Navnemønster for entitets-ID", help: "Hvor skal placeringen stå i entity_id?", options: { location_first: "Placering først", device_first: "Enhed først" } },
+    metrics: { topic: "Målesensorer", title: "Effekt vs. energi-navngivning", help: "Skeln øjeblikkelig (speedometer) fra akkumuleret (kilometertæller), så enheder forbliver klare.", options: { suffix: "Suffiks _power / _energy", explicit: "Eksplicit enhed i navnet" } },
+    friendly: { topic: "Visningsnavne", title: "Stil for visningsnavne", help: "Hvor detaljerede skal visningsnavne være? Stemmeassistenter foretrækker fulde, entydige navne.", options: { voice: "Stemme-optimeret (fuld)", short: "Kort" } },
+    areas: { topic: "Områder & etager", title: "Områdestruktur", help: "Hvordan skal rum organiseres?", options: { floors: "Etager → områder", flat: "Flade områder" } },
+    labels: { topic: "Labels", title: "Label-strategi", help: "Brug labels til at gå på tværs af områder (fx efter funktion eller automatisering).", options: { yes: "Brug labels", no: "Ingen labels" } },
+    automations: { topic: "Automatiseringer", title: "Navngivning af automatiseringer", help: "Hvordan skal automatiseringer navngives for nem overskuelighed?", options: { descriptive: "Beskrivende", prefixed: "Præfikset" } },
+  },
+  no: {
+    language: { topic: "Språk", title: "Hvordan skal ting navngis?", help: "Velg om enhets-ID-er og visningsnavn deler ett språk eller deles (tekniske ID-er på engelsk, visningsnavn på ditt språk).", options: { english: "Kun engelsk", multilingual: "Flerspråklig (engelske ID-er + norske navn)" } },
+    entity_naming: { topic: "Enhets-ID-er", title: "Navnemønster for enhets-ID", help: "Hvor skal plasseringen stå i entity_id?", options: { location_first: "Plassering først", device_first: "Enhet først" } },
+    metrics: { topic: "Målesensorer", title: "Effekt vs. energi-navngivning", help: "Skill øyeblikkelig (speedometer) fra akkumulert (kilometerteller), så enheter forblir tydelige.", options: { suffix: "Suffiks _power / _energy", explicit: "Eksplisitt enhet i navnet" } },
+    friendly: { topic: "Visningsnavn", title: "Stil for visningsnavn", help: "Hvor detaljerte skal visningsnavn være? Taleassistenter foretrekker fulle, entydige navn.", options: { voice: "Taleoptimalisert (fullt)", short: "Kort" } },
+    areas: { topic: "Områder & etasjer", title: "Områdestruktur", help: "Hvordan skal rom organiseres?", options: { floors: "Etasjer → områder", flat: "Flate områder" } },
+    labels: { topic: "Etiketter", title: "Etikett-strategi", help: "Bruk etiketter til å gå på tvers av områder (f.eks. etter funksjon eller automasjon).", options: { yes: "Bruk etiketter", no: "Ingen etiketter" } },
+    automations: { topic: "Automasjoner", title: "Navngivning av automasjoner", help: "Hvordan skal automasjoner navngis for enkel oversikt?", options: { descriptive: "Beskrivende", prefixed: "Prefikset" } },
+  },
+  sv: {
+    language: { topic: "Språk", title: "Hur ska saker namnges?", help: "Välj om entitets-ID:n och visningsnamn delar ett språk eller delas upp (tekniska ID:n på engelska, visningsnamn på ditt språk).", options: { english: "Endast engelska", multilingual: "Flerspråkig (engelska ID:n + svenska namn)" } },
+    entity_naming: { topic: "Entitets-ID:n", title: "Namnmönster för entitets-ID", help: "Var ska platsen stå i entity_id?", options: { location_first: "Plats först", device_first: "Enhet först" } },
+    metrics: { topic: "Mätsensorer", title: "Effekt vs. energi-namngivning", help: "Skilj momentant (hastighetsmätare) från ackumulerat (vägmätare) så att enheter förblir tydliga.", options: { suffix: "Suffix _power / _energy", explicit: "Explicit enhet i namnet" } },
+    friendly: { topic: "Visningsnamn", title: "Stil för visningsnamn", help: "Hur utförliga ska visningsnamn vara? Röstassistenter föredrar fullständiga, entydiga namn.", options: { voice: "Röstoptimerad (fullständig)", short: "Kort" } },
+    areas: { topic: "Områden & våningar", title: "Områdesstruktur", help: "Hur ska rum organiseras?", options: { floors: "Våningar → områden", flat: "Platta områden" } },
+    labels: { topic: "Etiketter", title: "Etikettstrategi", help: "Använd etiketter för att korsa områden (t.ex. efter funktion eller automation).", options: { yes: "Använd etiketter", no: "Inga etiketter" } },
+    automations: { topic: "Automationer", title: "Namngivning av automationer", help: "Hur ska automationer namnges för enkel överblick?", options: { descriptive: "Beskrivande", prefixed: "Prefixad" } },
+  },
+  de: {
+    language: { topic: "Sprache", title: "Wie sollen Dinge benannt werden?", help: "Wähle, ob Entitäts-IDs und Anzeigenamen eine Sprache teilen oder getrennt sind (technische IDs auf Englisch, Anzeigenamen in deiner Sprache).", options: { english: "Nur Englisch", multilingual: "Mehrsprachig (englische IDs + deutsche Namen)" } },
+    entity_naming: { topic: "Entitäts-IDs", title: "Namensschema für Entitäts-ID", help: "Wo soll der Ort in der entity_id stehen?", options: { location_first: "Ort zuerst", device_first: "Gerät zuerst" } },
+    metrics: { topic: "Messsensoren", title: "Leistung vs. Energie-Benennung", help: "Unterscheide momentan (Tacho) von kumulativ (Kilometerzähler), damit Einheiten klar bleiben.", options: { suffix: "Suffix _power / _energy", explicit: "Explizite Einheit im Namen" } },
+    friendly: { topic: "Anzeigenamen", title: "Stil der Anzeigenamen", help: "Wie ausführlich sollen Anzeigenamen sein? Sprachassistenten bevorzugen vollständige, eindeutige Namen.", options: { voice: "Sprachoptimiert (vollständig)", short: "Kurz" } },
+    areas: { topic: "Bereiche & Etagen", title: "Bereichsstruktur", help: "Wie sollen Räume organisiert werden?", options: { floors: "Etagen → Bereiche", flat: "Flache Bereiche" } },
+    labels: { topic: "Labels", title: "Label-Strategie", help: "Nutze Labels, um Bereiche zu überschneiden (z. B. nach Funktion oder Automation).", options: { yes: "Labels verwenden", no: "Keine Labels" } },
+    automations: { topic: "Automationen", title: "Benennung von Automationen", help: "Wie sollen Automationen für einfache Übersicht benannt werden?", options: { descriptive: "Beschreibend", prefixed: "Mit Präfix" } },
+  },
 };
-const trStep = (s: Step, f: "topic" | "title" | "help"): string => (lang === "da" ? DA_STEPS[s.id]?.[f] ?? s[f] : s[f]);
-const trOpt = (s: Step, o: Opt): string => (lang === "da" ? DA_STEPS[s.id]?.options[o.value] ?? o.label : o.label);
+const trStep = (s: Step, f: "topic" | "title" | "help"): string => STEP_L10N[lang]?.[s.id]?.[f] ?? s[f];
+const trOpt = (s: Step, o: Opt): string => STEP_L10N[lang]?.[s.id]?.options[o.value] ?? o.label;
 
 @customElement("pi-setup-wizard")
 export class PiSetupWizard extends LitElement {
