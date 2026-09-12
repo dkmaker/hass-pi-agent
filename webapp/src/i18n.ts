@@ -114,3 +114,17 @@ export function t(key: string, vars?: Record<string, string | number>): string {
   if (vars) for (const [k, v] of Object.entries(vars)) s = s.replace(`{${k}}`, String(v));
   return s;
 }
+
+// ── Table column labels (structured tool details). English is identity. ──
+const COLS: Partial<Record<Lang, Record<string, string>>> = {
+  da: { entity: "Entitet", state: "Tilstand", name: "Navn", area: "Område", id: "ID", manufacturer: "Producent", model: "Model", integration: "Integration", mode: "Modus", "last triggered": "Sidst udløst", status: "Status", version: "Version", slug: "Slug", icon: "Ikon", property: "Egenskab", value: "Værdi" },
+  no: { entity: "Enhet", state: "Tilstand", name: "Navn", area: "Område", id: "ID", manufacturer: "Produsent", model: "Modell", integration: "Integrasjon", mode: "Modus", "last triggered": "Sist utløst", status: "Status", version: "Versjon", slug: "Slug", icon: "Ikon", property: "Egenskap", value: "Verdi" },
+  sv: { entity: "Entitet", state: "Tillstånd", name: "Namn", area: "Område", id: "ID", manufacturer: "Tillverkare", model: "Modell", integration: "Integration", mode: "Läge", "last triggered": "Senast utlöst", status: "Status", version: "Version", slug: "Slug", icon: "Ikon", property: "Egenskap", value: "Värde" },
+  de: { entity: "Entität", state: "Zustand", name: "Name", area: "Bereich", id: "ID", manufacturer: "Hersteller", model: "Modell", integration: "Integration", mode: "Modus", "last triggered": "Zuletzt ausgelöst", status: "Status", version: "Version", slug: "Slug", icon: "Symbol", property: "Eigenschaft", value: "Wert" },
+};
+
+/** Localize a table column label (English input); falls back to the input. */
+export function col(label: string): string {
+  if (lang === "en") return label;
+  return COLS[lang]?.[label.toLowerCase()] ?? label;
+}

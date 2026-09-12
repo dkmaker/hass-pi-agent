@@ -11,6 +11,7 @@ import {
   mdiAccountGroupOutline, mdiClipboardListOutline, mdiDatabaseOutline, mdiRestart, mdiPaletteOutline,
   mdiScriptTextOutline, mdiFlashOutline, mdiCartOutline, mdiChartBar, mdiServerOutline, mdiNfcVariant,
   mdiCodeBraces, mdiFileCodeOutline, mdiMapMarkerRadiusOutline, mdiToolboxOutline,
+  mdiConsole, mdiContentSaveOutline, mdiFileEditOutline, mdiFolderOutline, mdiMagnify, mdiFileSearchOutline, mdiFileDocumentOutline as mdiReadDoc,
 } from "@mdi/js";
 import { lang, type Lang } from "./i18n.js";
 
@@ -54,6 +55,16 @@ const T: Record<string, Meta> = {
   ha_template: { icon: mdiCodeBraces, label: { en: "Template", da: "Skabelon", no: "Mal", sv: "Mall", de: "Vorlage" }, desc: { en: "Render & test Jinja2", da: "Render & test Jinja2", no: "Render & test Jinja2", sv: "Rendera & testa Jinja2", de: "Jinja2 rendern & testen" } },
   ha_yaml: { icon: mdiFileCodeOutline, label: { en: "YAML config", da: "YAML-config", no: "YAML-config", sv: "YAML-config", de: "YAML-Konfig" }, desc: { en: "Edit YAML config", da: "Redigér YAML-config", no: "Rediger YAML-config", sv: "Redigera YAML-config", de: "YAML-Konfig bearbeiten" } },
   ha_zones: { icon: mdiMapMarkerRadiusOutline, label: { en: "Zones", da: "Zoner", no: "Soner", sv: "Zoner", de: "Zonen" }, desc: { en: "Geographic zones", da: "Geografiske zoner", no: "Geografiske soner", sv: "Geografiska zoner", de: "Geografische Zonen" } },
+
+  // Base agent tools
+  bash: { icon: mdiConsole, label: { en: "Terminal", da: "Terminal", no: "Terminal", sv: "Terminal", de: "Terminal" }, desc: { en: "Run a terminal command", da: "Kør en terminal-kommando", no: "Kjør en terminal-kommando", sv: "Kör ett terminalkommando", de: "Terminal-Befehl ausführen" } },
+  powershell: { icon: mdiConsole, label: { en: "Terminal", da: "Terminal", no: "Terminal", sv: "Terminal", de: "Terminal" }, desc: { en: "Run a terminal command", da: "Kør en terminal-kommando", no: "Kjør en terminal-kommando", sv: "Kör ett terminalkommando", de: "Terminal-Befehl ausführen" } },
+  read: { icon: mdiReadDoc, label: { en: "Read file", da: "Læser fil", no: "Leser fil", sv: "Läser fil", de: "Datei lesen" }, desc: { en: "Read a file", da: "Læs en fil", no: "Les en fil", sv: "Läs en fil", de: "Eine Datei lesen" } },
+  write: { icon: mdiContentSaveOutline, label: { en: "Write file", da: "Skriver fil", no: "Skriver fil", sv: "Skriver fil", de: "Datei schreiben" }, desc: { en: "Create or overwrite a file", da: "Opret eller overskriv en fil", no: "Opprett eller overskriv en fil", sv: "Skapa eller skriv över en fil", de: "Datei erstellen oder überschreiben" } },
+  edit: { icon: mdiFileEditOutline, label: { en: "Edit file", da: "Redigerer fil", no: "Redigerer fil", sv: "Redigerar fil", de: "Datei bearbeiten" }, desc: { en: "Edit a file", da: "Redigér en fil", no: "Rediger en fil", sv: "Redigera en fil", de: "Eine Datei bearbeiten" } },
+  ls: { icon: mdiFolderOutline, label: { en: "List folder", da: "Viser mappe", no: "Viser mappe", sv: "Visar mapp", de: "Ordner anzeigen" }, desc: { en: "List a directory", da: "Vis indholdet af en mappe", no: "Vis innholdet i en mappe", sv: "Visa innehållet i en mapp", de: "Verzeichnisinhalt anzeigen" } },
+  grep: { icon: mdiMagnify, label: { en: "Search", da: "Søger", no: "Søker", sv: "Söker", de: "Suchen" }, desc: { en: "Search file contents", da: "Søg i filindhold", no: "Søk i filinnhold", sv: "Sök i filinnehåll", de: "Dateiinhalte durchsuchen" } },
+  find: { icon: mdiFileSearchOutline, label: { en: "Find files", da: "Finder filer", no: "Finner filer", sv: "Hittar filer", de: "Dateien finden" }, desc: { en: "Find files by name", da: "Find filer ud fra navn", no: "Finn filer etter navn", sv: "Hitta filer efter namn", de: "Dateien nach Namen finden" } },
 };
 
 export function toolMeta(name: string): { icon: string; label: string; desc: string } {

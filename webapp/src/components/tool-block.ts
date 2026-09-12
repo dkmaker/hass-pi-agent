@@ -5,9 +5,10 @@ import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { icon } from "../icon.js";
 import { renderMarkdown } from "../md.js";
 import { mdiCheck, mdiAlertCircle, mdiInformationOutline, mdiClose } from "@mdi/js";
-import type { ToolResult } from "../types.js";
+import type { ToolResult, ToolDetails, ToolCol, ToolRow } from "../types.js";
 import { toolMeta } from "../tool-meta.js";
-import { t as tr } from "../i18n.js";
+import { t as tr, col } from "../i18n.js";
+import "../ha-icons.js";
 
 const escapeHtml = (s: string): string => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
@@ -66,6 +67,12 @@ export class PiToolBlock extends LitElement {
     td:first-child { font-family: var(--pi-mono); }
     .state-on { color: var(--pi-ok); font-weight: 600; }
     .state-off { color: var(--pi-text-2); }
+    .ricon { color: var(--pi-primary); margin-right: 6px; font-size: 15px; flex: 0 0 auto; }
+    .elink { display: inline-flex; align-items: center; gap: 2px; border: none; background: transparent; color: var(--pi-primary); cursor: pointer; font: inherit; font-family: var(--pi-mono); padding: 0; text-align: left; }
+    .elink:hover { text-decoration: underline; }
+    .firstc { display: inline-flex; align-items: center; }
+    .tnote { color: var(--pi-text-2); font-size: 12px; margin-top: 6px; }
+    .tlist { margin: 4px 0; padding-left: 18px; }
 
     pre.diff { margin: 0; font: 12.5px/1.5 var(--pi-mono); background: var(--pi-code-bg); border-radius: 8px; padding: 8px 10px; overflow-x: auto; }
     .diff .add { color: var(--pi-ok); background: color-mix(in srgb, var(--pi-ok) 12%, transparent); display: block; }
@@ -121,10 +128,45 @@ export class PiToolBlock extends LitElement {
       const d = r.data as { domain: string; service: string; target: string; ok: boolean };
       return html`<div class="kv">Called <b>${d.domain}.${d.service}</b> on <b>${d.target}</b> — ${d.ok ? "success" : "failed"}.</div>`;
     }
+    if (r.kind === "details" && r.details) return this.renderDetails(r.details);
     // Generic fallback: HA tools already emit human-formatted markdown
     // (tables/lists/code) — render it as markdown rather than dumping raw JSON.
     const text = typeof r.data === "string" ? r.data : "```json\n" + JSON.stringify(r.data, null, 2) + "\n```";
     return html`<div class="md">${unsafeHTML(renderMarkdown(text))}</div>`;
+  }
+
+  private emitEntity(entityId: string): void {
+    this.dispatchEvent(new CustomEvent("entity-click", { detail: { entityId }, bubbles: true, composed: true }));
+  }
+
+  private cell(c: ToolCol, row: ToolRow, first: boolean): TemplateResult {
+    const val = row.cells[c.key] ?? "";
+    if (first) {
+      const inner = html`${row.icon ? html`<ha-mdi-icon class="ricon" icon=${row.icon}></ha-mdi-icon>` : nothing}<span>${val}</span>`;
+      return row.entity_id
+        ? html`<td><button class="elink" title=${row.entity_id} @click=${() => this.emitEntity(row.entity_id!)}>${inner}</button></td>`
+        : html`<td><span class="firstc">${inner}</span></td>`;
+    }
+    if (c.key === "state") return html`<td class=${val === "on" || val === "home" ? "state-on" : "state-off"}>${val}</td>`;
+    return html`<td>${val}</td>`;
+  }
+
+  private renderDetails(d: ToolDetails): TemplateResult {
+    if (d.kind === "table") {
+      return html`
+        <table>
+          <thead><tr>${d.columns.map((c) => html`<th>${col(c.label)}</th>`)}</tr></thead>
+          <tbody>${d.rows.map((row) => html`<tr>${d.columns.map((c, i) => this.cell(c, row, i === 0))}</tr>`)}</tbody>
+        </table>
+        ${d.note ? html`<div class="tnote">${d.note}</div>` : nothing}`;
+    }
+    if (d.kind === "detail") {
+      return html`<table><tbody>${d.fields.map((f) => html`<tr><th>${col(f.label)}</th><td>${f.value}</td></tr>`)}</tbody></table>`;
+    }
+    if (d.kind === "list") {
+      return html`<ul class="tlist">${d.items.map((it) => html`<li>${it}</li>`)}</ul>${d.note ? html`<div class="tnote">${d.note}</div>` : nothing}`;
+    }
+    return html`<div class="md">${unsafeHTML(renderMarkdown(d.text))}</div>`;
   }
 
   render() {

@@ -134,9 +134,11 @@ function toWire(e: AgentSessionEvent): void {
       break;
     }
     case "tool_execution_end": {
-      const t = e as { toolName?: string; toolCallId?: string; id?: string; isError?: boolean; result?: { content?: Array<{ type: string; text?: string }> } };
+      const t = e as { toolName?: string; toolCallId?: string; id?: string; isError?: boolean; result?: { content?: Array<{ type: string; text?: string }>; details?: unknown } };
       const text = (t.result?.content ?? []).filter((c) => c.type === "text").map((c) => c.text ?? "").join("\n");
-      broadcast({ type: "tool_end", id: t.toolCallId ?? t.id ?? "", toolName: t.toolName ?? "tool", isError: !!t.isError, result: { kind: "text", data: text } });
+      const details = t.result?.details;
+      const result = details ? { kind: "details", details, data: text } : { kind: "text", data: text };
+      broadcast({ type: "tool_end", id: t.toolCallId ?? t.id ?? "", toolName: t.toolName ?? "tool", isError: !!t.isError, result });
       break;
     }
     case "turn_end": broadcast({ type: "turn_end" }); break;

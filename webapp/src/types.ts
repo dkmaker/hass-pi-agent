@@ -4,7 +4,17 @@
  * tool_execution_* / turn_end / agent_end).
  */
 
-export type ToolResultKind = "entities" | "yaml_diff" | "service" | "automation_trace" | "text";
+export type ToolResultKind = "entities" | "yaml_diff" | "service" | "automation_trace" | "text" | "details";
+
+/** Unified structured tool payload (mirrors the extension's lib/tool-render HaDetails). */
+export type ToolCol = { key: string; label: string };
+export type ToolRow = { cells: Record<string, string>; entity_id?: string; icon?: string; state?: string };
+export type ToolField = { label: string; value: string };
+export type ToolDetails =
+  | { kind: "table"; title?: string; columns: ToolCol[]; rows: ToolRow[]; page?: { offset: number; limit: number; total: number }; note?: string }
+  | { kind: "detail"; title?: string; fields: ToolField[] }
+  | { kind: "list"; title?: string; items: string[]; note?: string }
+  | { kind: "message"; text: string; ok?: boolean };
 
 /** System overview shown on the new-chat / session screen only. */
 export interface StatsOverview {
@@ -29,6 +39,8 @@ export interface ToolResult {
   kind: ToolResultKind;
   /** Freeform payload rendered per kind by <pi-tool-block>. */
   data: unknown;
+  /** Structured payload when kind === "details". */
+  details?: ToolDetails;
 }
 
 /** Server → client events (mock). */

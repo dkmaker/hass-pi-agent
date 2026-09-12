@@ -209,6 +209,11 @@ export class PiChatApp extends LitElement {
     this.send(prompt);
   }
 
+  private onEntityClick(e: CustomEvent): void {
+    const id = e.detail?.entityId as string | undefined;
+    if (id) this.send(`Show details for entity ${id}`);
+  }
+
   private send(text: string): void {
     const t = text.trim();
     if (!t) return;
@@ -443,7 +448,7 @@ export class PiChatApp extends LitElement {
         <div class="dot ${this.connected ? "" : "off"}" title=${this.connected ? "connected" : "reconnecting"}></div>
       </header>
 
-      <div class="scroll">
+      <div class="scroll" @entity-click=${(e: CustomEvent) => this.onEntityClick(e)}>
         ${empty
           ? html`<div class="empty">
               <div class="logo" style="margin:0 auto 12px">${icon(mdiRobot, 20)}</div>
