@@ -6,7 +6,8 @@ import "@material/web/progress/circular-progress.js";
 import "@material/web/button/filled-button.js";
 import "@material/web/button/text-button.js";
 import "./tool-block.js";
-import "./setup-wizard.js";
+import "./policy-wizard.js";
+import "./provider-setup.js";
 import { icon } from "../icon.js";
 import { mdiRobot, mdiMenu, mdiPlus, mdiSend, mdiStop, mdiThemeLightDark, mdiWeatherSunny, mdiWeatherNight, mdiCog, mdiHistory, mdiShapeOutline, mdiRobotOutline, mdiScriptTextOutline, mdiLightbulbOutline, mdiGauge, mdiFloorPlan } from "@mdi/js";
 import { renderMarkdown } from "../md.js";
@@ -57,7 +58,14 @@ export class PiChatApp extends LitElement {
   @state() private sessionTitle = tr("new_chat");
   @state() private themeMode: "auto" | "light" | "dark" =
     ((typeof localStorage !== "undefined" && localStorage.getItem("pi-theme")) as "auto" | "light" | "dark") || "auto";
-  @state() private setupOpen = false;
+  @state() private policyOpen = false;
+  @state() private configured?: boolean;
+  @state() private configOpen = false;
+  @state() private providers: import("../types.js").ProviderInfo[] = [];
+  @state() private configProvider = "";
+  @state() private configModel = "";
+  @state() private configBusy = false;
+  @state() private configError = "";
   @state() private stats?: StatsOverview;
   @state() private sessions: SessionMeta[] = [];
   @state() private sessionLimit = 12;
@@ -160,6 +168,17 @@ export class PiChatApp extends LitElement {
     switch (ev.type) {
       case "agent_start": this.busy = true; break;
       case "stats": this.stats = ev.data; break;
+      case "config_status":
+        this.configured = ev.data.configured;
+        this.configProvider = ev.data.provider ?? this.configProvider;
+        this.configModel = ev.data.model ?? this.configModel;
+        break;
+      case "providers": this.providers = ev.data; break;
+      case "config_result":
+        this.configBusy = false;
+        if (ev.data.ok) { this.configOpen = false; this.configError = ""; }
+        else this.configError = ev.data.error || "error";
+        break;
       case "sessions": this.sessions = ev.data; break;
       case "session_title": this.sessionTitle = ev.title; this.wsSend({ type: "list_sessions" }); break;
       case "session_cleared": this.entries = []; this.sessionTitle = tr("new_chat"); this.busy = false; this.working = ""; this.bump(); break;
@@ -197,7 +216,7 @@ export class PiChatApp extends LitElement {
   }
 
   private onWizardComplete(e: CustomEvent): void {
-    this.setupOpen = false;
+    this.policyOpen = false;
     const summary = (e.detail?.summary as { topic: string; choice: string }[]) ?? [];
     const lines = summary.map((s) => `- ${s.topic}: ${s.choice}`).join("\n");
     // Persist the chosen conventions for real: ask the agent to map them onto the
@@ -219,7 +238,7 @@ export class PiChatApp extends LitElement {
     const t = text.trim();
     if (!t) return;
     const cmd = t.toLowerCase();
-    if (cmd === "/setup") { this.setupOpen = true; this.clearDraft(); return; }
+    if (cmd === "/setup") { this.policyOpen = true; this.clearDraft(); return; }
     if (cmd === "/new") { this.newSession(); this.clearDraft(); return; }
     if (cmd === "/sessions") { this.openDrawer(); this.clearDraft(); return; }
     if (this.busy || !this.ws || this.ws.readyState !== WebSocket.OPEN) return;
@@ -399,11 +418,24 @@ export class PiChatApp extends LitElement {
   render() {
     const empty = this.entries.length === 0;
     return html`
-      <pi-setup-wizard
-        .open=${this.setupOpen}
-        @wizard-close=${() => { this.setupOpen = false; }}
+      <pi-policy-wizard
+        .open=${this.policyOpen}
+        @wizard-close=${() => { this.policyOpen = false; }}
         @wizard-complete=${(e: CustomEvent) => this.onWizardComplete(e)}
-      ></pi-setup-wizard>
+      ></pi-policy-wizard>
+
+      <pi-provider-setup
+        .open=${this.configured === false || this.configOpen}
+        .mustConfigure=${this.configured === false && !this.configOpen}
+        .providers=${this.providers}
+        .initialProvider=${this.configProvider}
+        .initialModel=${this.configModel}
+        .busy=${this.configBusy}
+        .error=${this.configError}
+        @request-providers=${() => this.wsSend({ type: "list_providers" })}
+        @save-config=${(e: CustomEvent) => { this.configBusy = true; this.configError = ""; this.wsSend({ type: "save_config", ...e.detail }); }}
+        @setup-close=${() => { this.configOpen = false; this.configError = ""; }}
+      ></pi-provider-setup>
 
       ${this.drawerOpen
         ? html`
@@ -414,7 +446,7 @@ export class PiChatApp extends LitElement {
                 ${icon(mdiPlus, 18)}
                 ${tr("new_chat")}
               </button>
-              <button class="sess" @click=${() => { this.setupOpen = true; this.drawerOpen = false; }}>
+              <button class="sess" @click=${() => { this.policyOpen = true; this.drawerOpen = false; }}>
                 <span class="sess-t">${tr("setup_conventions")}</span><span class="sess-w">${tr("setup_wizard_sub")}</span>
               </button>
               ${this.sessions.slice(0, this.sessionLimit).map(
@@ -440,6 +472,9 @@ export class PiChatApp extends LitElement {
           <div class="sub">${this.sessionTitle}</div>
         </div>
         <div class="spacer"></div>
+        <button class="iconbtn" @click=${() => { this.configOpen = true; }} title="${tr("ai_settings")}" aria-label="${tr("ai_settings")}">
+          ${icon(mdiCog, 22)}
+        </button>
         <button class="iconbtn" @click=${() => this.cycleTheme()} title="${tr("theme")}: ${this.themeMode}" aria-label="Toggle theme">
           ${icon(this.themeIcon(), 22)}
         </button>
@@ -461,7 +496,7 @@ export class PiChatApp extends LitElement {
                 )}
               </div>
               <div class="chips" style="margin-top: 6px">
-                <button class="chip" @click=${() => { this.setupOpen = true; }}>${icon(mdiCog, 16)} ${tr("setup_conventions")}</button>
+                <button class="chip" @click=${() => { this.policyOpen = true; }}>${icon(mdiCog, 16)} ${tr("setup_conventions")}</button>
               </div>
               ${this.stats
                 ? html`<div class="stats">

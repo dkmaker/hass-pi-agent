@@ -26,50 +26,17 @@ map:
   - share:rw
   - media:rw
   - backup:rw
+# AI provider, model, and API key are configured in-app (welcome screen / ⚙️
+# settings inside the Pi Agent panel), not here — the provider/model combos are
+# enumerated live from pi and the key is validated before it is saved.
 options:
-  default_provider: anthropic
-  default_model: ''
   install_integration: true
-  anthropic_api_key: ''
-  openai_api_key: ''
-  google_api_key: ''
-  openrouter_api_key: ''
-  xai_api_key: ''
-  groq_api_key: ''
-  mistral_api_key: ''
-  cerebras_api_key: ''
-  huggingface_token: ''
-  github_token: ''
-  aws_access_key_id: ''
-  aws_secret_access_key: ''
-  aws_region: ''
-  azure_openai_api_key: ''
   additional_packages: []
   write_guard: strict
   write_guard_allow: []
   hide_thinking: true
 schema:
-  default_provider: >-
-    list(anthropic|openai|google|openrouter|groq|xai|mistral|cerebras|huggingface|github-copilot|amazon-bedrock|google-vertex|azure-openai-responses)
-  default_model: str?
   install_integration: bool?
-  service_provider: >-
-    list(anthropic|openai|google|openrouter|groq|xai|mistral|cerebras|huggingface|github-copilot|amazon-bedrock|google-vertex|azure-openai-responses)?
-  service_model: str?
-  anthropic_api_key: password?
-  openai_api_key: password?
-  google_api_key: password?
-  openrouter_api_key: password?
-  xai_api_key: password?
-  groq_api_key: password?
-  mistral_api_key: password?
-  cerebras_api_key: password?
-  huggingface_token: password?
-  github_token: password?
-  aws_access_key_id: password?
-  aws_secret_access_key: password?
-  aws_region: str?
-  azure_openai_api_key: password?
   additional_packages:
     - str
   write_guard: list(strict|warn|off)?

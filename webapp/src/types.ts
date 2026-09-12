@@ -60,7 +60,13 @@ export type ServerEvent =
   | { type: "tool_end"; id: string; toolName: string; isError: boolean; result: ToolResult }
   | { type: "turn_end" }
   | { type: "agent_end" }
+  | { type: "config_status"; data: { configured: boolean; provider?: string; model?: string } }
+  | { type: "providers"; data: ProviderInfo[] }
+  | { type: "config_result"; data: { ok: boolean; error?: string } }
   | { type: "aborted" };
+
+/** AI provider + its selectable models (in-app setup). */
+export interface ProviderInfo { id: string; name: string; models: Array<{ id: string; name: string }>; }
 
 /** Client → server commands (mock). */
 export type ClientCommand =
@@ -68,7 +74,9 @@ export type ClientCommand =
   | { type: "abort" }
   | { type: "list_sessions" }
   | { type: "new_session" }
-  | { type: "open_session"; path: string };
+  | { type: "open_session"; path: string }
+  | { type: "list_providers" }
+  | { type: "save_config"; provider: string; model: string; apiKey: string };
 
 /** Timeline model (client-side). */
 export type Entry =

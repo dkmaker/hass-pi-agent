@@ -7,7 +7,8 @@ import { t, lang, type Lang } from "../i18n.js";
 interface Opt { value: string; label: string; example?: string; }
 interface Step { id: string; topic: string; title: string; help: string; options: Opt[]; }
 
-/** The real /setup topics, rendered as a stepped first-class wizard (mock). */
+/** The /setup policy topics (naming, language, organization), rendered as a
+ * stepped wizard. Distinct from provider-setup (AI provider/model/API key). */
 const STEPS: Step[] = [
   {
     id: "language", topic: "Language", title: "How should things be named?",
@@ -111,8 +112,8 @@ const STEP_L10N: Partial<Record<Lang, Record<string, StepTr>>> = {
 const trStep = (s: Step, f: "topic" | "title" | "help"): string => STEP_L10N[lang]?.[s.id]?.[f] ?? s[f];
 const trOpt = (s: Step, o: Opt): string => STEP_L10N[lang]?.[s.id]?.options[o.value] ?? o.label;
 
-@customElement("pi-setup-wizard")
-export class PiSetupWizard extends LitElement {
+@customElement("pi-policy-wizard")
+export class PiPolicyWizard extends LitElement {
   @property({ type: Boolean }) open = false;
   @state() private step = 0;
   @state() private answers: Record<string, string> = {};

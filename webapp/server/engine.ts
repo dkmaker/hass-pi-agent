@@ -13,7 +13,7 @@
  */
 import { createServer } from "node:http";
 import { readFile, stat } from "node:fs/promises";
-import { readFileSync, mkdirSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname, extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { WebSocketServer, type WebSocket } from "ws";
@@ -80,16 +80,37 @@ const loader = new DefaultResourceLoader({
 });
 await loader.reload();
 
-// Model comes from the add-on config ONLY: default_provider/default_model, surfaced
-// as PI_DEFAULT_PROVIDER / PI_DEFAULT_MODEL (same env the ttyd entrypoint reads).
+// ── Model + provider config (in-app setup: issue #RPRNX) ────
+// Selection (provider/model) persists to selection.json; API keys persist to
+// auth.json via modelRuntime.setRuntimeApiKey. Env (PI_DEFAULT_*) is a legacy
+// fallback/seed. The Supervisor add-on config no longer carries credentials.
+const SELECTION_PATH = resolve(engineAgentDir, "selection.json");
+// Providers offered in the in-app picker: single-API-key only (no OAuth, no
+// multi-credential). Order = display order.
+const API_KEY_PROVIDERS = ["anthropic", "openai", "google", "openrouter", "xai", "groq", "mistral", "cerebras", "huggingface"];
+const PROVIDER_LABELS: Record<string, string> = {
+  anthropic: "Anthropic", openai: "OpenAI", google: "Google (Gemini)", openrouter: "OpenRouter",
+  xai: "xAI (Grok)", groq: "Groq", mistral: "Mistral", cerebras: "Cerebras", huggingface: "Hugging Face",
+};
+
+function readSelection(): { provider?: string; model?: string } {
+  try { return JSON.parse(readFileSync(SELECTION_PATH, "utf8")); } catch { return {}; }
+}
+function selectionSpec(): string {
+  const s = readSelection();
+  if (s.provider && s.model) return `${s.provider}/${s.model}`;
+  if (process.env.PI_DEFAULT_PROVIDER && process.env.PI_DEFAULT_MODEL) return `${process.env.PI_DEFAULT_PROVIDER}/${process.env.PI_DEFAULT_MODEL}`;
+  return process.env.PI_DEFAULT_MODEL ?? "";
+}
+
 let model;
-const modelSpec = process.env.PI_DEFAULT_PROVIDER && process.env.PI_DEFAULT_MODEL
-  ? `${process.env.PI_DEFAULT_PROVIDER}/${process.env.PI_DEFAULT_MODEL}`
-  : (process.env.PI_DEFAULT_MODEL ?? "");
-if (modelSpec) {
-  const r = resolveCliModel({ cliModel: modelSpec, modelRuntime });
-  if (r.error) console.error("[engine] model resolve error:", r.error);
-  else { model = r.model; if (r.warning) console.warn("[engine]", r.warning); }
+{
+  const spec = selectionSpec();
+  if (spec) {
+    const r = resolveCliModel({ cliModel: spec, modelRuntime });
+    if (r.error) console.error("[engine] model resolve error:", r.error);
+    else { model = r.model; if (r.warning) console.warn("[engine]", r.warning); }
+  }
 }
 
 // The active session is mutable — /new and resume replace it (re-subscribing toWire).
@@ -189,7 +210,7 @@ async function generateTopic(msgs: Array<Record<string, unknown>>): Promise<stri
 
 async function maybeGenerateTopic(): Promise<void> {
   try {
-    if (!currentSm || currentSm.getSessionName()) return;
+    if (!session || !currentSm || currentSm.getSessionName()) return;
     if ((session.messages ?? []).length < TOPIC_MIN_MESSAGES) return;
     if (!acquireNow()) return; // user busy — retry after the next turn
     busy = true;
@@ -247,9 +268,12 @@ async function handleAsk(question: string, overrides: { provider?: string; model
 async function startSession(sm: ReturnType<typeof SessionManager.create>): Promise<void> {
   if (unsub) { unsub(); unsub = null; }
   if (session) { try { session.dispose(); } catch { /* ignore */ } }
+  currentSm = sm;
+  // Not configured yet (no provider/model/key) — defer session creation until the
+  // in-app setup saves a working combo (saveCombo sets `model` then calls this).
+  if (!model) return;
   const created = await createAgentSession({ resourceLoader: loader, cwd: agentCwd, sessionManager: sm, model, modelRuntime });
   session = created.session;
-  currentSm = sm;
   unsub = session.subscribe(toWire);
   busy = false;
 }
@@ -314,10 +338,69 @@ function historyEntries(): Array<Record<string, unknown>> {
 }
 
 await startSession(SessionManager.create(agentCwd));
-console.log("[engine] ready — model=%s tools=%d (ha_*=%d)",
-  session.model?.id ?? "(default)",
-  session.agent.state.tools.length,
-  session.agent.state.tools.filter((t) => t.name.startsWith("ha_")).length);
+if (session) {
+  console.log("[engine] ready — model=%s tools=%d (ha_*=%d)",
+    session.model?.id ?? "(default)",
+    session.agent.state.tools.length,
+    session.agent.state.tools.filter((t) => t.name.startsWith("ha_")).length);
+} else {
+  console.log("[engine] ready — awaiting in-app provider/model/key setup");
+}
+
+// ── In-app config API (issue #RPRNX) ────────────────────────
+// Lists api-key providers+models, validates a provider/model/key combo with a
+// tiny live completion, and saves (persist key→auth.json + model→selection.json,
+// then apply live by rebuilding the active session). The webapp welcome/COG UI
+// drives these; the Supervisor add-on config no longer holds credentials.
+async function listApiKeyProviders(): Promise<Array<{ id: string; name: string; models: Array<{ id: string; name: string }> }>> {
+  // Refresh dynamic catalogs (e.g. OpenRouter) best-effort; static ones already present.
+  try { await Promise.race([modelRuntime.refresh({ allowNetwork: true }), new Promise((r) => setTimeout(r, 15000))]); } catch { /* offline / partial — use static */ }
+  const out: Array<{ id: string; name: string; models: Array<{ id: string; name: string }> }> = [];
+  for (const id of API_KEY_PROVIDERS) {
+    if (!modelRuntime.getProvider(id)) continue;
+    let models: Array<{ id: string; name: string }> = [];
+    try { models = modelRuntime.getModels(id).map((m) => ({ id: m.id, name: (m as { name?: string }).name ?? m.id })); } catch { models = []; }
+    if (!models.length) continue;
+    out.push({ id, name: PROVIDER_LABELS[id] ?? id, models });
+  }
+  return out;
+}
+
+function configStatus(): { configured: boolean; provider?: string; model?: string } {
+  const s = readSelection();
+  const spec = selectionSpec();
+  if (!spec) return { configured: false };
+  const provider = s.provider ?? spec.split("/")[0];
+  const modelId = s.model ?? spec.split("/").slice(1).join("/");
+  let authed = false;
+  try { authed = modelRuntime.hasConfiguredAuth(provider); } catch { authed = false; }
+  return { configured: !!model && authed, provider, model: modelId };
+}
+
+async function validateCombo(provider: string, modelId: string, apiKey: string): Promise<{ ok: boolean; error?: string }> {
+  if (!API_KEY_PROVIDERS.includes(provider)) return { ok: false, error: "Unsupported provider" };
+  try {
+    if (apiKey) await modelRuntime.setRuntimeApiKey(provider, apiKey);
+    const r = resolveCliModel({ cliModel: `${provider}/${modelId}`, modelRuntime });
+    if (r.error || !r.model) return { ok: false, error: r.error ?? "Model not found" };
+    const test = modelRuntime.completeSimple(r.model, { messages: [{ role: "user", content: [{ type: "text", text: "Reply with the single word OK." }] }] }, { maxTokens: 8 });
+    await Promise.race([test, new Promise((_, rej) => setTimeout(() => rej(new Error("Validation timed out")), 30000))]);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: (err as Error).message };
+  }
+}
+
+async function saveCombo(provider: string, modelId: string, apiKey: string): Promise<{ ok: boolean; error?: string }> {
+  const v = await validateCombo(provider, modelId, apiKey);
+  if (!v.ok) return v;
+  writeFileSync(SELECTION_PATH, JSON.stringify({ provider, model: modelId }, null, 2));
+  const r = resolveCliModel({ cliModel: `${provider}/${modelId}`, modelRuntime });
+  if (!r.error && r.model) model = r.model;
+  await startSession(SessionManager.create(agentCwd));
+  broadcast({ type: "config_status", data: configStatus() });
+  return { ok: true };
+}
 
 // ── HTTP static (webapp/dist) ───────────────────────────────
 const server = createServer(async (req, res) => {
@@ -338,17 +421,20 @@ const wss = new WebSocketServer({ server, path: "/ws" });
 wss.on("connection", (ws) => {
   clients.add(ws);
   const sendTo = (msg: unknown) => { try { ws.send(JSON.stringify(msg)); } catch { /* dropped */ } };
+  sendTo({ type: "config_status", data: configStatus() });
   void fetchStats().then((s) => { if (s) sendTo({ type: "stats", data: s }); });
   void listSessions().then((s) => sendTo({ type: "sessions", data: s }));
   ws.on("message", (raw) => {
-    let cmd: { type?: string; text?: string; path?: string };
+    let cmd: { type?: string; text?: string; path?: string; provider?: string; model?: string; apiKey?: string };
     try { cmd = JSON.parse(String(raw)); } catch { return; }
     switch (cmd.type) {
-      case "prompt": if (cmd.text) void handlePrompt(cmd.text); break;
-      case "abort": void session.abort().then(() => broadcast({ type: "aborted" })); break;
+      case "prompt": if (cmd.text && session) void handlePrompt(cmd.text); break;
+      case "abort": if (session) void session.abort().then(() => broadcast({ type: "aborted" })); break;
       case "list_sessions": void listSessions().then((s) => sendTo({ type: "sessions", data: s })); break;
       case "new_session": void startSession(SessionManager.create(agentCwd)).then(() => broadcast({ type: "session_cleared" })); break;
       case "open_session": if (cmd.path) void startSession(SessionManager.open(cmd.path)).then(() => broadcast({ type: "history", data: historyEntries() })); break;
+      case "list_providers": void listApiKeyProviders().then((p) => sendTo({ type: "providers", data: p })); break;
+      case "save_config": void saveCombo(cmd.provider ?? "", cmd.model ?? "", cmd.apiKey ?? "").then((r) => sendTo({ type: "config_result", data: r })); break;
     }
   });
   ws.on("close", () => clients.delete(ws));
