@@ -21,6 +21,27 @@ configuration:
         name: API key
         description: >-
           API key for the selected provider.
+  websearch:
+    name: Web search
+    description: >-
+      Optional live web search for the agent — its own section. When enabled,
+      the agent gets a web_search tool and is instructed to validate facts
+      online instead of relying on pre-trained knowledge. When disabled, no web
+      search tool is registered at all.
+    fields:
+      enabled:
+        name: Enable web search
+        description: >-
+          Register the web_search tool. Requires a provider and API key below.
+      provider:
+        name: Provider
+        description: >-
+          perplexity (Perplexity API), perplexity_openrouter (Perplexity models
+          via OpenRouter — use an OpenRouter key), or brave (Brave Search API).
+      api_key:
+        name: API key
+        description: >-
+          API key for the selected provider (Perplexity, OpenRouter, or Brave).
   install_integration:
     name: Install Conversation Integration
     description: >-
