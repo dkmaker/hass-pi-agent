@@ -39,7 +39,6 @@ options:
   additional_packages: []
   write_guard: strict
   write_guard_allow: []
-  hide_thinking: true
 schema:
   provider: str?
   model: str?
@@ -50,4 +49,3 @@ schema:
   write_guard: list(strict|warn|off)?
   write_guard_allow:
     - str?
-  hide_thinking: bool?
