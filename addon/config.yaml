@@ -1,5 +1,5 @@
 name: Pi Agent for Home Assistant
-version: 0.13.1
+version: 1.0.0
 slug: pi_agent
 image: ghcr.io/dkmaker/hass-pi-agent/{arch}-pi_agent
 description: >-
@@ -26,12 +26,6 @@ map:
   - share:rw
   - media:rw
   - backup:rw
-# AI provider/model/key are configured in-app (welcome screen / ⚙️ settings inside
-# the Pi Agent panel): provider+model combos are enumerated live from pi and the
-# key is validated before saving. The app writes the choice back here (Supervisor
-# options) so it persists across restart/update/reinstall; the engine re-applies
-# it on every boot. Grouped under `ai:` so it renders as a collapsed section —
-# edit by hand only as a fallback (unvalidated; applies on next restart).
 options:
   ai:
     provider: ''

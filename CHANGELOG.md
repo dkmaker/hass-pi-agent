@@ -1,5 +1,76 @@
 # Changelog
 
+## [1.0.0](https://github.com/dkmaker/hass-pi-agent/compare/v0.13.1...v1.0.0) (2026-09-12)
+
+
+### Features
+
+* **addon:** package embedded web chat engine; cut over from ttyd + pi-service ([8699a08](https://github.com/dkmaker/hass-pi-agent/commit/8699a084ee68017e89c9083cb6bf84d544ac1a00))
+* custom markdown schemes for entity chips + inline icons ([e08b3d5](https://github.com/dkmaker/hass-pi-agent/commit/e08b3d5a27e6419dd52d856a2973e5642e76fc03))
+* defineHaTool base registrar + migrate devices/areas/automations to structured render ([4c18bf3](https://github.com/dkmaker/hass-pi-agent/commit/4c18bf35a44edd6b45f458bdea2cb471145496a7))
+* group AI config under a collapsed section + document manual-edit caveat ([b9fce10](https://github.com/dkmaker/hass-pi-agent/commit/b9fce10b6b59cbcb92432e97734c68d54c9f5425))
+* in-app provider/model/API-key setup (welcome + COG), validation-gated ([12f3910](https://github.com/dkmaker/hass-pi-agent/commit/12f39107526fbdda350e467aca143caf6ed4b451))
+* locale-aware relative-time column type (reltime) ([6eb924e](https://github.com/dkmaker/hass-pi-agent/commit/6eb924e2fee8757fe3361ca825dab5713d23aeb7))
+* mark structured tool results as already-rendered to prevent echo ([019f77b](https://github.com/dkmaker/hass-pi-agent/commit/019f77bb20e141650d1de8c3a90b92f4969494c7))
+* migrate blueprints + shopping_list to structured render ([a78bd98](https://github.com/dkmaker/hass-pi-agent/commit/a78bd98213527fec893d26dbefebe52df39848bd))
+* migrate integrations/notifications/tags/categories to structured render ([021cbf3](https://github.com/dkmaker/hass-pi-agent/commit/021cbf311fc94c8e8596ebb5b2039d21232f3ea1))
+* migrate scripts/scenes/labels/zones/people to structured render ([b08256a](https://github.com/dkmaker/hass-pi-agent/commit/b08256a9b1693cef10d27d7f290a016cd46f25c5))
+* persist AI config to Supervisor options (survives restart/reinstall) ([490d247](https://github.com/dkmaker/hass-pi-agent/commit/490d247eaabc5fec82f5566d8f81abf6973ff62b))
+* Pi Agent 1.0.0 — web chat engine, in-app setup, rich tool rendering ([3e5e59b](https://github.com/dkmaker/hass-pi-agent/commit/3e5e59b780d73e5bbcc73e102596170df036eb96))
+* **server:** embedded pi-SDK round-trip proof against live VM ([ba9ea93](https://github.com/dkmaker/hass-pi-agent/commit/ba9ea9373b02d15a4d8c39d67061709ef83be0b5))
+* **server:** in-process pi_agent.ask (queued fresh-context one-shot + logbook) ([9cde965](https://github.com/dkmaker/hass-pi-agent/commit/9cde96552672d46900e21fae7a002f9677a4b698))
+* **server:** model from add-on config only (PI_DEFAULT_PROVIDER/PI_DEFAULT_MODEL) ([06e2fd4](https://github.com/dkmaker/hass-pi-agent/commit/06e2fd4caa97a347cc063af14a05099ba12efbf5))
+* **server:** real engine WS on /ws + thinking-spinner events; npm run engine ([0579282](https://github.com/dkmaker/hass-pi-agent/commit/057928243703bb03ebb705e6e9b745502064c514))
+* **sessions:** real /new, /sessions list + resume via SessionManager ([c49e50d](https://github.com/dkmaker/hass-pi-agent/commit/c49e50d6e522c663d9621774a821f355fb463b95))
+* teach the agent entity tokens (system prompt + tool-content emission) ([dede1f1](https://github.com/dkmaker/hass-pi-agent/commit/dede1f1b57e051bed23abe7051625d92557f7178))
+* unified structured tool-render layer (foundation + ha_entities proof) ([b11a6b3](https://github.com/dkmaker/hass-pi-agent/commit/b11a6b3843d1e727d4a88ea962438d692b5dcae1))
+* **webapp:** /setup wizard — first-class stepped onboarding ([d3a1eed](https://github.com/dkmaker/hass-pi-agent/commit/d3a1eedeb2b8dfa4bb306b603c64eff9328f2796))
+* **webapp:** /setup wizard persists conventions via ha_policies ([82d1507](https://github.com/dkmaker/hass-pi-agent/commit/82d1507d7f562749d8143ece5565718e61305da0))
+* **webapp:** add Norwegian, Swedish, German GUI locales ([02f5a0b](https://github.com/dkmaker/hass-pi-agent/commit/02f5a0bcfa1dd7df44ed1532dd3fbcc189b0fb12))
+* **webapp:** auto session topic + session-list pagination ([3c9c2d6](https://github.com/dkmaker/hass-pi-agent/commit/3c9c2d66132392d2967e24256c3254ed5e2831f4))
+* **webapp:** explicit light/dark/auto theme toggle ([0281c7e](https://github.com/dkmaker/hass-pi-agent/commit/0281c7e904d6f93b77db54fc7ac7e4c8b513b16b))
+* **webapp:** follow Home Assistant's active theme when embedded (ingress bridge) ([2ddb8d0](https://github.com/dkmaker/hass-pi-agent/commit/2ddb8d09b7d0dc63a750ddeac5338d09fa895422))
+* **webapp:** hide thinking content — show animated 'Thinking …' indicator ([1e31c68](https://github.com/dkmaker/hass-pi-agent/commit/1e31c68389aef0f1f38bd96d6c77d89fec795b74))
+* **webapp:** hide tool args by default; (i) button opens raw request/response modal ([e0a5734](https://github.com/dkmaker/hass-pi-agent/commit/e0a57349482fc765a502490948da75fe5a103163))
+* **webapp:** live stats overview widget on the new-chat screen ([0085aa0](https://github.com/dkmaker/hass-pi-agent/commit/0085aa0c207c45beeae6dd23b6a7c9c53cf096a2))
+* **webapp:** localize GUI (Danish/English) ([704cc38](https://github.com/dkmaker/hass-pi-agent/commit/704cc386a68676ec91da82ced2a2b797a3bbdb4b))
+* **webapp:** localized tool-call header with icon + name + tooltip (Phase 1) ([270a130](https://github.com/dkmaker/hass-pi-agent/commit/270a130eb8ab3c7964079415f0dd740b2b267c29))
+* **webapp:** mock chat app + mock WS server (Lit + @material/web, HA MD3) ([428933b](https://github.com/dkmaker/hass-pi-agent/commit/428933b9257ab315fe8773064919e4944ef64b29))
+* **webapp:** real MDI icons via @mdi/js, drop emojis ([51b9c06](https://github.com/dkmaker/hass-pi-agent/commit/51b9c06980a73217600c3114ff7b6ca4034882b1))
+* **webapp:** render markdown headings (#..######) ([e018ee2](https://github.com/dkmaker/hass-pi-agent/commit/e018ee239d788bee7721a1a947824c549dd603ec))
+* **webapp:** render tool output as markdown (tables/lists) + drop empty bubbles ([540901d](https://github.com/dkmaker/hass-pi-agent/commit/540901df7cf04f37a91fdd7909e3f9171b08c832))
+* **webapp:** session drawer (/sessions) + new chat (/new) ([58e9f1e](https://github.com/dkmaker/hass-pi-agent/commit/58e9f1e596d26b19309f4a385b43d6b86776b391))
+* **webapp:** slash-command suggestions when composer is just '/' ([de9087c](https://github.com/dkmaker/hass-pi-agent/commit/de9087ca5c7685612376e295f4e414395b27ad22))
+* **webapp:** thinking indicator sits on the background (no bubble), smaller ([60e5eb2](https://github.com/dkmaker/hass-pi-agent/commit/60e5eb2aaa299f1a7ea586f32d7110baa817a48c))
+
+
+### Bug Fixes
+
+* don't repeat welcome title in provider-setup head ([22e7ef7](https://github.com/dkmaker/hass-pi-agent/commit/22e7ef76029278a917b032dea7774ebe8603723b))
+* reject invalid keys in validation + restore last-good key on failure ([3462c57](https://github.com/dkmaker/hass-pi-agent/commit/3462c57d98398821106be4612b2dc53c8a29bb0f))
+* **server:** isolate auth from global ~/.pi — API keys from add-on config only ([7d5169c](https://github.com/dkmaker/hass-pi-agent/commit/7d5169cff2141ec9778cf92c8e1aa88b89ee9913))
+* **webapp:** composer input is single-line height (matches send button) at rest ([8119ab3](https://github.com/dkmaker/hass-pi-agent/commit/8119ab3b0ded204025f72b8249b6635c3b3d5276))
+* **webapp:** enable touch scrolling of history on iOS Safari ([ec74613](https://github.com/dkmaker/hass-pi-agent/commit/ec74613bcd7c3eadd98d16d83a3705cead57125f))
+* **webapp:** fill full panel width (remove 860px max-width cap) ([779b947](https://github.com/dkmaker/hass-pi-agent/commit/779b947e0941fe1c9855adafd79c92283663c821))
+* **webapp:** generate session topic in the user's language ([1d9d2ef](https://github.com/dkmaker/hass-pi-agent/commit/1d9d2efa02f95098192f2f5ef1511cb56f9648d6))
+* **webapp:** ingress-relative WebSocket URL ([648cdc5](https://github.com/dkmaker/hass-pi-agent/commit/648cdc5581ab88e58e3fc3ed3e19b9c41ec6b663))
+* **webapp:** no-store on index.html so refresh always gets latest build ([44d5aae](https://github.com/dkmaker/hass-pi-agent/commit/44d5aae5d8b4479f28c00f0354f5a137993c7832))
+* **webapp:** set box-sizing inside shadow roots (composer + tool-block) ([f4d204f](https://github.com/dkmaker/hass-pi-agent/commit/f4d204fd9a31658a64e1eb61319420824915e7c1))
+* **webapp:** sync header height with HA (--header-height bridge) ([a3226d4](https://github.com/dkmaker/hass-pi-agent/commit/a3226d483494ee77b204f0b28ea02984d6f0d17b))
+
+
+### Code Refactoring
+
+* **extension+server:** embed system prompt in code; load HA extension explicitly ([119fecf](https://github.com/dkmaker/hass-pi-agent/commit/119fecf41b2042720c91edad4b3801eb2d65ade3))
+
+
+### Chores
+
+* ignore .pi/lean.json (machine-local, not committed) ([bb36748](https://github.com/dkmaker/hass-pi-agent/commit/bb36748fa28b8777c4852bc745abeb49633107df))
+* release Pi Agent 1.0.0 ([300cb49](https://github.com/dkmaker/hass-pi-agent/commit/300cb492feb09cb09e953a9fafa82c9b85631c80))
+* remove unused hide_thinking option (web engine always hides thinking) ([be1ce07](https://github.com/dkmaker/hass-pi-agent/commit/be1ce0754baa3251f7f408997e9870f570d306da))
+* track .pi/lean.json ruleset (declared committed, travels via git) ([0548bc7](https://github.com/dkmaker/hass-pi-agent/commit/0548bc733a5e4ef1740fcc63e2b05c1ddbe706f8))
+
 ## [0.13.1](https://github.com/dkmaker/hass-pi-agent/compare/v0.13.0...v0.13.1) (2026-09-11)
 
 
