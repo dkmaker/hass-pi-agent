@@ -36,6 +36,7 @@ export type ServerEvent =
   | { type: "agent_start" }
   | { type: "stats"; data: StatsOverview }
   | { type: "sessions"; data: SessionMeta[] }
+  | { type: "session_title"; title: string }
   | { type: "session_cleared" }
   | { type: "history"; data: Entry[] }
   | { type: "working"; label: string }

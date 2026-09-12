@@ -58,6 +58,7 @@ export class PiChatApp extends LitElement {
   @state() private setupOpen = false;
   @state() private stats?: StatsOverview;
   @state() private sessions: SessionMeta[] = [];
+  @state() private sessionLimit = 12;
   @query(".scroll") private scroller?: HTMLElement;
   @query("textarea") private ta?: HTMLTextAreaElement;
 
@@ -158,6 +159,7 @@ export class PiChatApp extends LitElement {
       case "agent_start": this.busy = true; break;
       case "stats": this.stats = ev.data; break;
       case "sessions": this.sessions = ev.data; break;
+      case "session_title": this.sessionTitle = ev.title; this.wsSend({ type: "list_sessions" }); break;
       case "session_cleared": this.entries = []; this.sessionTitle = "New chat"; this.busy = false; this.working = ""; this.bump(); break;
       case "history": this.entries = ev.data.map((e) => ({ ...e })); this.busy = false; this.working = ""; this.bump(); this.scrollSoon(); break;
       case "working": this.working = ev.label; break;
@@ -215,6 +217,7 @@ export class PiChatApp extends LitElement {
     if (cmd === "/sessions") { this.openDrawer(); this.clearDraft(); return; }
     if (this.busy || !this.ws || this.ws.readyState !== WebSocket.OPEN) return;
     this.entries.push({ kind: "user", id: nid(), text: t });
+    if (this.sessionTitle === "New chat") this.sessionTitle = t.length > 60 ? t.slice(0, 60) + "\u2026" : t;
     this.clearDraft();
     this.busy = true;
     this.bump();
@@ -231,6 +234,7 @@ export class PiChatApp extends LitElement {
 
   private openDrawer(): void {
     this.drawerOpen = true;
+    this.sessionLimit = 12;
     this.wsSend({ type: "list_sessions" });
   }
 
@@ -406,11 +410,16 @@ export class PiChatApp extends LitElement {
               <button class="sess" @click=${() => { this.setupOpen = true; this.drawerOpen = false; }}>
                 <span class="sess-t">Set up conventions</span><span class="sess-w">/setup wizard</span>
               </button>
-              ${this.sessions.map(
+              ${this.sessions.slice(0, this.sessionLimit).map(
                 (s) => html`<button class="sess" @click=${() => this.openSession(s)}>
                   <span class="sess-t">${s.title}</span><span class="sess-w">${s.when}</span>
                 </button>`,
               )}
+              ${this.sessions.length > this.sessionLimit
+                ? html`<button class="sess morebtn" @click=${() => { this.sessionLimit += 12; }}>
+                    <span class="sess-t">Vis flere (${this.sessions.length - this.sessionLimit})</span>
+                  </button>`
+                : nothing}
             </aside>`
         : nothing}
 

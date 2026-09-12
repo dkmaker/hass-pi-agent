@@ -95,6 +95,8 @@ if (modelSpec) {
 // The active session is mutable — /new and resume replace it (re-subscribing toWire).
 let session!: AgentSession;
 let unsub: (() => void) | null = null;
+let currentSm: ReturnType<typeof SessionManager.create> | null = null;
+const TOPIC_MIN_MESSAGES = 10;
 
 // ── WS clients + event fan-out ──────────────────────────────
 const clients = new Set<WebSocket>();
@@ -154,6 +156,49 @@ async function handlePrompt(text: string): Promise<void> {
     busy = false;
     releaseLock();
   }
+  void maybeGenerateTopic();
+}
+
+// ── Auto-topic: once a chat has ~10 messages, generate a short session title
+// via a one-shot model call and persist it into the transcript (appendSessionInfo),
+// so the header/list stop saying "New chat". Runs single-flight; best-effort.
+function msgText(m: Record<string, unknown>): string {
+  return ((m.content ?? []) as Array<Record<string, unknown>>)
+    .filter((c) => c.type === "text").map((c) => String(c.text ?? "")).join(" ").trim();
+}
+
+async function generateTopic(msgs: Array<Record<string, unknown>>): Promise<string> {
+  const s = (await createAgentSession({ resourceLoader: loader, cwd: agentCwd, sessionManager: SessionManager.inMemory(agentCwd), model, modelRuntime })).session;
+  const excerpt = msgs.filter((m) => m.role === "user" || m.role === "assistant")
+    .slice(0, 8).map((m) => `${m.role}: ${msgText(m)}`).join("\n").slice(0, 2000);
+  let out = "";
+  const off = s.subscribe((e) => {
+    const a = (e as { assistantMessageEvent?: { type: string; delta?: string } }).assistantMessageEvent;
+    if (e.type === "message_update" && a?.type === "text_delta" && a.delta) out += a.delta;
+  });
+  const timer = setTimeout(() => { void s.abort().catch(() => {}); }, 60_000);
+  try {
+    await s.prompt(`Give a very short topic title (3-5 words; use the chat's language, e.g. Danish) for this Home Assistant conversation. Do NOT use any tools. Reply with ONLY the title — no quotes, no punctuation.\n\n${excerpt}`);
+  } catch { /* ignore */ } finally {
+    clearTimeout(timer); off(); try { s.dispose(); } catch { /* ignore */ }
+  }
+  return out.trim().replace(/^["'#\s]+|["'\s]+$/g, "").split("\n")[0].slice(0, 64);
+}
+
+async function maybeGenerateTopic(): Promise<void> {
+  try {
+    if (!currentSm || currentSm.getSessionName()) return;
+    if ((session.messages ?? []).length < TOPIC_MIN_MESSAGES) return;
+    if (!acquireNow()) return; // user busy — retry after the next turn
+    busy = true;
+    let title = "";
+    try { title = await generateTopic((session.messages ?? []) as Array<Record<string, unknown>>); }
+    finally { busy = false; releaseLock(); }
+    if (title && currentSm && !currentSm.getSessionName()) {
+      currentSm.appendSessionInfo(title);
+      broadcast({ type: "session_title", title });
+    }
+  } catch { /* best-effort */ }
 }
 
 // ── pi_agent.ask: queued fresh-context one-shot (voice/automation entry) ──
@@ -202,6 +247,7 @@ async function startSession(sm: ReturnType<typeof SessionManager.create>): Promi
   if (session) { try { session.dispose(); } catch { /* ignore */ } }
   const created = await createAgentSession({ resourceLoader: loader, cwd: agentCwd, sessionManager: sm, model, modelRuntime });
   session = created.session;
+  currentSm = sm;
   unsub = session.subscribe(toWire);
   busy = false;
 }
