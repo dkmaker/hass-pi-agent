@@ -11,7 +11,7 @@ export type ToolCol = { key: string; label: string };
 export type ToolRow = { cells: Record<string, string>; entity_id?: string; icon?: string; state?: string };
 export type ToolField = { label: string; value: string };
 export type ToolDetails =
-  | { kind: "table"; title?: string; columns: ToolCol[]; rows: ToolRow[]; page?: { offset: number; limit: number; total: number }; note?: string }
+  | { kind: "table"; title?: string; columns: ToolCol[]; rows: ToolRow[]; page?: { offset: number; limit: number; total: number; hidden?: number }; note?: string }
   | { kind: "detail"; title?: string; fields: ToolField[] }
   | { kind: "list"; title?: string; items: string[]; note?: string }
   | { kind: "message"; text: string; ok?: boolean };

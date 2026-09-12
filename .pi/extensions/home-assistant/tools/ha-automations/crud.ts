@@ -90,6 +90,7 @@ export async function handleList(params: Record<string, unknown>): Promise<HaDet
       { key: "last", label: "Last triggered" },
     ],
     rows,
+    page: { offset, limit, total },
     note,
   };
 }

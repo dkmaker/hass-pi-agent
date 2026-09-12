@@ -18,7 +18,7 @@ export type Row = { cells: Record<string, string>; entity_id?: string; icon?: st
 export type Field = { label: string; value: string };
 
 export type HaDetails =
-  | { kind: "table"; title?: string; columns: Col[]; rows: Row[]; page?: { offset: number; limit: number; total: number }; note?: string }
+  | { kind: "table"; title?: string; columns: Col[]; rows: Row[]; page?: { offset: number; limit: number; total: number; hidden?: number }; note?: string }
   | { kind: "detail"; title?: string; fields: Field[] }
   | { kind: "list"; title?: string; items: string[]; note?: string }
   | { kind: "message"; text: string; ok?: boolean };

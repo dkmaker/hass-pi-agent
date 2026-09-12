@@ -291,6 +291,7 @@ async function handleList(params: Record<string, unknown>): Promise<HaDetails> {
       { key: "area", label: "Area" },
     ],
     rows,
+    page: { offset, limit, total, hidden: !includeUnavailable ? unavailableCount : 0 },
     note,
   };
 }

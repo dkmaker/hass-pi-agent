@@ -314,6 +314,7 @@ async function handleList(params: Record<string, unknown>): Promise<HaDetails> {
       { key: "id", label: "ID" },
     ],
     rows,
+    page: { offset, limit, total, hidden: !includeDisabled ? disabledCount : 0 },
     note,
   };
 }

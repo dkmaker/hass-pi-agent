@@ -37,6 +37,7 @@ const EN: Record<string, string> = {
   wiz_save: "Save & finish", wiz_done_title: "You're all set",
   wiz_done_sub: "These conventions will guide how I name and organize things.", wiz_close: "Close",
   raw_info: "Raw request & response", req: "Request", resp: "Response",
+  t_done: "done", t_error: "error", t_running: "Running…", tbl_showing: "Showing {a}–{b} of {t}", tbl_count: "{n} results", tbl_hidden: "({n} hidden)",
 };
 
 const DA: Record<string, string> = {
@@ -54,6 +55,7 @@ const DA: Record<string, string> = {
   wiz_save: "Gem & afslut", wiz_done_title: "Så er du klar",
   wiz_done_sub: "Disse konventioner styrer, hvordan jeg navngiver og organiserer ting.", wiz_close: "Luk",
   raw_info: "Rå forespørgsel & svar", req: "Forespørgsel", resp: "Svar",
+  t_done: "færdig", t_error: "fejl", t_running: "Kører…", tbl_showing: "Viser {a}–{b} af {t}", tbl_count: "{n} resultater", tbl_hidden: "({n} skjult)",
 };
 
 const NO: Record<string, string> = {
@@ -71,6 +73,7 @@ const NO: Record<string, string> = {
   wiz_save: "Lagre & fullfør", wiz_done_title: "Da er du klar",
   wiz_done_sub: "Disse konvensjonene styrer hvordan jeg navngir og organiserer ting.", wiz_close: "Lukk",
   raw_info: "Rå forespørsel & svar", req: "Forespørsel", resp: "Svar",
+  t_done: "ferdig", t_error: "feil", t_running: "Kjører…", tbl_showing: "Viser {a}–{b} av {t}", tbl_count: "{n} resultater", tbl_hidden: "({n} skjult)",
 };
 
 const SV: Record<string, string> = {
@@ -88,6 +91,7 @@ const SV: Record<string, string> = {
   wiz_save: "Spara & slutför", wiz_done_title: "Då är du klar",
   wiz_done_sub: "Dessa konventioner styr hur jag namnger och organiserar saker.", wiz_close: "Stäng",
   raw_info: "Rå förfrågan & svar", req: "Förfrågan", resp: "Svar",
+  t_done: "klar", t_error: "fel", t_running: "Kör…", tbl_showing: "Visar {a}–{b} av {t}", tbl_count: "{n} resultat", tbl_hidden: "({n} dolda)",
 };
 
 const DE: Record<string, string> = {
@@ -105,6 +109,7 @@ const DE: Record<string, string> = {
   wiz_save: "Speichern & abschließen", wiz_done_title: "Alles bereit",
   wiz_done_sub: "Diese Konventionen bestimmen, wie ich Dinge benenne und organisiere.", wiz_close: "Schließen",
   raw_info: "Rohe Anfrage & Antwort", req: "Anfrage", resp: "Antwort",
+  t_done: "fertig", t_error: "Fehler", t_running: "Läuft…", tbl_showing: "{a}–{b} von {t}", tbl_count: "{n} Ergebnisse", tbl_hidden: "({n} ausgeblendet)",
 };
 
 const TABLE: Record<Lang, Record<string, string>> = { en: EN, da: DA, no: NO, sv: SV, de: DE };

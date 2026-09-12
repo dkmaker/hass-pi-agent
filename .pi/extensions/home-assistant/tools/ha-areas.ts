@@ -166,6 +166,7 @@ async function handleList(): Promise<HaDetails> {
       { key: "id", label: "ID" },
     ],
     rows,
+    page: { offset: 0, limit: areas.length, total: areas.length },
     note: `${areas.length} areas, ${floors.length} floors`,
   };
 }

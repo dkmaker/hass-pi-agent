@@ -97,7 +97,7 @@ export class PiToolBlock extends LitElement {
   }
 
   private renderBody(): TemplateResult | typeof nothing {
-    if (this.running) return html`<span class="kv">Running…</span>`;
+    if (this.running) return html`<span class="kv">${tr("t_running")}</span>`;
     const r = this.result;
     if (!r) return nothing;
     if (r.kind === "entities") {
@@ -151,6 +151,19 @@ export class PiToolBlock extends LitElement {
     return html`<td>${val}</td>`;
   }
 
+  private tableFooter(d: Extract<ToolDetails, { kind: "table" }>): TemplateResult | typeof nothing {
+    if (d.page) {
+      const { offset, limit, total, hidden } = d.page;
+      const shownAll = total <= limit && offset === 0;
+      let txt = shownAll
+        ? tr("tbl_count", { n: total })
+        : tr("tbl_showing", { a: offset + 1, b: Math.min(offset + limit, total), t: total });
+      if (hidden) txt += " " + tr("tbl_hidden", { n: hidden });
+      return html`<div class="tnote">${txt}</div>`;
+    }
+    return d.note ? html`<div class="tnote">${d.note}</div>` : nothing;
+  }
+
   private renderDetails(d: ToolDetails): TemplateResult {
     if (d.kind === "table") {
       return html`
@@ -158,7 +171,7 @@ export class PiToolBlock extends LitElement {
           <thead><tr>${d.columns.map((c) => html`<th>${col(c.label)}</th>`)}</tr></thead>
           <tbody>${d.rows.map((row) => html`<tr>${d.columns.map((c, i) => this.cell(c, row, i === 0))}</tr>`)}</tbody>
         </table>
-        ${d.note ? html`<div class="tnote">${d.note}</div>` : nothing}`;
+        ${this.tableFooter(d)}`;
     }
     if (d.kind === "detail") {
       return html`<table><tbody>${d.fields.map((f) => html`<tr><th>${col(f.label)}</th><td>${f.value}</td></tr>`)}</tbody></table>`;
@@ -180,7 +193,7 @@ export class PiToolBlock extends LitElement {
           <button class="ibtn" title=${tr("raw_info")} aria-label=${tr("raw_info")} @click=${() => { this.showRaw = true; }}>${icon(mdiInformationOutline, 16)}</button>
           ${this.running
             ? html`<md-circular-progress indeterminate aria-label="running"></md-circular-progress>`
-            : html`<span class="badge ${this.isError ? "err" : "ok"}">${icon(this.isError ? mdiAlertCircle : mdiCheck, 13)}${this.isError ? "error" : "done"}</span>`}
+            : html`<span class="badge ${this.isError ? "err" : "ok"}">${icon(this.isError ? mdiAlertCircle : mdiCheck, 13)}${this.isError ? tr("t_error") : tr("t_done")}</span>`}
         </div>
         <div class="body">${this.renderBody()}</div>
       </div>
