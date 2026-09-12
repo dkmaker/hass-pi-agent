@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.0.1](https://github.com/dkmaker/hass-pi-agent/compare/v1.0.0...v1.0.1) (2026-09-12)
+
+
+### Features
+
+* collapsible tool blocks with a mandatory agent reason ([f09166a](https://github.com/dkmaker/hass-pi-agent/commit/f09166ad8645c2ff583f9844c8f5488284d878cf))
+
+
+### Bug Fixes
+
+* anchor chat messages to the bottom (normal chat layout) ([41b8655](https://github.com/dkmaker/hass-pi-agent/commit/41b8655d83ec0219785cc626d31bbd44175427b4))
+* call Supervisor API directly in the add-on (WS proxy is unauthorized) ([a0bfee9](https://github.com/dkmaker/hass-pi-agent/commit/a0bfee92ac68e248894c59f6648199126f146405))
+* empty details:{} rendered blank tool blocks (ha_yaml/notes/mutations) ([c8fa059](https://github.com/dkmaker/hass-pi-agent/commit/c8fa059ee5fdebaf518db0674c5bd944a45d6a0d))
+* ha_yaml list returned empty text for a domain filter with configs ([e06a1d1](https://github.com/dkmaker/hass-pi-agent/commit/e06a1d100d8ef8f9fbf35c0653b0122d53301b49))
+* hotfix 1.0.1 — Supervisor API, chat layout, empty/blank tool blocks, collapsible tools ([9da7fae](https://github.com/dkmaker/hass-pi-agent/commit/9da7fae920f2dfa5fc10d9dac53df97bf2b3e869))
+
+
+### Chores
+
+* release 1.0.1 ([88ac524](https://github.com/dkmaker/hass-pi-agent/commit/88ac5243dcd5fcca77dc01f2b1014c4d34d74281))
+
 ## [1.0.0](https://github.com/dkmaker/hass-pi-agent/compare/v0.13.1...v1.0.0) (2026-09-12)
 
 
