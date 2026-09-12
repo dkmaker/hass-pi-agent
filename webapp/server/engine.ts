@@ -395,16 +395,35 @@ function configStatus(): { configured: boolean; provider?: string; model?: strin
   return { configured: !!model && authed, provider: curProvider, model: curModel };
 }
 
+// Re-apply the last-saved key for a provider (or clear it) so a FAILED validation
+// never leaves the live runtime holding a bad key that breaks the active session.
+async function restoreProviderKey(provider: string): Promise<void> {
+  try {
+    const opt = (await readAddonOptions()) as { provider?: string; api_key?: string };
+    if (opt.provider === provider && opt.api_key) await modelRuntime.setRuntimeApiKey(provider, opt.api_key);
+    else await modelRuntime.removeRuntimeApiKey(provider);
+  } catch { /* best-effort restore */ }
+}
+
 async function validateCombo(provider: string, modelId: string, apiKey: string): Promise<{ ok: boolean; error?: string }> {
   if (!API_KEY_PROVIDERS.includes(provider)) return { ok: false, error: "Unsupported provider" };
+  let touchedKey = false;
   try {
-    if (apiKey) await modelRuntime.setRuntimeApiKey(provider, apiKey);
+    if (apiKey) { await modelRuntime.setRuntimeApiKey(provider, apiKey); touchedKey = true; }
     const r = resolveCliModel({ cliModel: `${provider}/${modelId}`, modelRuntime });
-    if (r.error || !r.model) return { ok: false, error: r.error ?? "Model not found" };
+    if (r.error || !r.model) { if (touchedKey) await restoreProviderKey(provider); return { ok: false, error: r.error ?? "Model not found" }; }
     const test = modelRuntime.completeSimple(r.model, { messages: [{ role: "user", content: [{ type: "text", text: "Reply with the single word OK." }] }] }, { maxTokens: 8 });
-    await Promise.race([test, new Promise((_, rej) => setTimeout(() => rej(new Error("Validation timed out")), 30000))]);
+    // completeSimple does NOT throw on auth/quota failure — it resolves with a
+    // message whose stopReason is "error" (or empty content). Inspect it.
+    const msg = (await Promise.race([test, new Promise((_, rej) => setTimeout(() => rej(new Error("Validation timed out")), 30000))])) as { stopReason?: string; errorMessage?: string; content?: Array<{ type: string; text?: string }> };
+    const text = (msg?.content ?? []).filter((c) => c.type === "text").map((c) => c.text ?? "").join("").trim();
+    if (msg?.stopReason === "error" || !text) {
+      if (touchedKey) await restoreProviderKey(provider);
+      return { ok: false, error: msg?.errorMessage || "The provider rejected the request — check the API key and model." };
+    }
     return { ok: true };
   } catch (err) {
+    if (touchedKey) await restoreProviderKey(provider);
     return { ok: false, error: (err as Error).message };
   }
 }
