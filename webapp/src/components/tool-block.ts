@@ -1,12 +1,15 @@
 import { LitElement, html, css, nothing, type TemplateResult } from "lit";
-import { customElement, property } from "lit/decorators.js";
+import { customElement, property, state } from "lit/decorators.js";
 import "@material/web/progress/circular-progress.js";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { icon } from "../icon.js";
 import { renderMarkdown } from "../md.js";
-import { mdiCheck, mdiAlertCircle } from "@mdi/js";
+import { mdiCheck, mdiAlertCircle, mdiInformationOutline, mdiClose } from "@mdi/js";
 import type { ToolResult } from "../types.js";
 import { toolMeta } from "../tool-meta.js";
+import { t as tr } from "../i18n.js";
+
+const escapeHtml = (s: string): string => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 /** Per-tool render block: a titled card whose body depends on the result kind. */
 @customElement("pi-tool-block")
@@ -16,6 +19,7 @@ export class PiToolBlock extends LitElement {
   @property({ type: Boolean }) running = false;
   @property({ type: Boolean }) isError = false;
   @property({ type: Object }) result?: ToolResult;
+  @state() private showRaw = false;
 
   static styles = css`
     * { box-sizing: border-box; }
@@ -44,6 +48,17 @@ export class PiToolBlock extends LitElement {
     .badge svg { width: 13px; height: 13px; }
     .badge.ok { background: color-mix(in srgb, var(--pi-ok) 18%, transparent); color: var(--pi-ok); }
     .badge.err { background: color-mix(in srgb, var(--pi-danger) 18%, transparent); color: var(--pi-danger); }
+    .ibtn { display: grid; place-items: center; width: 26px; height: 26px; border: none; background: transparent; color: var(--pi-text-2); border-radius: 8px; cursor: pointer; flex: 0 0 auto; }
+    .ibtn:hover { background: var(--pi-surface); color: var(--pi-text); }
+    .ibtn svg { width: 16px; height: 16px; }
+    .rawscrim { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 20; display: grid; place-items: center; padding: 16px; }
+    .rawmodal { width: 100%; max-width: 640px; max-height: 88dvh; display: flex; flex-direction: column; background: var(--pi-surface); border: 1px solid var(--pi-divider); border-radius: 16px; overflow: hidden; }
+    .rawhead { display: flex; align-items: center; gap: 8px; padding: 12px 14px; border-bottom: 1px solid var(--pi-divider); }
+    .rawtitle { font: 600 14px var(--pi-font); color: var(--pi-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .rawbody { padding: 12px 14px; overflow-y: auto; }
+    .rawsec { font: 600 11px var(--pi-font); text-transform: uppercase; letter-spacing: 0.05em; color: var(--pi-text-2); margin: 4px 0 6px; }
+    pre.json { margin: 0 0 14px; background: var(--pi-code-bg); border-radius: 8px; padding: 10px 12px; overflow-x: auto; font: 12.5px/1.5 var(--pi-mono); color: var(--pi-text); white-space: pre-wrap; word-break: break-word; }
+    .j-key { color: var(--pi-primary); } .j-str { color: var(--pi-ok); } .j-num { color: var(--pi-accent); } .j-bool { color: var(--pi-accent); } .j-null { color: var(--pi-text-2); }
 
     table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
     th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--pi-divider); }
@@ -119,13 +134,49 @@ export class PiToolBlock extends LitElement {
         <div class="head">
           ${icon(meta.icon, 17)}
           <span class="name" title=${meta.desc}>${meta.label}</span>
-          <span class="args" title=${this.toolName}>${this.argSummary()}</span>
           <span class="spacer"></span>
+          <button class="ibtn" title=${tr("raw_info")} aria-label=${tr("raw_info")} @click=${() => { this.showRaw = true; }}>${icon(mdiInformationOutline, 16)}</button>
           ${this.running
             ? html`<md-circular-progress indeterminate aria-label="running"></md-circular-progress>`
             : html`<span class="badge ${this.isError ? "err" : "ok"}">${icon(this.isError ? mdiAlertCircle : mdiCheck, 13)}${this.isError ? "error" : "done"}</span>`}
         </div>
         <div class="body">${this.renderBody()}</div>
+      </div>
+      ${this.showRaw ? this.renderRaw() : nothing}`;
+  }
+
+  private renderRaw(): TemplateResult {
+    const reqJson = this.hljson(this.args ?? {});
+    const resp = this.result?.data;
+    const respHtml = typeof resp === "string" ? escapeHtml(resp) : this.hljson(resp ?? null);
+    return html`
+      <div class="rawscrim" @click=${(e: Event) => { if (e.target === e.currentTarget) this.showRaw = false; }}>
+        <div class="rawmodal">
+          <div class="rawhead">
+            <span class="rawtitle">${toolMeta(this.toolName).label} · ${this.toolName}</span>
+            <span class="spacer"></span>
+            <button class="ibtn" aria-label=${tr("wiz_close")} @click=${() => { this.showRaw = false; }}>${icon(mdiClose, 20)}</button>
+          </div>
+          <div class="rawbody">
+            <div class="rawsec">${tr("req")}</div>
+            <pre class="json">${unsafeHTML(reqJson)}</pre>
+            <div class="rawsec">${tr("resp")}</div>
+            <pre class="json">${unsafeHTML(respHtml)}</pre>
+          </div>
+        </div>
       </div>`;
+  }
+
+  private hljson(v: unknown): string {
+    const json = JSON.stringify(v, null, 2) ?? "null";
+    return json
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/("(\\u[a-fA-F0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, (m) => {
+        let cls = "num";
+        if (/^"/.test(m)) cls = /:$/.test(m) ? "key" : "str";
+        else if (/true|false/.test(m)) cls = "bool";
+        else if (/null/.test(m)) cls = "null";
+        return `<span class="j-${cls}">${m}</span>`;
+      });
   }
 }

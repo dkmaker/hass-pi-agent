@@ -36,6 +36,7 @@ const EN: Record<string, string> = {
   wiz_step_of: "Step {n} of {t}", wiz_review: "Review", wiz_back: "Back", wiz_next: "Next",
   wiz_save: "Save & finish", wiz_done_title: "You're all set",
   wiz_done_sub: "These conventions will guide how I name and organize things.", wiz_close: "Close",
+  raw_info: "Raw request & response", req: "Request", resp: "Response",
 };
 
 const DA: Record<string, string> = {
@@ -52,6 +53,7 @@ const DA: Record<string, string> = {
   wiz_step_of: "Trin {n} af {t}", wiz_review: "Gennemse", wiz_back: "Tilbage", wiz_next: "Næste",
   wiz_save: "Gem & afslut", wiz_done_title: "Så er du klar",
   wiz_done_sub: "Disse konventioner styrer, hvordan jeg navngiver og organiserer ting.", wiz_close: "Luk",
+  raw_info: "Rå forespørgsel & svar", req: "Forespørgsel", resp: "Svar",
 };
 
 const NO: Record<string, string> = {
@@ -68,6 +70,7 @@ const NO: Record<string, string> = {
   wiz_step_of: "Trinn {n} av {t}", wiz_review: "Gjennomgå", wiz_back: "Tilbake", wiz_next: "Neste",
   wiz_save: "Lagre & fullfør", wiz_done_title: "Da er du klar",
   wiz_done_sub: "Disse konvensjonene styrer hvordan jeg navngir og organiserer ting.", wiz_close: "Lukk",
+  raw_info: "Rå forespørsel & svar", req: "Forespørsel", resp: "Svar",
 };
 
 const SV: Record<string, string> = {
@@ -84,6 +87,7 @@ const SV: Record<string, string> = {
   wiz_step_of: "Steg {n} av {t}", wiz_review: "Granska", wiz_back: "Tillbaka", wiz_next: "Nästa",
   wiz_save: "Spara & slutför", wiz_done_title: "Då är du klar",
   wiz_done_sub: "Dessa konventioner styr hur jag namnger och organiserar saker.", wiz_close: "Stäng",
+  raw_info: "Rå förfrågan & svar", req: "Förfrågan", resp: "Svar",
 };
 
 const DE: Record<string, string> = {
@@ -100,6 +104,7 @@ const DE: Record<string, string> = {
   wiz_step_of: "Schritt {n} von {t}", wiz_review: "Überprüfen", wiz_back: "Zurück", wiz_next: "Weiter",
   wiz_save: "Speichern & abschließen", wiz_done_title: "Alles bereit",
   wiz_done_sub: "Diese Konventionen bestimmen, wie ich Dinge benenne und organisiere.", wiz_close: "Schließen",
+  raw_info: "Rohe Anfrage & Antwort", req: "Anfrage", resp: "Antwort",
 };
 
 const TABLE: Record<Lang, Record<string, string>> = { en: EN, da: DA, no: NO, sv: SV, de: DE };
