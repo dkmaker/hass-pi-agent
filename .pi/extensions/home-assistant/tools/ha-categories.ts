@@ -9,6 +9,7 @@ import { Type } from "@earendil-works/pi-ai";
 import { StringEnum } from "@earendil-works/pi-ai";
 import { wsCommand } from "../lib/ws.js";
 import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
+import { defineHaTool, type HaDetails, type Row } from "../lib/tool-render.js";
 import { backupBeforeMutation } from "../lib/mutation-log.js";
 
 // ── Types ────────────────────────────────────────────────────
@@ -22,7 +23,7 @@ interface WSCategory {
 // ── Tool registration ────────────────────────────────────────
 
 export function registerCategoriesTool(pi: ExtensionAPI): void {
-  pi.registerTool({
+  defineHaTool(pi, {
     name: "ha_categories",
     label: "HA Categories",
     description: `Manage categories for automations/scripts/scenes. Actions: list, create, update, delete.`,
@@ -49,24 +50,13 @@ export function registerCategoriesTool(pi: ExtensionAPI): void {
     }),
 
 
-    renderCall(args: Record<string, unknown>, theme: any) {
-      return renderToolCall("HA Categories", args, theme);
-    },
-
-    renderResult(result: any) {
-      return renderMarkdownResult(result);
-    },
-
-    async execute(toolCallId, params, signal, onUpdate, ctx) {
-      const result = await executeAction(params);
-      return { content: [{ type: "text" as const, text: result }] };
-    },
+    execute: (params) => executeAction(params),
   });
 }
 
 // ── Action dispatch ──────────────────────────────────────────
 
-async function executeAction(params: Record<string, unknown>): Promise<string> {
+async function executeAction(params: Record<string, unknown>): Promise<string | HaDetails> {
   switch (params.action as string) {
     case "list": return handleList(params.scope as string | undefined);
     case "create": return handleCreate(params);
@@ -78,20 +68,30 @@ async function executeAction(params: Record<string, unknown>): Promise<string> {
 
 // ── Handlers ─────────────────────────────────────────────────
 
-async function handleList(scope?: string): Promise<string> {
+async function handleList(scope?: string): Promise<string | HaDetails> {
   if (!scope) throw new Error("'scope' is required (automation, script, or scene)");
 
   const categories = await wsCommand<WSCategory[]>("config/category_registry/list", { scope });
   if (categories.length === 0) return `No categories defined for ${scope}.`;
 
   categories.sort((a, b) => a.name.localeCompare(b.name));
-  const lines: string[] = [
-    "| Name | Icon | ID |",
-    "|------|------|----|",
-    ...categories.map((c) => `| **${c.name}** | ${c.icon || ""} | ${c.category_id} |`),
-    `\n${categories.length} ${scope} categories`,
-  ];
-  return lines.join("\n");
+  const rows: Row[] = categories.map((c) => ({
+    icon: (c.icon || "").replace(/^mdi:/, "") || "shape-outline",
+    cells: {
+      name: c.name,
+      id: c.category_id,
+    },
+  }));
+  return {
+    kind: "table",
+    columns: [
+      { key: "name", label: "Name" },
+      { key: "id", label: "ID" },
+    ],
+    rows,
+    page: { offset: 0, limit: categories.length, total: categories.length },
+    note: `${categories.length} ${scope} categories`,
+  };
 }
 
 async function handleCreate(params: Record<string, unknown>): Promise<string> {

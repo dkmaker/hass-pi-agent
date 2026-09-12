@@ -9,6 +9,7 @@ import { StringEnum } from "@earendil-works/pi-ai";
 import { wsCommand } from "../lib/ws.js";
 import { apiPost } from "../lib/api.js";
 import { timeSince , renderMarkdownResult, renderToolCall } from "../lib/format.js";
+import { defineHaTool, type HaDetails, type Row } from "../lib/tool-render.js";
 
 interface PersistentNotification {
   notification_id: string;
@@ -20,26 +21,32 @@ interface PersistentNotification {
 
 // ── List ─────────────────────────────────────────────────────
 
-async function handleList(): Promise<string> {
+async function handleList(): Promise<string | HaDetails> {
   const notifications = await wsCommand<PersistentNotification[]>("persistent_notification/get");
 
   if (notifications.length === 0) return "No persistent notifications.";
 
   notifications.sort((a, b) => b.created_at.localeCompare(a.created_at));
-
-  const lines: string[] = [
-    "| Title | ID | Message | Created |",
-    "|-------|-----|---------|---------|",
-  ];
-  for (const n of notifications) {
-    const title = n.title || "(no title)";
-    const ago = timeSince(n.created_at);
-    const msg = n.message.slice(0, 80).replace(/\|/g, "\\|").replace(/\n/g, " ");
-    lines.push(`| **${title}** | ${n.notification_id} | ${msg} | ${ago} |`);
-  }
-
-  lines.push(`\n${notifications.length} notifications`);
-  return lines.join("\n");
+  const rows: Row[] = notifications.map((n) => ({
+    cells: {
+      title: n.title || "(no title)",
+      id: n.notification_id,
+      message: n.message.slice(0, 80).replace(/\n/g, " "),
+      created: n.created_at,
+    },
+  }));
+  return {
+    kind: "table",
+    columns: [
+      { key: "title", label: "Title" },
+      { key: "id", label: "ID" },
+      { key: "message", label: "Message" },
+      { key: "created", label: "Created", type: "reltime" },
+    ],
+    rows,
+    page: { offset: 0, limit: notifications.length, total: notifications.length },
+    note: `${notifications.length} notifications`,
+  };
 }
 
 // ── Create ───────────────────────────────────────────────────
@@ -78,7 +85,7 @@ async function handleDismissAll(): Promise<string> {
 const ALL_ACTIONS = ["list", "create", "dismiss", "dismiss_all"] as const;
 
 export function registerNotificationsTool(pi: ExtensionAPI): void {
-  pi.registerTool({
+  defineHaTool(pi, {
     name: "ha_notifications",
     label: "HA Notifications",
     description: `Manage HA persistent notifications. Actions: list, create, dismiss, dismiss_all.`,
@@ -102,22 +109,11 @@ export function registerNotificationsTool(pi: ExtensionAPI): void {
     }),
 
 
-    renderCall(args: Record<string, unknown>, theme: any) {
-      return renderToolCall("HA Notifications", args, theme);
-    },
-
-    renderResult(result: any) {
-      return renderMarkdownResult(result);
-    },
-
-    async execute(toolCallId, params, signal, onUpdate, ctx) {
-      const result = await dispatch(params);
-      return { content: [{ type: "text" as const, text: result }] };
-    },
+    execute: (params) => dispatch(params),
   });
 }
 
-async function dispatch(params: Record<string, unknown>): Promise<string> {
+async function dispatch(params: Record<string, unknown>): Promise<string | HaDetails> {
   switch (params.action as string) {
     case "list": return handleList();
     case "create": return handleCreate(params);

@@ -9,6 +9,7 @@ import { Type } from "@earendil-works/pi-ai";
 import { StringEnum } from "@earendil-works/pi-ai";
 import { wsCommand } from "../lib/ws.js";
 import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
+import { defineHaTool, type HaDetails, type Row } from "../lib/tool-render.js";
 import { backupBeforeMutation } from "../lib/mutation-log.js";
 
 // ── Types ────────────────────────────────────────────────────
@@ -24,7 +25,7 @@ interface WSTag {
 // ── Tool registration ────────────────────────────────────────
 
 export function registerTagsTool(pi: ExtensionAPI): void {
-  pi.registerTool({
+  defineHaTool(pi, {
     name: "ha_tags",
     label: "HA Tags",
     description: `Manage HA tags (NFC/QR). Actions: list, get, create, update, delete.`,
@@ -46,24 +47,13 @@ export function registerTagsTool(pi: ExtensionAPI): void {
     }),
 
 
-    renderCall(args: Record<string, unknown>, theme: any) {
-      return renderToolCall("HA Tags", args, theme);
-    },
-
-    renderResult(result: any) {
-      return renderMarkdownResult(result);
-    },
-
-    async execute(toolCallId, params, signal, onUpdate, ctx) {
-      const result = await executeAction(params);
-      return { content: [{ type: "text" as const, text: result }] };
-    },
+    execute: (params) => executeAction(params),
   });
 }
 
 // ── Action dispatch ──────────────────────────────────────────
 
-async function executeAction(params: Record<string, unknown>): Promise<string> {
+async function executeAction(params: Record<string, unknown>): Promise<string | HaDetails> {
   switch (params.action as string) {
     case "list": return handleList();
     case "get": return handleGet(params.id as string | undefined);
@@ -76,22 +66,32 @@ async function executeAction(params: Record<string, unknown>): Promise<string> {
 
 // ── Handlers ─────────────────────────────────────────────────
 
-async function handleList(): Promise<string> {
+async function handleList(): Promise<string | HaDetails> {
   const tags = await wsCommand<WSTag[]>("tag/list");
   if (tags.length === 0) return "No tags defined.";
 
-  const lines: string[] = [
-    "| Name | Tag ID | Description | Last Scanned | ID |",
-    "|------|--------|-------------|--------------|-----|",
-    ...tags.map((t) => {
-      const name = t.name || "(unnamed)";
-      const desc = t.description || "";
-      const scanned = t.last_scanned || "never";
-      return `| **${name}** | ${t.tag_id} | ${desc} | ${scanned} | ${t.id} |`;
-    }),
-    `\n${tags.length} tags`,
-  ];
-  return lines.join("\n");
+  const rows: Row[] = tags.map((t) => ({
+    cells: {
+      name: t.name || "(unnamed)",
+      tagid: t.tag_id,
+      description: t.description || "",
+      last: t.last_scanned || "",
+      id: t.id,
+    },
+  }));
+  return {
+    kind: "table",
+    columns: [
+      { key: "name", label: "Name" },
+      { key: "tagid", label: "Tag ID" },
+      { key: "description", label: "Description" },
+      { key: "last", label: "Last scanned", type: "reltime" },
+      { key: "id", label: "ID" },
+    ],
+    rows,
+    page: { offset: 0, limit: tags.length, total: tags.length },
+    note: `${tags.length} tags`,
+  };
 }
 
 async function handleGet(id?: string): Promise<string> {
