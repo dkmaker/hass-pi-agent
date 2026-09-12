@@ -1,0 +1,48 @@
+name: Pi Agent for Home Assistant (Beta)
+version: 1.1.0-beta.0
+slug: pi_agent_beta
+image: ghcr.io/dkmaker/hass-pi-agent/{arch}-pi_agent_beta
+description: >-
+  Beta channel of Pi Agent — pre-release builds for testing new features before
+  they ship in the stable add-on. Install alongside the stable add-on.
+startup: services
+ingress: true
+ingress_port: 0
+ingress_stream: true
+init: false
+panel_icon: mdi:robot
+panel_title: Pi Agent Beta
+arch:
+  - aarch64
+  - amd64
+homeassistant_api: true
+hassio_api: true
+hassio_role: admin
+auth_api: true
+map:
+  - homeassistant_config:rw
+  - all_addon_configs:rw
+  - ssl:rw
+  - share:rw
+  - media:rw
+  - backup:rw
+options:
+  ai:
+    provider: ''
+    model: ''
+    api_key: ''
+  install_integration: true
+  additional_packages: []
+  write_guard: strict
+  write_guard_allow: []
+schema:
+  ai:
+    provider: str?
+    model: str?
+    api_key: password?
+  install_integration: bool?
+  additional_packages:
+    - str
+  write_guard: list(strict|warn|off)?
+  write_guard_allow:
+    - str?

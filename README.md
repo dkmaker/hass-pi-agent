@@ -24,6 +24,8 @@ Powered by [Pi](https://github.com/earendil-works/pi), an open-source coding age
 1. Find **Pi Agent for Home Assistant** in the add-on store (refresh if needed).
 2. Click **Install**, then **Start**.
 
+> **Beta channel (optional).** The same repository also lists **Pi Agent for Home Assistant (Beta)** — pre-release builds for testing new features early. Install that tile instead of (or alongside) the stable one to follow the beta channel. Its configuration is independent. If you're not actively testing, stick with the stable add-on.
+
 ### 3. Configure in the panel
 
 1. Open **Pi Agent** from the sidebar (or **Open Web UI** on the add-on's Info tab).

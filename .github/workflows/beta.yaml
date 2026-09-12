@@ -1,0 +1,118 @@
+---
+name: Publish Beta
+
+# Beta channel: push to the `beta` branch (or run manually) to build the add-on
+# from that branch, push a pre-release image to GHCR under the beta image name,
+# bump the beta tile version on `main` so Home Assistant offers the update, and
+# cut a GitHub pre-release. The stable channel (release.yaml/build.yaml) is
+# untouched.
+
+on:
+  push:
+    branches:
+      - beta
+  workflow_dispatch:
+
+env:
+  ADDON_TARGET: addon
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Compute beta version
+        id: v
+        run: |
+          BASE="$(tr -d '[:space:]' < addon-beta/BETA_BASE)"
+          echo "version=${BASE}-beta.${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        arch:
+          - amd64
+          - aarch64
+    steps:
+      - name: Checkout beta source
+        uses: actions/checkout@v7
+
+      - name: Login to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Sync extension source into addon build context
+        run: |
+          rm -rf addon/extensions/home-assistant
+          mkdir -p addon/extensions
+          cp -a .pi/extensions/home-assistant addon/extensions/home-assistant
+          rm -rf addon/extensions/home-assistant/node_modules addon/extensions/home-assistant/data
+
+      - name: Sync webapp source into addon build context
+        run: |
+          rm -rf addon/webapp
+          cp -a webapp addon/webapp
+          rm -rf addon/webapp/node_modules addon/webapp/dist \
+                 addon/webapp/.engine-agentdir addon/webapp/.engine-scratch
+
+      - name: Point the build at the beta image name
+        run: |
+          sed -i 's#{arch}-pi_agent#{arch}-pi_agent_beta#' addon/config.yaml
+          grep '^image:' addon/config.yaml
+
+      - name: Build & push beta add-on image
+        uses: home-assistant/builder@master
+        with:
+          args: |
+            --${{ matrix.arch }} \
+            --target ${{ env.ADDON_TARGET }} \
+            --version "${{ needs.version.outputs.version }}" \
+            --no-cache
+
+  publish:
+    needs: [version, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v7
+        with:
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Bump beta tile version on main
+        run: |
+          V="${{ needs.version.outputs.version }}"
+          sed -i "s/^version:.*/version: ${V}/" addon-beta/config.yaml
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add addon-beta/config.yaml
+          if git diff --cached --quiet; then
+            echo "No version change to commit."
+          else
+            git commit -m "chore(beta): publish ${V} [skip ci]"
+            git push origin main
+          fi
+
+      - name: Create GitHub pre-release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          V="${{ needs.version.outputs.version }}"
+          gh release create "v${V}" \
+            --prerelease \
+            --target "${{ github.sha }}" \
+            --title "v${V}" \
+            --notes "Beta build from the \`beta\` branch. Install the **Pi Agent (Beta)** add-on to test." \
+            || echo "Release v${V} may already exist."
