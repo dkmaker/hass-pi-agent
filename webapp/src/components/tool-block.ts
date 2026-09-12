@@ -67,7 +67,7 @@ export class PiToolBlock extends LitElement {
     td:first-child { font-family: var(--pi-mono); }
     .state-on { color: var(--pi-ok); font-weight: 600; }
     .state-off { color: var(--pi-text-2); }
-    .ricon { color: var(--pi-primary); margin-right: 6px; font-size: 15px; flex: 0 0 auto; }
+    .ricon { color: var(--pi-text); margin-right: 6px; font-size: 15px; flex: 0 0 auto; }
     .elink { display: inline-flex; align-items: center; gap: 2px; border: none; background: transparent; color: var(--pi-primary); cursor: pointer; font: inherit; font-family: var(--pi-mono); padding: 0; text-align: left; }
     .elink:hover { text-decoration: underline; }
     .firstc { display: inline-flex; align-items: center; }
