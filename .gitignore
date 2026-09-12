@@ -58,8 +58,8 @@ node_modules/
 .pi/issues_auth.json
 !.pi/issues.json
 
-# lean — machine-local ruleset, not committed
-.pi/lean.json
+# lean
+!.pi/lean.json
 
 # planner
 # Machine-local active-plan pointer
