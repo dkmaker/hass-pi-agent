@@ -57,7 +57,11 @@ export function handleList(domain?: string): string {
     }
   }
 
-  if (entities.length === 0 && (!domain || index.configs.length === 0)) {
+  // Emit the empty-state message whenever no entities were listed AND the config
+  // block section above did not render (it only renders when there is no domain
+  // filter). Otherwise a domain filter with zero matches but existing config
+  // blocks produced an empty string -> a blank tool block in the UI.
+  if (entities.length === 0 && (domain || index.configs.length === 0)) {
     const hint = domain ? ` for domain '${domain}'` : "";
     lines.push(`No YAML-defined entities found${hint}.`);
   }

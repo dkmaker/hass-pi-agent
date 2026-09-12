@@ -186,8 +186,11 @@ function toWire(e: AgentSessionEvent): void {
     case "tool_execution_end": {
       const t = e as { toolName?: string; toolCallId?: string; id?: string; isError?: boolean; result?: { content?: Array<{ type: string; text?: string }>; details?: unknown } };
       const text = (t.result?.content ?? []).filter((c) => c.type === "text").map((c) => c.text ?? "").join("\n");
-      const details = t.result?.details;
-      const result = details ? { kind: "details", details, data: text } : { kind: "text", data: text };
+      // Only treat as structured when details carries a real HaDetails `kind`.
+      // A stray/empty `details: {}` must fall back to the markdown text, else the
+      // UI renders an empty block (it has no kind to render).
+      const details = t.result?.details as { kind?: string } | undefined;
+      const result = details && details.kind ? { kind: "details", details, data: text } : { kind: "text", data: text };
       broadcast({ type: "tool_end", id: t.toolCallId ?? t.id ?? "", toolName: t.toolName ?? "tool", isError: !!t.isError, result });
       break;
     }

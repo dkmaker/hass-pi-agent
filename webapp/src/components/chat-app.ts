@@ -326,6 +326,10 @@ export class PiChatApp extends LitElement {
     .sess-w { font-size: 12px; color: var(--pi-text-2); }
 
     .scroll { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+    /* Anchor messages to the bottom like a normal chat: when the conversation is
+       short it sits at the bottom and grows upward; when it overflows the auto
+       top-margin collapses and it scrolls normally (no clipping). */
+    .scroll > *:first-child { margin-top: auto; }
     .row { display: flex; }
     .row.user { justify-content: flex-end; }
     .bubble { max-width: 86%; padding: 10px 14px; border-radius: var(--pi-radius); font-size: 15px; line-height: 1.55; }

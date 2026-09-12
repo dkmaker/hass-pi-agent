@@ -4,7 +4,7 @@ import "@material/web/progress/circular-progress.js";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { icon } from "../icon.js";
 import { renderMarkdown } from "../md.js";
-import { mdiCheck, mdiAlertCircle, mdiInformationOutline, mdiClose } from "@mdi/js";
+import { mdiCheck, mdiAlertCircle, mdiInformationOutline, mdiClose, mdiChevronRight, mdiChevronDown } from "@mdi/js";
 import type { ToolResult, ToolDetails, ToolCol, ToolRow } from "../types.js";
 import { toolMeta } from "../tool-meta.js";
 import { t as tr, col } from "../i18n.js";
@@ -23,6 +23,7 @@ export class PiToolBlock extends LitElement {
   @property({ type: Boolean }) isError = false;
   @property({ type: Object }) result?: ToolResult;
   @state() private showRaw = false;
+  @state() private open = false;
 
   static styles = css`
     * { box-sizing: border-box; }
@@ -41,10 +42,14 @@ export class PiToolBlock extends LitElement {
       font: 600 13.5px/1.2 var(--pi-font);
       color: var(--pi-text);
     }
+    .head { cursor: pointer; user-select: none; }
     .head > svg { width: 17px; height: 17px; color: var(--pi-primary); flex: 0 0 auto; }
-    .head .name { color: var(--pi-text); font-weight: 600; }
+    .head .name { color: var(--pi-text); font-weight: 600; flex: 0 0 auto; }
+    .head .reason { color: var(--pi-text-2); font: 400 12.5px/1.2 var(--pi-font); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1 1 auto; min-width: 0; }
     .head .args { color: var(--pi-text-2); font: 400 12px/1.2 var(--pi-mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .head .spacer { flex: 1; }
+    .chev { display: grid; place-items: center; color: var(--pi-text-2); flex: 0 0 auto; }
+    .chev svg { width: 18px; height: 18px; }
     .body { padding: 10px 12px; font: 13px/1.5 var(--pi-font); }
     md-circular-progress { --md-circular-progress-size: 18px; }
     .badge { display: inline-flex; align-items: center; gap: 4px; font: 600 11px/1 var(--pi-font); padding: 4px 8px; border-radius: 999px; }
@@ -187,18 +192,22 @@ export class PiToolBlock extends LitElement {
 
   render() {
     const meta = toolMeta(this.toolName);
+    const reason = typeof this.args?.reason === "string" ? (this.args.reason as string) : "";
     return html`
       <div class="card">
-        <div class="head">
+        <div class="head" role="button" aria-expanded=${this.open ? "true" : "false"}
+             title=${this.open ? tr("collapse") : tr("expand")}
+             @click=${() => { this.open = !this.open; }}>
+          <span class="chev">${icon(this.open ? mdiChevronDown : mdiChevronRight, 18)}</span>
           ${icon(meta.icon, 17)}
           <span class="name" title=${meta.desc}>${meta.label}</span>
-          <span class="spacer"></span>
-          <button class="ibtn" title=${tr("raw_info")} aria-label=${tr("raw_info")} @click=${() => { this.showRaw = true; }}>${icon(mdiInformationOutline, 16)}</button>
+          ${reason ? html`<span class="reason">${reason}</span>` : html`<span class="spacer"></span>`}
+          <button class="ibtn" title=${tr("raw_info")} aria-label=${tr("raw_info")} @click=${(e: Event) => { e.stopPropagation(); this.showRaw = true; }}>${icon(mdiInformationOutline, 16)}</button>
           ${this.running
             ? html`<md-circular-progress indeterminate aria-label="running"></md-circular-progress>`
             : html`<span class="badge ${this.isError ? "err" : "ok"}">${icon(this.isError ? mdiAlertCircle : mdiCheck, 13)}${this.isError ? tr("t_error") : tr("t_done")}</span>`}
         </div>
-        <div class="body">${this.renderBody()}</div>
+        ${this.open ? html`<div class="body">${this.renderBody()}</div>` : nothing}
       </div>
       ${this.showRaw ? this.renderRaw() : nothing}`;
   }
