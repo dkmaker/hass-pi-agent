@@ -135,7 +135,10 @@ export class PiChatApp extends LitElement {
 
   private connect(): void {
     const proto = location.protocol === "https:" ? "wss" : "ws";
-    const url = `${proto}://${location.host}/ws`;
+    // Ingress-relative: the app may be served under /api/hassio_ingress/<token>/,
+    // so build the WS URL from the current directory, not the host root.
+    const base = location.pathname.replace(/\/[^/]*$/, "/");
+    const url = `${proto}://${location.host}${base}ws`;
     const ws = new WebSocket(url);
     this.ws = ws;
     ws.onopen = () => { this.connected = true; this.wsSend({ type: "list_sessions" }); };
