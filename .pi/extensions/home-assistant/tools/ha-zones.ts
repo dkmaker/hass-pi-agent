@@ -9,6 +9,7 @@ import { Type } from "@earendil-works/pi-ai";
 import { StringEnum } from "@earendil-works/pi-ai";
 import { wsCommand } from "../lib/ws.js";
 import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
+import { defineHaTool, type HaDetails, type Row } from "../lib/tool-render.js";
 import { backupBeforeMutation } from "../lib/mutation-log.js";
 
 // ── Types ────────────────────────────────────────────────────
@@ -26,7 +27,7 @@ interface WSZone {
 // ── Tool registration ────────────────────────────────────────
 
 export function registerZonesTool(pi: ExtensionAPI): void {
-  pi.registerTool({
+  defineHaTool(pi, {
     name: "ha_zones",
     label: "HA Zones",
     description: `Manage HA zones (presence detection areas). Actions: list, get, create, update, delete.`,
@@ -51,24 +52,13 @@ export function registerZonesTool(pi: ExtensionAPI): void {
     }),
 
 
-    renderCall(args: Record<string, unknown>, theme: any) {
-      return renderToolCall("HA Zones", args, theme);
-    },
-
-    renderResult(result: any) {
-      return renderMarkdownResult(result);
-    },
-
-    async execute(toolCallId, params, signal, onUpdate, ctx) {
-      const result = await executeAction(params);
-      return { content: [{ type: "text" as const, text: result }] };
-    },
+    execute: (params) => executeAction(params),
   });
 }
 
 // ── Action dispatch ──────────────────────────────────────────
 
-async function executeAction(params: Record<string, unknown>): Promise<string> {
+async function executeAction(params: Record<string, unknown>): Promise<string | HaDetails> {
   switch (params.action as string) {
     case "list": return handleList();
     case "get": return handleGet(params.id as string | undefined);
@@ -81,21 +71,34 @@ async function executeAction(params: Record<string, unknown>): Promise<string> {
 
 // ── Handlers ─────────────────────────────────────────────────
 
-async function handleList(): Promise<string> {
+async function handleList(): Promise<string | HaDetails> {
   const zones = await wsCommand<WSZone[]>("zone/list");
   if (zones.length === 0) return "No custom zones defined.";
 
   zones.sort((a, b) => a.name.localeCompare(b.name));
-  const lines: string[] = [
-    "| Name | Location | Radius | Icon | Passive | ID |",
-    "|------|----------|--------|------|---------|-----|",
-    ...zones.map((z) => {
-      const loc = `${z.latitude.toFixed(4)}, ${z.longitude.toFixed(4)}`;
-      return `| **${z.name}** | ${loc} | ${z.radius}m | ${z.icon || ""} | ${z.passive ? "yes" : ""} | ${z.id} |`;
-    }),
-    `\n${zones.length} zones`,
-  ];
-  return lines.join("\n");
+  const rows: Row[] = zones.map((z) => ({
+    icon: (z.icon || "").replace(/^mdi:/, "") || "map-marker-radius",
+    cells: {
+      name: z.name,
+      location: `${z.latitude.toFixed(4)}, ${z.longitude.toFixed(4)}`,
+      radius: `${z.radius}m`,
+      passive: z.passive ? "yes" : "",
+      id: z.id,
+    },
+  }));
+  return {
+    kind: "table",
+    columns: [
+      { key: "name", label: "Name" },
+      { key: "location", label: "Location" },
+      { key: "radius", label: "Radius" },
+      { key: "passive", label: "Passive" },
+      { key: "id", label: "ID" },
+    ],
+    rows,
+    page: { offset: 0, limit: zones.length, total: zones.length },
+    note: `${zones.length} zones`,
+  };
 }
 
 async function handleGet(id?: string): Promise<string> {

@@ -12,12 +12,13 @@ import { coerceJsonParams } from "../lib/tool-args.js";
 import { apiGet, apiPost, apiDelete } from "../lib/api.js";
 import type { HAState } from "../lib/types.js";
 import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
+import { defineHaTool, entityIcon, type HaDetails, type Row } from "../lib/tool-render.js";
 import { backupBeforeMutation } from "../lib/mutation-log.js";
 import { appendNoteIfExists } from "../lib/agent-notes.js";
 
 // ── List ─────────────────────────────────────────────────────
 
-async function handleList(params: Record<string, unknown>): Promise<string> {
+async function handleList(params: Record<string, unknown>): Promise<HaDetails> {
   const allStates = await wsCommand<HAState[]>("get_states");
   const limit = (params.limit as number) || 50;
   const offset = (params.offset as number) || 0;
@@ -38,22 +39,31 @@ async function handleList(params: Record<string, unknown>): Promise<string> {
 
   if (total === 0) return "No scenes found.";
 
-  const lines: string[] = [
-    "| Name | Entity | Config ID |",
-    "|------|--------|-----------|",
-  ];
-  for (const s of page) {
-    const name = (s.attributes.friendly_name as string) || s.entity_id;
-    const configId = (s.attributes.id as string) || "";
-    lines.push(`| **${name}** | ${s.entity_id} | ${configId} |`);
-  }
+  const rows: Row[] = page.map((s) => ({
+    entity_id: s.entity_id,
+    icon: entityIcon(s.entity_id, { override: s.attributes.icon as string | undefined }),
+    cells: {
+      name: (s.attributes.friendly_name as string) || s.entity_id,
+      entity: s.entity_id,
+      configid: (s.attributes.id as string) || "",
+    },
+  }));
 
-  const summary = total <= limit && offset === 0
+  const note = total <= limit && offset === 0
     ? `${total} scenes`
     : `Showing ${offset + 1}-${Math.min(offset + limit, total)} of ${total} scenes`;
 
-  lines.push(`\n${summary}`);
-  return lines.join("\n");
+  return {
+    kind: "table",
+    columns: [
+      { key: "name", label: "Name" },
+      { key: "entity", label: "Entity" },
+      { key: "configid", label: "Config ID" },
+    ],
+    rows,
+    page: { offset, limit, total },
+    note,
+  };
 }
 
 // ── Get ──────────────────────────────────────────────────────
@@ -208,7 +218,7 @@ const ALL_ACTIONS = [
 ] as const;
 
 export function registerScenesTool(pi: ExtensionAPI): void {
-  pi.registerTool({
+  defineHaTool(pi, {
     name: "ha_scenes",
     prepareArguments: (args) => coerceJsonParams(args, ["config"]),
     label: "HA Scenes",
@@ -245,24 +255,13 @@ export function registerScenesTool(pi: ExtensionAPI): void {
     }),
 
 
-    renderCall(args: Record<string, unknown>, theme: any) {
-      return renderToolCall("HA Scenes", args, theme);
-    },
-
-    renderResult(result: any) {
-      return renderMarkdownResult(result);
-    },
-
-    async execute(toolCallId, params, signal, onUpdate, ctx) {
-      const result = await dispatch(params);
-      return { content: [{ type: "text" as const, text: result }] };
-    },
+    execute: (params) => dispatch(params),
   });
 }
 
 // ── Action dispatch ──────────────────────────────────────────
 
-async function dispatch(params: Record<string, unknown>): Promise<string> {
+async function dispatch(params: Record<string, unknown>): Promise<string | HaDetails> {
   switch (params.action as string) {
     case "list": return handleList(params);
     case "get": return handleGet(params);

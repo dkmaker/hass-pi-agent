@@ -11,6 +11,7 @@ import { apiGet } from "../lib/api.js";
 import { wsCommand } from "../lib/ws.js";
 import type { HAState } from "../lib/types.js";
 import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
+import { defineHaTool, entityIcon, type HaDetails, type Row } from "../lib/tool-render.js";
 import { backupBeforeMutation } from "../lib/mutation-log.js";
 import { appendNoteIfExists } from "../lib/agent-notes.js";
 
@@ -87,7 +88,7 @@ async function loadAreaRegistry(): Promise<Map<string, WSAreaRegistryEntry>> {
 // ── Tool registration ────────────────────────────────────────
 
 export function registerEntitiesTools(pi: ExtensionAPI): void {
-  pi.registerTool({
+  defineHaTool(pi, {
     name: "ha_entities",
     label: "HA Entities",
     description: `Discover and inspect HA entities with device/area context. Actions: list, get, domains, update, remove, regenerate-ids.`,
@@ -158,24 +159,13 @@ export function registerEntitiesTools(pi: ExtensionAPI): void {
     }),
 
 
-    renderCall(args: Record<string, unknown>, theme: any) {
-      return renderToolCall("HA Entities", args, theme);
-    },
-
-    renderResult(result: any) {
-      return renderMarkdownResult(result);
-    },
-
-    async execute(toolCallId, params, signal, onUpdate, ctx) {
-      const result = await executeAction(params);
-      return { content: [{ type: "text" as const, text: result }] };
-    },
+    execute: (params) => executeAction(params),
   });
 }
 
 // ── Action dispatch ──────────────────────────────────────────
 
-async function executeAction(params: Record<string, unknown>): Promise<string> {
+async function executeAction(params: Record<string, unknown>): Promise<string | HaDetails> {
   switch (params.action as string) {
     case "list":
       return handleList(params);
@@ -196,7 +186,7 @@ async function executeAction(params: Record<string, unknown>): Promise<string> {
 
 // ── Handlers ─────────────────────────────────────────────────
 
-async function handleList(params: Record<string, unknown>): Promise<string> {
+async function handleList(params: Record<string, unknown>): Promise<HaDetails> {
   const allStates = await apiGet<HAState[]>("/api/states");
   const entityReg = await loadEntityRegistry();
   const deviceReg = await loadDeviceRegistry();
@@ -258,42 +248,52 @@ async function handleList(params: Record<string, unknown>): Promise<string> {
   const total = filtered.length;
   const page = filtered.slice(offset, offset + limit);
 
-  // Format output
-  const lines: string[] = [
-    "| Entity | State | Name | Area |",
-    "|--------|-------|------|------|",
-  ];
-  for (const s of page) {
-    const friendlyName = (s.attributes.friendly_name as string) || "";
+  // Structured output (unified tool-render layer): rows carry entity_id + icon + state
+  const rows: Row[] = page.map((s) => {
     const regEntry = entityReg.get(s.entity_id);
     let area = "";
-
     if (regEntry?.device_id) {
       const device = deviceReg.get(regEntry.device_id);
-      if (device?.area_id) {
-        area = areaReg.get(device.area_id)?.name || "";
-      }
+      if (device?.area_id) area = areaReg.get(device.area_id)?.name || "";
     } else if (regEntry?.area_id) {
       area = areaReg.get(regEntry.area_id)?.name || "";
     }
-
-    lines.push(`| ${s.entity_id} | ${s.state} | ${friendlyName} | ${area} |`);
-  }
+    return {
+      entity_id: s.entity_id,
+      state: s.state,
+      icon: entityIcon(s.entity_id, {
+        override: regEntry?.icon ?? (s.attributes.icon as string | undefined),
+        deviceClass: s.attributes.device_class as string | undefined,
+      }),
+      cells: {
+        entity: s.entity_id,
+        state: s.state,
+        name: (s.attributes.friendly_name as string) || "",
+        area,
+      },
+    };
+  });
 
   const domainStr = params.domain ? `${params.domain} ` : "";
   const filterStr = !includeUnavailable && unavailableCount > 0
     ? ` (${unavailableCount} unavailable/unknown hidden)`
     : "";
+  const note = (total <= limit && offset === 0)
+    ? `${total} ${domainStr}entities${filterStr}`
+    : `Showing ${offset + 1}-${Math.min(offset + limit, total)} of ${total} ${domainStr}entities${filterStr}`;
 
-  let summary: string;
-  if (total <= limit && offset === 0) {
-    summary = `${total} ${domainStr}entities${filterStr}`;
-  } else {
-    summary = `Showing ${offset + 1}-${Math.min(offset + limit, total)} of ${total} ${domainStr}entities${filterStr}`;
-  }
-
-  lines.push(`\n${summary}`);
-  return lines.join("\n");
+  return {
+    kind: "table",
+    columns: [
+      { key: "entity", label: "Entity" },
+      { key: "state", label: "State" },
+      { key: "name", label: "Name" },
+      { key: "area", label: "Area" },
+    ],
+    rows,
+    page: { offset, limit, total, hidden: !includeUnavailable ? unavailableCount : 0 },
+    note,
+  };
 }
 
 async function handleGet(entityId?: string): Promise<string> {

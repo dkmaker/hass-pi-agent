@@ -28,6 +28,7 @@ import { handleListTypes, handleAddElement, handleUpdateElement, handleRemoveEle
 import { handleGetServiceSchema } from "./ha-automations/service-schema.js";
 import { handleImportYaml } from "./ha-automations/import.js";
 import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
+import { defineHaTool, type HaDetails } from "../lib/tool-render.js";
 import { coerceJsonParams } from "../lib/tool-args.js";
 
 // ── Tool registration ────────────────────────────────────────
@@ -49,7 +50,7 @@ const ALL_ACTIONS = [
 ] as const;
 
 export function registerAutomationsTool(pi: ExtensionAPI): void {
-  pi.registerTool({
+  defineHaTool(pi, {
     name: "ha_automations",
     prepareArguments: (args) => coerceJsonParams(args, ["config"]),
     label: "HA Automations",
@@ -115,24 +116,13 @@ export function registerAutomationsTool(pi: ExtensionAPI): void {
     }),
 
 
-    renderCall(args: Record<string, unknown>, theme: any) {
-      return renderToolCall("HA Automations", args, theme);
-    },
-
-    renderResult(result: any) {
-      return renderMarkdownResult(result);
-    },
-
-    async execute(toolCallId, params, signal, onUpdate, ctx) {
-      const result = await dispatch(params);
-      return { content: [{ type: "text" as const, text: result }] };
-    },
+    execute: (params) => dispatch(params),
   });
 }
 
 // ── Action dispatch ──────────────────────────────────────────
 
-async function dispatch(params: Record<string, unknown>): Promise<string> {
+async function dispatch(params: Record<string, unknown>): Promise<string | HaDetails> {
   switch (params.action as string) {
     // CRUD
     case "list": return handleList(params);

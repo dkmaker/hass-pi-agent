@@ -10,6 +10,7 @@ import { StringEnum } from "@earendil-works/pi-ai";
 import { wsCommand } from "../lib/ws.js";
 import { apiPost, apiDelete } from "../lib/api.js";
 import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
+import { defineHaTool, type HaDetails, type Row } from "../lib/tool-render.js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -26,7 +27,7 @@ interface BlueprintInfo {
 // ── Tool registration ────────────────────────────────────────
 
 export function registerBlueprintsTool(pi: ExtensionAPI): void {
-  pi.registerTool({
+  defineHaTool(pi, {
     name: "ha_blueprints",
     label: "HA Blueprints",
     description: `Manage HA blueprints (reusable templates). Actions: list, import, delete.`,
@@ -54,24 +55,13 @@ export function registerBlueprintsTool(pi: ExtensionAPI): void {
     }),
 
 
-    renderCall(args: Record<string, unknown>, theme: any) {
-      return renderToolCall("HA Blueprints", args, theme);
-    },
-
-    renderResult(result: any) {
-      return renderMarkdownResult(result);
-    },
-
-    async execute(toolCallId, params, signal, onUpdate, ctx) {
-      const result = await executeAction(params);
-      return { content: [{ type: "text" as const, text: result }] };
-    },
+    execute: (params) => executeAction(params),
   });
 }
 
 // ── Action dispatch ──────────────────────────────────────────
 
-async function executeAction(params: Record<string, unknown>): Promise<string> {
+async function executeAction(params: Record<string, unknown>): Promise<string | HaDetails> {
   switch (params.action as string) {
     case "list": return handleList(params.domain as string | undefined);
     case "import": return handleImport(params);
@@ -82,32 +72,39 @@ async function executeAction(params: Record<string, unknown>): Promise<string> {
 
 // ── Handlers ─────────────────────────────────────────────────
 
-async function handleList(domain?: string): Promise<string> {
+async function handleList(domain?: string): Promise<string | HaDetails> {
   const domains = domain ? [domain] : ["automation", "script"];
-  const lines: string[] = [];
-  let total = 0;
-
+  const rows: Row[] = [];
   for (const d of domains) {
     const blueprints = await wsCommand<Record<string, BlueprintInfo | null>>("blueprint/list", { domain: d });
-    const entries = Object.entries(blueprints).filter(([, v]) => v !== null);
-    if (entries.length === 0) continue;
-
-    lines.push(`## ${d}`);
-    lines.push("| Name | Path | Author | Source |");
-    lines.push("|------|------|--------|--------|");
-    for (const [path, bp] of entries) {
+    for (const [path, bp] of Object.entries(blueprints)) {
       if (!bp) continue;
-      const author = bp.metadata.author || "";
-      const source = bp.metadata.source_url || "";
-      lines.push(`| **${bp.metadata.name}** | ${path} | ${author} | ${source} |`);
-      total++;
+      rows.push({
+        cells: {
+          domain: d,
+          name: bp.metadata.name,
+          path,
+          author: bp.metadata.author || "",
+          source: bp.metadata.source_url || "",
+        },
+      });
     }
-    lines.push("");
   }
 
-  if (total === 0) return "No blueprints installed.";
-  lines.push(`${total} blueprints`);
-  return lines.join("\n");
+  if (rows.length === 0) return "No blueprints installed.";
+  return {
+    kind: "table",
+    columns: [
+      { key: "domain", label: "Domain" },
+      { key: "name", label: "Name" },
+      { key: "path", label: "Path" },
+      { key: "author", label: "Author" },
+      { key: "source", label: "Source" },
+    ],
+    rows,
+    page: { offset: 0, limit: rows.length, total: rows.length },
+    note: `${rows.length} blueprints`,
+  };
 }
 
 async function handleImport(params: Record<string, unknown>): Promise<string> {

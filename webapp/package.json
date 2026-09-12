@@ -1,0 +1,25 @@
+{
+  "name": "pi-agent-webapp",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "mock": "tsx server/mock-server.ts",
+    "engine": "tsx server/engine.ts"
+  },
+  "dependencies": {
+    "@earendil-works/pi-coding-agent": "^0.85.1",
+    "@material/web": "^2.3.0",
+    "@mdi/js": "^7.4.47",
+    "lit": "^3.2.1",
+    "tsx": "^4.19.2",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.5.13",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.7"
+  }
+}

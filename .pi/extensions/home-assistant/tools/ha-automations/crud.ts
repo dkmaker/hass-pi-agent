@@ -6,6 +6,7 @@
 import { wsCommand } from "../../lib/ws.js";
 import { apiGet, apiPost, apiDelete } from "../../lib/api.js";
 import { timeSince } from "../../lib/format.js";
+import { entityIcon, type HaDetails, type Row } from "../../lib/tool-render.js";
 import { validateAutomationConfig } from "../../lib/validation.js";
 import type { HAState, AutomationConfig } from "../../lib/types.js";
 import { toYaml } from "../../lib/yaml.js";
@@ -35,7 +36,7 @@ export function generateId(): string {
 
 // ── List ─────────────────────────────────────────────────────
 
-export async function handleList(params: Record<string, unknown>): Promise<string> {
+export async function handleList(params: Record<string, unknown>): Promise<HaDetails> {
   const allStates = await wsCommand<HAState[]>("get_states");
   const limit = (params.limit as number) || 50;
   const offset = (params.offset as number) || 0;
@@ -59,26 +60,39 @@ export async function handleList(params: Record<string, unknown>): Promise<strin
   const total = automations.length;
   const page = automations.slice(offset, offset + limit);
 
-  const rows: string[] = [];
-  rows.push("| | Name | Entity | Mode | Last triggered |");
-  rows.push("|---|------|--------|------|----------------|");
-  for (const a of page) {
-    const name = (a.attributes.friendly_name as string) || a.entity_id;
+  const rows: Row[] = page.map((a) => {
     const lastTriggered = a.attributes.last_triggered as string;
-    const mode = (a.attributes.mode as string) || "single";
-    const stateIcon = a.state === "on" ? "🟢" : "🔴";
-    const ago = lastTriggered ? timeSince(lastTriggered) : "—";
-    rows.push(`| ${stateIcon} | ${name} | ${a.entity_id} | ${mode} | ${ago} |`);
-  }
+    return {
+      entity_id: a.entity_id,
+      state: a.state,
+      icon: entityIcon(a.entity_id, { override: a.attributes.icon as string | undefined }),
+      cells: {
+        name: (a.attributes.friendly_name as string) || a.entity_id,
+        state: a.state,
+        entity: a.entity_id,
+        mode: (a.attributes.mode as string) || "single",
+        last: lastTriggered || "",
+      },
+    };
+  });
 
-  let summary: string;
-  if (total <= limit && offset === 0) {
-    summary = `${total} automations`;
-  } else {
-    summary = `Showing ${offset + 1}-${Math.min(offset + limit, total)} of ${total} automations`;
-  }
+  const note = (total <= limit && offset === 0)
+    ? `${total} automations`
+    : `Showing ${offset + 1}-${Math.min(offset + limit, total)} of ${total} automations`;
 
-  return rows.join("\n") + "\n\n" + summary;
+  return {
+    kind: "table",
+    columns: [
+      { key: "name", label: "Name" },
+      { key: "state", label: "State" },
+      { key: "entity", label: "Entity" },
+      { key: "mode", label: "Mode" },
+      { key: "last", label: "Last triggered", type: "reltime" },
+    ],
+    rows,
+    page: { offset, limit, total },
+    note,
+  };
 }
 
 // ── Get ──────────────────────────────────────────────────────

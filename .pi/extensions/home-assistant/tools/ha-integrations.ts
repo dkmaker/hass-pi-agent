@@ -9,6 +9,7 @@ import { Type } from "@earendil-works/pi-ai";
 import { StringEnum } from "@earendil-works/pi-ai";
 import { apiGet, apiPost, apiDelete } from "../lib/api.js";
 import { timeSince , renderMarkdownResult, renderToolCall } from "../lib/format.js";
+import { defineHaTool, type HaDetails, type Row } from "../lib/tool-render.js";
 import { backupBeforeMutation } from "../lib/mutation-log.js";
 
 // ── Types ────────────────────────────────────────────────────
@@ -31,7 +32,7 @@ interface ConfigEntry {
 // ── Tool registration ────────────────────────────────────────
 
 export function registerIntegrationsTool(pi: ExtensionAPI): void {
-  pi.registerTool({
+  defineHaTool(pi, {
     name: "ha_integrations",
     label: "HA Integrations",
     description: `Manage HA integrations (config entries). Actions: list, get, disable, enable, reload, remove.`,
@@ -59,24 +60,13 @@ export function registerIntegrationsTool(pi: ExtensionAPI): void {
     }),
 
 
-    renderCall(args: Record<string, unknown>, theme: any) {
-      return renderToolCall("HA Integrations", args, theme);
-    },
-
-    renderResult(result: any) {
-      return renderMarkdownResult(result);
-    },
-
-    async execute(toolCallId, params, signal, onUpdate, ctx) {
-      const result = await executeAction(params);
-      return { content: [{ type: "text" as const, text: result }] };
-    },
+    execute: (params) => executeAction(params),
   });
 }
 
 // ── Action dispatch ──────────────────────────────────────────
 
-async function executeAction(params: Record<string, unknown>): Promise<string> {
+async function executeAction(params: Record<string, unknown>): Promise<string | HaDetails> {
   switch (params.action as string) {
     case "list": return handleList(params);
     case "get": return handleGet(params.entry_id as string | undefined);
@@ -90,7 +80,7 @@ async function executeAction(params: Record<string, unknown>): Promise<string> {
 
 // ── Handlers ─────────────────────────────────────────────────
 
-async function handleList(params: Record<string, unknown>): Promise<string> {
+async function handleList(params: Record<string, unknown>): Promise<string | HaDetails> {
   let entries = await apiGet<ConfigEntry[]>("/api/config/config_entries/entry");
   const domain = params.domain as string | undefined;
   const search = params.search as string | undefined;
@@ -110,16 +100,26 @@ async function handleList(params: Record<string, unknown>): Promise<string> {
   // Group by domain
   entries.sort((a, b) => a.domain.localeCompare(b.domain) || a.title.localeCompare(b.title));
 
-  const lines: string[] = [
-    "| Status | Title | Domain | Entry ID |",
-    "|--------|-------|--------|----------|",
-    ...entries.map((e) => {
-      const status = e.disabled_by ? "🔴 disabled" : e.state === "loaded" ? "🟢" : `⚠️ ${e.state}`;
-      return `| ${status} | **${e.title}** | ${e.domain} | ${e.entry_id} |`;
-    }),
-    `\n${entries.length} config entries`,
-  ];
-  return lines.join("\n");
+  const rows: Row[] = entries.map((e) => ({
+    cells: {
+      status: e.disabled_by ? "disabled" : e.state,
+      title: e.title,
+      domain: e.domain,
+      entryid: e.entry_id,
+    },
+  }));
+  return {
+    kind: "table",
+    columns: [
+      { key: "status", label: "Status" },
+      { key: "title", label: "Title" },
+      { key: "domain", label: "Domain" },
+      { key: "entryid", label: "Entry ID" },
+    ],
+    rows,
+    page: { offset: 0, limit: entries.length, total: entries.length },
+    note: `${entries.length} config entries`,
+  };
 }
 
 async function handleGet(entryId?: string): Promise<string> {

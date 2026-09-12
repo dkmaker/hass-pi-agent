@@ -1,0 +1,81 @@
+/*
+ * HA-matching design tokens with three theme modes:
+ *   - auto  (no data-theme attribute): follows prefers-color-scheme
+ *   - light (data-theme="light"): forced light
+ *   - dark  (data-theme="dark"):  forced dark
+ * The chat-app header toggle sets/removes data-theme on <html>.
+ * In the real add-on a theme-bridge can read HA's parent-frame CSS vars and
+ * override these tokens; here we ship a hand-tuned HA-like light/dark palette.
+ */
+
+/* ── Shared (mode-independent) ── */
+:root {
+  --pi-primary: #03a9f4;
+  --pi-primary-contrast: #ffffff;
+  --pi-accent: #ff9800;
+  --pi-danger: #db4437;
+  --pi-ok: #43a047;
+
+  --pi-radius: 16px;
+  --pi-radius-sm: 10px;
+  --pi-gap: 12px;
+  --pi-maxw: 100%;
+  --pi-header-h: 56px;
+  --pi-font: "Roboto", "Helvetica Neue", -apple-system, BlinkMacSystemFont, sans-serif;
+  --pi-mono: "Roboto Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --md-sys-color-primary: var(--pi-primary);
+  --md-ref-typeface-brand: var(--pi-font);
+  --md-ref-typeface-plain: var(--pi-font);
+}
+
+/* ── Light tokens (base / forced light) ── */
+:root {
+  --pi-bg: #f5f5f7;
+  --pi-surface: #ffffff;
+  --pi-surface-2: #f0f2f5;
+  --pi-text: #212121;
+  --pi-text-2: #727272;
+  --pi-divider: #e0e0e0;
+  --pi-user-bubble: #e3f2fd;
+  --pi-code-bg: #f3f4f6;
+  color-scheme: light;
+}
+
+/* ── Dark tokens: applied when auto+system-dark, or forced dark ── */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --pi-bg: #111418;
+    --pi-surface: #1c1f26;
+    --pi-surface-2: #23272f;
+    --pi-text: #e6e8eb;
+    --pi-text-2: #9aa0a6;
+    --pi-divider: #2c313a;
+    --pi-user-bubble: #0d3d56;
+    --pi-code-bg: #0e1116;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --pi-bg: #111418;
+  --pi-surface: #1c1f26;
+  --pi-surface-2: #23272f;
+  --pi-text: #e6e8eb;
+  --pi-text-2: #9aa0a6;
+  --pi-divider: #2c313a;
+  --pi-user-bubble: #0d3d56;
+  --pi-code-bg: #0e1116;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--pi-bg);
+  color: var(--pi-text);
+  font-family: var(--pi-font);
+  -webkit-font-smoothing: antialiased;
+}
+body { overscroll-behavior: none; }

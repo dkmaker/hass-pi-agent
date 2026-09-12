@@ -69,6 +69,13 @@ jobs:
           cp -a .pi/extensions/home-assistant addon/extensions/home-assistant
           rm -rf addon/extensions/home-assistant/node_modules addon/extensions/home-assistant/data
 
+      - name: Sync webapp source into addon build context
+        run: |
+          rm -rf addon/webapp
+          cp -a webapp addon/webapp
+          rm -rf addon/webapp/node_modules addon/webapp/dist \
+                 addon/webapp/.engine-agentdir addon/webapp/.engine-scratch
+
       - name: Build add-on
         uses: home-assistant/builder@master
         with:
