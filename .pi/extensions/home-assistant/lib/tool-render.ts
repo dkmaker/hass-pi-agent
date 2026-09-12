@@ -77,7 +77,16 @@ function renderTableMd(d: Extract<HaDetails, { kind: "table" }>): string {
   lines.push(`| ${d.columns.map((c) => c.label).join(" | ")} |`);
   lines.push(`|${d.columns.map(() => "---").join("|")}|`);
   const fmt = (c: Col, v: string) => (c.type === "reltime" ? (v ? timeSince(v) : "—") : v);
-  for (const r of d.rows) lines.push(`| ${d.columns.map((c) => mdEscape(fmt(c, r.cells[c.key] ?? ""))).join(" | ")} |`);
+  for (const r of d.rows) {
+    const cells = d.columns.map((c, i) => {
+      let v = mdEscape(fmt(c, r.cells[c.key] ?? ""));
+      // First column of an entity row becomes a clickable entity token, so the
+      // LLM sees (and learns to reuse) the same [label](entity:id) markdown.
+      if (i === 0 && r.entity_id && v) v = `[${v}](entity:${r.entity_id})`;
+      return v;
+    });
+    lines.push(`| ${cells.join(" | ")} |`);
+  }
   const summary = d.note
     ?? (d.page && d.page.total > d.rows.length
       ? `Showing ${d.page.offset + 1}-${Math.min(d.page.offset + d.page.limit, d.page.total)} of ${d.page.total}`

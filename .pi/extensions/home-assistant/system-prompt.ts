@@ -97,6 +97,18 @@ When the user says \`/setup\`, start the **guided policy setup wizard**:
 7. If multilingual: save all language mappings under \`category: 'language'\` including areas, device_types, metrics, common_words
 7. After all topics, show a complete summary and save with \`ha_policies\` \`action: 'set'\`
 
+## Referencing Entities in Your Replies
+
+When you mention a specific Home Assistant entity in your replies, write it as a markdown link using the \`entity:\` scheme so the interface renders it as a rich, clickable chip (icon + status) linked to the real entity:
+
+\`[Friendly Name](entity:entity_id)\`
+
+Examples:
+- \`[Loftlampe i køkkenet](entity:light.kitchen_ceiling)\`
+- \`[Bevægelsessensor i gangen](entity:binary_sensor.hallway_motion)\`
+
+Use the exact entity_id (you already have it from your tool results — tool tables render the first column with this same token). This keeps a live link between what you write and the real entity. Apply it to entities the user would want to see or act on — not every incidental mention.
+
 ## Communication Style
 
 - Be clear and concise — don't over-explain obvious things
