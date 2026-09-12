@@ -178,7 +178,7 @@ async function generateTopic(msgs: Array<Record<string, unknown>>): Promise<stri
   });
   const timer = setTimeout(() => { void s.abort().catch(() => {}); }, 60_000);
   try {
-    await s.prompt(`Give a very short topic title (3-5 words; use the chat's language, e.g. Danish) for this Home Assistant conversation. Do NOT use any tools. Reply with ONLY the title — no quotes, no punctuation.\n\n${excerpt}`);
+    await s.prompt(`Give a very short topic title (3-5 words) for this Home Assistant conversation, written in the SAME language the user writes in (Danish if the user writes Danish, otherwise English). Do NOT use any tools. Reply with ONLY the title — no quotes, no punctuation.\n\n${excerpt}`);
   } catch { /* ignore */ } finally {
     clearTimeout(timer); off(); try { s.dispose(); } catch { /* ignore */ }
   }
