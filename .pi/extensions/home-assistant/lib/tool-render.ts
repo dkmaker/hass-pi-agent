@@ -120,9 +120,15 @@ export function renderDetailsMarkdown(d: HaDetails): string {
   }
 }
 
+// Appended to a structured tool result's LLM-facing content only. The web UI
+// renders from `details`, so the user never sees this line — only the model does,
+// so it knows the result is already displayed and won't echo/re-list it.
+const RENDERED_MARKER =
+  "\n\n[[RENDERED_TO_USER]] The result above is already rendered and shown to the user in this interface — do not repeat, re-list, or reformat it. Respond briefly (answer / interpretation / next step only).";
+
 /** Build the SDK tool result: markdown for the LLM + structured details for the UI. */
 export function toolResult(details: HaDetails): { content: Array<{ type: "text"; text: string }>; details: HaDetails } {
-  return { content: [{ type: "text" as const, text: renderDetailsMarkdown(details) }], details };
+  return { content: [{ type: "text" as const, text: renderDetailsMarkdown(details) + RENDERED_MARKER }], details };
 }
 
 // ── Unified tool registrar ───────────────────────────────────────────────────
