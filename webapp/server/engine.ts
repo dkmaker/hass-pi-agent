@@ -116,16 +116,22 @@ async function writeAddonOptions(patch: Record<string, unknown>): Promise<boolea
     return r.ok;
   } catch { return false; }
 }
+// AI config is grouped under the `ai` option (renders as a collapsed section in
+// the Supervisor UI). Read/write it as a nested object.
+async function readAi(): Promise<{ provider?: string; model?: string; api_key?: string }> {
+  const ai = (await readAddonOptions()).ai;
+  return ai && typeof ai === "object" ? (ai as { provider?: string; model?: string; api_key?: string }) : {};
+}
 
 let curProvider = "";
 let curModel = "";
 let model;
 {
-  const opt = (await readAddonOptions()) as { provider?: string; model?: string; api_key?: string };
-  curProvider = opt.provider || process.env.PI_DEFAULT_PROVIDER || "";
-  curModel = opt.model || process.env.PI_DEFAULT_MODEL || "";
-  if (curProvider && opt.api_key) {
-    try { await modelRuntime.setRuntimeApiKey(curProvider, opt.api_key); }
+  const ai = await readAi();
+  curProvider = ai.provider || process.env.PI_DEFAULT_PROVIDER || "";
+  curModel = ai.model || process.env.PI_DEFAULT_MODEL || "";
+  if (curProvider && ai.api_key) {
+    try { await modelRuntime.setRuntimeApiKey(curProvider, ai.api_key); }
     catch (e) { console.error("[engine] apply stored key:", (e as Error).message); }
   }
   const spec = curProvider && curModel ? `${curProvider}/${curModel}` : (process.env.PI_DEFAULT_MODEL ?? "");
@@ -399,8 +405,8 @@ function configStatus(): { configured: boolean; provider?: string; model?: strin
 // never leaves the live runtime holding a bad key that breaks the active session.
 async function restoreProviderKey(provider: string): Promise<void> {
   try {
-    const opt = (await readAddonOptions()) as { provider?: string; api_key?: string };
-    if (opt.provider === provider && opt.api_key) await modelRuntime.setRuntimeApiKey(provider, opt.api_key);
+    const ai = await readAi();
+    if (ai.provider === provider && ai.api_key) await modelRuntime.setRuntimeApiKey(provider, ai.api_key);
     else await modelRuntime.removeRuntimeApiKey(provider);
   } catch { /* best-effort restore */ }
 }
@@ -431,11 +437,10 @@ async function validateCombo(provider: string, modelId: string, apiKey: string):
 async function saveCombo(provider: string, modelId: string, apiKey: string): Promise<{ ok: boolean; error?: string }> {
   const v = await validateCombo(provider, modelId, apiKey);
   if (!v.ok) return v;
-  // Persist canonically to Supervisor options (only overwrite the key when a new
-  // one was entered — blank keeps the existing stored key).
-  const patch: Record<string, unknown> = { provider, model: modelId };
-  if (apiKey) patch.api_key = apiKey;
-  const wrote = await writeAddonOptions(patch);
+  // Persist canonically to Supervisor options under the `ai` group (only overwrite
+  // the key when a new one was entered — blank keeps the existing stored key).
+  const cur = await readAi();
+  const wrote = await writeAddonOptions({ ai: { provider, model: modelId, api_key: apiKey || cur.api_key || "" } });
   if (!wrote && supervisorToken()) return { ok: false, error: "Could not save to Supervisor options" };
   curProvider = provider; curModel = modelId;
   const r = resolveCliModel({ cliModel: `${provider}/${modelId}`, modelRuntime });

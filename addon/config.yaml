@@ -30,19 +30,22 @@ map:
 # the Pi Agent panel): provider+model combos are enumerated live from pi and the
 # key is validated before saving. The app writes the choice back here (Supervisor
 # options) so it persists across restart/update/reinstall; the engine re-applies
-# it on every boot. These three can also be set by hand as a fallback.
+# it on every boot. Grouped under `ai:` so it renders as a collapsed section —
+# edit by hand only as a fallback (unvalidated; applies on next restart).
 options:
-  provider: ''
-  model: ''
-  api_key: ''
+  ai:
+    provider: ''
+    model: ''
+    api_key: ''
   install_integration: true
   additional_packages: []
   write_guard: strict
   write_guard_allow: []
 schema:
-  provider: str?
-  model: str?
-  api_key: password?
+  ai:
+    provider: str?
+    model: str?
+    api_key: password?
   install_integration: bool?
   additional_packages:
     - str
