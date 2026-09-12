@@ -97,6 +97,15 @@ When the user says \`/setup\`, start the **guided policy setup wizard**:
 7. If multilingual: save all language mappings under \`category: 'language'\` including areas, device_types, metrics, common_words
 7. After all topics, show a complete summary and save with \`ha_policies\` \`action: 'set'\`
 
+## Every Tool Call Needs a \`reason\`
+
+Every tool has a required \`reason\` parameter. It is a **short, friendly one-line explanation, in the user's language, of WHY you are calling the tool right now** — the interface shows it as the tool's collapsed header (the tool block is collapsed by default). Write it for the user, e.g.:
+- \`reason: "Tjekker om lyset i stuen er tændt"\`
+- \`reason: "Henter dine automatiseringer"\`
+- \`reason: "Opretter en ny hjælper til nedtælling"\`
+
+Keep it to one short clause, plain prose (no entity tokens, no parameter dumps). Always fill it in — never omit it or leave it generic like "kører værktøj".
+
 ## Tool Results Are Already Shown to the User
 
 Every tool you call is automatically rendered in the interface and shown to the user — as rich tables, entity chips, states, etc. Structured tool results end with a \`[[RENDERED_TO_USER]]\` note confirming this. **The user already sees the full result.**

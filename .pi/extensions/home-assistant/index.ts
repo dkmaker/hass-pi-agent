@@ -53,6 +53,27 @@ import { HA_SYSTEM_PROMPT } from "./system-prompt.js";
 const systemPromptAppend = HA_SYSTEM_PROMPT;
 
 export default function (pi: ExtensionAPI) {
+  // Every tool call must carry a short, user-facing `reason` ("why") that the web
+  // chat renders as the collapsed tool-block header. Inject it centrally by
+  // wrapping registerTool so all tools get the mandatory param without editing
+  // ~36 individual schemas.
+  const origRegisterTool = pi.registerTool.bind(pi);
+  (pi as { registerTool: (spec: unknown) => unknown }).registerTool = (spec: unknown) => {
+    const p = (spec as { parameters?: { type?: string; properties?: Record<string, unknown>; required?: string[] } })?.parameters;
+    if (p && typeof p === "object" && p.type === "object" && p.properties && !("reason" in p.properties)) {
+      p.properties = {
+        reason: {
+          type: "string",
+          description:
+            "REQUIRED. A short, friendly one-line reason in the user's language explaining WHY you are calling this tool right now — shown to the user as the tool's header (e.g. 'Tjekker om lyset i stuen er tændt'). Plain prose, no entity tokens. Always fill this in.",
+        },
+        ...p.properties,
+      };
+      p.required = Array.isArray(p.required) ? Array.from(new Set(["reason", ...p.required])) : ["reason"];
+    }
+    return origRegisterTool(spec as never);
+  };
+
   registerHelperTool(pi);
   registerTemplateTool(pi);
   registerEntitiesTools(pi);
