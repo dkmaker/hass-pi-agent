@@ -63,7 +63,7 @@ export function registerYamlTool(ctx: ExtensionAPI) {
 
     async execute(_toolCallId, params, _signal, _onUpdate, _ctx) {
       const text = await executeAction(params as Record<string, unknown>);
-      return { content: [{ type: "text" as const, text }], details: {} };
+      return { content: [{ type: "text" as const, text }] };
     },
   });
 }

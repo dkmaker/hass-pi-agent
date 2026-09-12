@@ -60,10 +60,7 @@ export function registerMutationsTool(pi: ExtensionAPI): void {
 
     async execute(_toolCallId, params, _signal, _onUpdate, _ctx) {
       const text = await executeAction(params);
-      return {
-        content: [{ type: "text" as const, text }],
-        details: {},
-      };
+      return { content: [{ type: "text" as const, text }] };
     },
   });
 }
