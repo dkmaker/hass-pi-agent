@@ -12,6 +12,7 @@ import { wsCommand } from "../lib/ws.js";
 import { apiGet } from "../lib/api.js";
 import type { HAState } from "../lib/types.js";
 import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
+import { defineHaTool, type HaDetails, type Row } from "../lib/tool-render.js";
 import { backupBeforeMutation } from "../lib/mutation-log.js";
 import { appendNoteIfExists } from "../lib/agent-notes.js";
 
@@ -125,7 +126,7 @@ function getIntegrations(device: WSDevice, configEntries: Map<string, ConfigEntr
 // ── Tool registration ────────────────────────────────────────
 
 export function registerDevicesTool(pi: ExtensionAPI): void {
-  pi.registerTool({
+  defineHaTool(pi, {
     name: "ha_devices",
     label: "HA Devices",
     description: `Discover, inspect, and manage HA devices. Actions: list, get, update, tree.`,
@@ -184,24 +185,13 @@ export function registerDevicesTool(pi: ExtensionAPI): void {
     }),
 
 
-    renderCall(args: Record<string, unknown>, theme: any) {
-      return renderToolCall("HA Devices", args, theme);
-    },
-
-    renderResult(result: any) {
-      return renderMarkdownResult(result);
-    },
-
-    async execute(toolCallId, params, signal, onUpdate, ctx) {
-      const result = await executeAction(params);
-      return { content: [{ type: "text" as const, text: result }] };
-    },
+    execute: (params) => executeAction(params),
   });
 }
 
 // ── Action dispatch ──────────────────────────────────────────
 
-async function executeAction(params: Record<string, unknown>): Promise<string> {
+async function executeAction(params: Record<string, unknown>): Promise<string | HaDetails> {
   switch (params.action as string) {
     case "list":
       return handleList(params);
@@ -218,7 +208,7 @@ async function executeAction(params: Record<string, unknown>): Promise<string> {
 
 // ── List ─────────────────────────────────────────────────────
 
-async function handleList(params: Record<string, unknown>): Promise<string> {
+async function handleList(params: Record<string, unknown>): Promise<HaDetails> {
   const [devices, configEntries, areaReg] = await Promise.all([
     wsCommand<WSDevice[]>("config/device_registry/list"),
     loadConfigEntries(),
@@ -292,36 +282,40 @@ async function handleList(params: Record<string, unknown>): Promise<string> {
   const total = filtered.length;
   const page = filtered.slice(offset, offset + limit);
 
-  // Format output
-  const lines: string[] = [
-    "| Name | Manufacturer | Model | Integration | Area | ID |",
-    "|------|-------------|-------|-------------|------|----|",
-  ];
-  for (const d of page) {
-    const name = getDisplayName(d);
+  const rows: Row[] = page.map((d) => {
     const integrations = getIntegrations(d, configEntries);
-    const area = d.area_id ? areaReg.get(d.area_id)?.name || "" : "";
-    const mfr = d.manufacturer || "";
-    const model = d.model || "";
-    const integ = integrations.join(", ");
-    const disabled = d.disabled_by ? " 🔴" : "";
-    lines.push(`| **${name}**${disabled} | ${mfr} | ${model} | ${integ} | ${area} | ${d.id} |`);
-  }
+    return {
+      cells: {
+        name: getDisplayName(d) + (d.disabled_by ? " (disabled)" : ""),
+        manufacturer: d.manufacturer || "",
+        model: d.model || "",
+        integration: integrations.join(", "),
+        area: d.area_id ? areaReg.get(d.area_id)?.name || "" : "",
+        id: d.id,
+      },
+    };
+  });
 
-  // Summary
   const disabledStr = !includeDisabled && disabledCount > 0
     ? ` (${disabledCount} disabled hidden)`
     : "";
+  const note = (total <= limit && offset === 0)
+    ? `${total} devices${disabledStr}`
+    : `Showing ${offset + 1}-${Math.min(offset + limit, total)} of ${total} devices${disabledStr}`;
 
-  let summary: string;
-  if (total <= limit && offset === 0) {
-    summary = `${total} devices${disabledStr}`;
-  } else {
-    summary = `Showing ${offset + 1}-${Math.min(offset + limit, total)} of ${total} devices${disabledStr}`;
-  }
-
-  lines.push(`\n${summary}`);
-  return lines.join("\n");
+  return {
+    kind: "table",
+    columns: [
+      { key: "name", label: "Name" },
+      { key: "manufacturer", label: "Manufacturer" },
+      { key: "model", label: "Model" },
+      { key: "integration", label: "Integration" },
+      { key: "area", label: "Area" },
+      { key: "id", label: "ID" },
+    ],
+    rows,
+    note,
+  };
 }
 
 // ── Get ──────────────────────────────────────────────────────

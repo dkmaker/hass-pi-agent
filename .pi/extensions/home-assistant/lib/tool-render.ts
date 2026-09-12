@@ -10,6 +10,9 @@
  * shrink to: parse args → fetch → return an HaDetails.
  */
 
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { renderMarkdownResult, renderToolCall } from "./format.js";
+
 export type Col = { key: string; label: string };
 export type Row = { cells: Record<string, string>; entity_id?: string; icon?: string; state?: string };
 export type Field = { label: string; value: string };
@@ -110,4 +113,37 @@ export function renderDetailsMarkdown(d: HaDetails): string {
 /** Build the SDK tool result: markdown for the LLM + structured details for the UI. */
 export function toolResult(details: HaDetails): { content: Array<{ type: "text"; text: string }>; details: HaDetails } {
   return { content: [{ type: "text" as const, text: renderDetailsMarkdown(details) }], details };
+}
+
+// ── Unified tool registrar ───────────────────────────────────────────────────
+// One definition for every HA tool. Centralizes renderCall/renderResult + the
+// execute wrapper: a handler returns EITHER a plain string (legacy) or an
+// HaDetails (structured); both become the correct SDK result shape.
+export interface HaToolSpec {
+  name: string;
+  /** Human label shown in the tool-call header (e.g. "HA Devices"). */
+  label: string;
+  description: string;
+  promptSnippet?: string;
+  promptGuidelines?: string[];
+  parameters: unknown;
+  execute: (params: Record<string, unknown>, ctx?: unknown) => Promise<HaDetails | string>;
+}
+
+export function defineHaTool(pi: ExtensionAPI, spec: HaToolSpec): void {
+  pi.registerTool({
+    name: spec.name,
+    label: spec.label,
+    description: spec.description,
+    promptSnippet: spec.promptSnippet,
+    promptGuidelines: spec.promptGuidelines,
+    parameters: spec.parameters as never,
+    renderCall(args: Record<string, unknown>, theme: unknown) { return renderToolCall(spec.label, args, theme as never); },
+    renderResult(result: unknown) { return renderMarkdownResult(result as { content: Array<{ type: string; text?: string }> }); },
+    async execute(_id: string, params: Record<string, unknown>, _signal: unknown, _onUpdate: unknown, ctx: unknown) {
+      const out = await spec.execute(params, ctx);
+      if (out && typeof out === "object" && "kind" in out) return toolResult(out);
+      return { content: [{ type: "text" as const, text: out as string }] };
+    },
+  });
 }

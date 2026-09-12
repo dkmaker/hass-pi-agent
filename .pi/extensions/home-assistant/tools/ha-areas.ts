@@ -9,6 +9,7 @@ import { Type } from "@earendil-works/pi-ai";
 import { StringEnum } from "@earendil-works/pi-ai";
 import { wsCommand } from "../lib/ws.js";
 import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
+import { defineHaTool, type HaDetails, type Row } from "../lib/tool-render.js";
 import { backupBeforeMutation } from "../lib/mutation-log.js";
 
 // ── Types ────────────────────────────────────────────────────
@@ -49,7 +50,7 @@ interface WSEntity {
 // ── Tool registration ────────────────────────────────────────
 
 export function registerAreasTool(pi: ExtensionAPI): void {
-  pi.registerTool({
+  defineHaTool(pi, {
     name: "ha_areas",
     label: "HA Areas",
     description: `Manage HA areas and floors. Actions: list, get, create-area, update-area, delete-area, list-floors, create-floor, update-floor, delete-floor.`,
@@ -93,24 +94,13 @@ export function registerAreasTool(pi: ExtensionAPI): void {
     }),
 
 
-    renderCall(args: Record<string, unknown>, theme: any) {
-      return renderToolCall("HA Areas", args, theme);
-    },
-
-    renderResult(result: any) {
-      return renderMarkdownResult(result);
-    },
-
-    async execute(toolCallId, params, signal, onUpdate, ctx) {
-      const result = await executeAction(params);
-      return { content: [{ type: "text" as const, text: result }] };
-    },
+    execute: (params) => executeAction(params),
   });
 }
 
 // ── Action dispatch ──────────────────────────────────────────
 
-async function executeAction(params: Record<string, unknown>): Promise<string> {
+async function executeAction(params: Record<string, unknown>): Promise<string | HaDetails> {
   switch (params.action as string) {
     case "list": return handleList();
     case "get": return handleGet(params.area_id as string | undefined);
@@ -128,7 +118,7 @@ async function executeAction(params: Record<string, unknown>): Promise<string> {
 
 // ── Area handlers ────────────────────────────────────────────
 
-async function handleList(): Promise<string> {
+async function handleList(): Promise<HaDetails> {
   const [areas, floors, devices, entities] = await Promise.all([
     wsCommand<WSArea[]>("config/area_registry/list"),
     wsCommand<WSFloor[]>("config/floor_registry/list"),
@@ -148,48 +138,36 @@ async function handleList(): Promise<string> {
 
   const floorMap = new Map(floors.map((f) => [f.floor_id, f]));
   floors.sort((a, b) => (a.level ?? 0) - (b.level ?? 0));
+  const floorOrder = new Map(floors.map((f, i) => [f.floor_id, i]));
 
-  // Group areas by floor
-  const areasByFloor = new Map<string | null, WSArea[]>();
-  for (const a of areas) {
-    const key = a.floor_id;
-    const list = areasByFloor.get(key) ?? [];
-    list.push(a);
-    areasByFloor.set(key, list);
-  }
+  const sorted = [...areas].sort((a, b) => {
+    const fa = a.floor_id ? floorOrder.get(a.floor_id) ?? 998 : 1000;
+    const fb = b.floor_id ? floorOrder.get(b.floor_id) ?? 998 : 1000;
+    return fa - fb || a.name.localeCompare(b.name);
+  });
 
-  const lines: string[] = [];
+  const rows: Row[] = sorted.map((a) => ({
+    cells: {
+      name: a.name,
+      floor: a.floor_id ? floorMap.get(a.floor_id)?.name || "" : "",
+      devices: String(deviceCounts.get(a.area_id) ?? 0),
+      entities: String(entityCounts.get(a.area_id) ?? 0),
+      id: a.area_id,
+    },
+  }));
 
-  // Areas with floors
-  for (const floor of floors) {
-    const floorAreas = areasByFloor.get(floor.floor_id) ?? [];
-    floorAreas.sort((a, b) => a.name.localeCompare(b.name));
-    const levelStr = floor.level !== null ? ` (level ${floor.level})` : "";
-    lines.push(`📁 ${floor.name}${levelStr}`);
-    for (const a of floorAreas) {
-      const dc = deviceCounts.get(a.area_id) ?? 0;
-      const ec = entityCounts.get(a.area_id) ?? 0;
-      lines.push(`  ${a.name} — ${dc} devices, ${ec} entities (id: ${a.area_id})`);
-    }
-    areasByFloor.delete(floor.floor_id);
-  }
-
-  // Areas without floor
-  const unassigned = areasByFloor.get(null) ?? [];
-  if (unassigned.length > 0) {
-    if (lines.length > 0) lines.push("");
-    lines.push("📁 (no floor)");
-    unassigned.sort((a, b) => a.name.localeCompare(b.name));
-    for (const a of unassigned) {
-      const dc = deviceCounts.get(a.area_id) ?? 0;
-      const ec = entityCounts.get(a.area_id) ?? 0;
-      lines.push(`  ${a.name} — ${dc} devices, ${ec} entities (id: ${a.area_id})`);
-    }
-  }
-
-  lines.push("");
-  lines.push(`${areas.length} areas, ${floors.length} floors`);
-  return lines.join("\n");
+  return {
+    kind: "table",
+    columns: [
+      { key: "name", label: "Area" },
+      { key: "floor", label: "Floor" },
+      { key: "devices", label: "Devices" },
+      { key: "entities", label: "Entities" },
+      { key: "id", label: "ID" },
+    ],
+    rows,
+    note: `${areas.length} areas, ${floors.length} floors`,
+  };
 }
 
 async function handleGet(areaId?: string): Promise<string> {

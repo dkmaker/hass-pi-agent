@@ -11,7 +11,7 @@ import { apiGet } from "../lib/api.js";
 import { wsCommand } from "../lib/ws.js";
 import type { HAState } from "../lib/types.js";
 import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
-import { toolResult, entityIcon, type HaDetails, type Row } from "../lib/tool-render.js";
+import { defineHaTool, entityIcon, type HaDetails, type Row } from "../lib/tool-render.js";
 import { backupBeforeMutation } from "../lib/mutation-log.js";
 import { appendNoteIfExists } from "../lib/agent-notes.js";
 
@@ -88,7 +88,7 @@ async function loadAreaRegistry(): Promise<Map<string, WSAreaRegistryEntry>> {
 // ── Tool registration ────────────────────────────────────────
 
 export function registerEntitiesTools(pi: ExtensionAPI): void {
-  pi.registerTool({
+  defineHaTool(pi, {
     name: "ha_entities",
     label: "HA Entities",
     description: `Discover and inspect HA entities with device/area context. Actions: list, get, domains, update, remove, regenerate-ids.`,
@@ -159,19 +159,7 @@ export function registerEntitiesTools(pi: ExtensionAPI): void {
     }),
 
 
-    renderCall(args: Record<string, unknown>, theme: any) {
-      return renderToolCall("HA Entities", args, theme);
-    },
-
-    renderResult(result: any) {
-      return renderMarkdownResult(result);
-    },
-
-    async execute(toolCallId, params, signal, onUpdate, ctx) {
-      const result = await executeAction(params);
-      if (result && typeof result === "object" && "kind" in result) return toolResult(result as HaDetails);
-      return { content: [{ type: "text" as const, text: result as string }] };
-    },
+    execute: (params) => executeAction(params),
   });
 }
 
