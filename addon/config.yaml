@@ -26,16 +26,24 @@ map:
   - share:rw
   - media:rw
   - backup:rw
-# AI provider, model, and API key are configured in-app (welcome screen / ⚙️
-# settings inside the Pi Agent panel), not here — the provider/model combos are
-# enumerated live from pi and the key is validated before it is saved.
+# AI provider/model/key are configured in-app (welcome screen / ⚙️ settings inside
+# the Pi Agent panel): provider+model combos are enumerated live from pi and the
+# key is validated before saving. The app writes the choice back here (Supervisor
+# options) so it persists across restart/update/reinstall; the engine re-applies
+# it on every boot. These three can also be set by hand as a fallback.
 options:
+  provider: ''
+  model: ''
+  api_key: ''
   install_integration: true
   additional_packages: []
   write_guard: strict
   write_guard_allow: []
   hide_thinking: true
 schema:
+  provider: str?
+  model: str?
+  api_key: password?
   install_integration: bool?
   additional_packages:
     - str

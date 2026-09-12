@@ -13,7 +13,7 @@
  */
 import { createServer } from "node:http";
 import { readFile, stat } from "node:fs/promises";
-import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { readFileSync, mkdirSync } from "node:fs";
 import { dirname, extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { WebSocketServer, type WebSocket } from "ws";
@@ -81,31 +81,54 @@ const loader = new DefaultResourceLoader({
 await loader.reload();
 
 // ── Model + provider config (in-app setup: issue #RPRNX) ────
-// Selection (provider/model) persists to selection.json; API keys persist to
-// auth.json via modelRuntime.setRuntimeApiKey. Env (PI_DEFAULT_*) is a legacy
-// fallback/seed. The Supervisor add-on config no longer carries credentials.
-const SELECTION_PATH = resolve(engineAgentDir, "selection.json");
-// Providers offered in the in-app picker: single-API-key only (no OAuth, no
-// multi-credential). Order = display order.
+// Persisted canonically to the add-on's Supervisor options (survives restart,
+// update, and reinstall). The engine reads its own options on boot and writes
+// them back on save via the Supervisor API. The API key applies to the live
+// runtime via setRuntimeApiKey (in-memory) — re-applied on every boot from the
+// stored option. Env (PI_DEFAULT_*/ambient key vars) is a local-dev fallback.
 const API_KEY_PROVIDERS = ["anthropic", "openai", "google", "openrouter", "xai", "groq", "mistral", "cerebras", "huggingface"];
 const PROVIDER_LABELS: Record<string, string> = {
   anthropic: "Anthropic", openai: "OpenAI", google: "Google (Gemini)", openrouter: "OpenRouter",
   xai: "xAI (Grok)", groq: "Groq", mistral: "Mistral", cerebras: "Cerebras", huggingface: "Hugging Face",
 };
+const SUPERVISOR = "http://supervisor";
+const supervisorToken = (): string | undefined => process.env.SUPERVISOR_TOKEN || process.env.HA_TOKEN;
 
-function readSelection(): { provider?: string; model?: string } {
-  try { return JSON.parse(readFileSync(SELECTION_PATH, "utf8")); } catch { return {}; }
+async function readAddonOptions(): Promise<Record<string, unknown>> {
+  const tok = supervisorToken();
+  if (!tok) return {};
+  try {
+    const r = await fetch(`${SUPERVISOR}/addons/self/info`, { headers: { Authorization: `Bearer ${tok}` } });
+    if (!r.ok) return {};
+    const j = (await r.json()) as { data?: { options?: Record<string, unknown> } };
+    return j.data?.options ?? {};
+  } catch { return {}; }
 }
-function selectionSpec(): string {
-  const s = readSelection();
-  if (s.provider && s.model) return `${s.provider}/${s.model}`;
-  if (process.env.PI_DEFAULT_PROVIDER && process.env.PI_DEFAULT_MODEL) return `${process.env.PI_DEFAULT_PROVIDER}/${process.env.PI_DEFAULT_MODEL}`;
-  return process.env.PI_DEFAULT_MODEL ?? "";
+async function writeAddonOptions(patch: Record<string, unknown>): Promise<boolean> {
+  const tok = supervisorToken();
+  if (!tok) return false;
+  try {
+    const current = await readAddonOptions();
+    const r = await fetch(`${SUPERVISOR}/addons/self/options`, {
+      method: "POST", headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ options: { ...current, ...patch } }),
+    });
+    return r.ok;
+  } catch { return false; }
 }
 
+let curProvider = "";
+let curModel = "";
 let model;
 {
-  const spec = selectionSpec();
+  const opt = (await readAddonOptions()) as { provider?: string; model?: string; api_key?: string };
+  curProvider = opt.provider || process.env.PI_DEFAULT_PROVIDER || "";
+  curModel = opt.model || process.env.PI_DEFAULT_MODEL || "";
+  if (curProvider && opt.api_key) {
+    try { await modelRuntime.setRuntimeApiKey(curProvider, opt.api_key); }
+    catch (e) { console.error("[engine] apply stored key:", (e as Error).message); }
+  }
+  const spec = curProvider && curModel ? `${curProvider}/${curModel}` : (process.env.PI_DEFAULT_MODEL ?? "");
   if (spec) {
     const r = resolveCliModel({ cliModel: spec, modelRuntime });
     if (r.error) console.error("[engine] model resolve error:", r.error);
@@ -367,14 +390,9 @@ async function listApiKeyProviders(): Promise<Array<{ id: string; name: string; 
 }
 
 function configStatus(): { configured: boolean; provider?: string; model?: string } {
-  const s = readSelection();
-  const spec = selectionSpec();
-  if (!spec) return { configured: false };
-  const provider = s.provider ?? spec.split("/")[0];
-  const modelId = s.model ?? spec.split("/").slice(1).join("/");
   let authed = false;
-  try { authed = modelRuntime.hasConfiguredAuth(provider); } catch { authed = false; }
-  return { configured: !!model && authed, provider, model: modelId };
+  try { authed = curProvider ? modelRuntime.getProviderAuthStatus(curProvider).configured : false; } catch { authed = false; }
+  return { configured: !!model && authed, provider: curProvider, model: curModel };
 }
 
 async function validateCombo(provider: string, modelId: string, apiKey: string): Promise<{ ok: boolean; error?: string }> {
@@ -394,7 +412,13 @@ async function validateCombo(provider: string, modelId: string, apiKey: string):
 async function saveCombo(provider: string, modelId: string, apiKey: string): Promise<{ ok: boolean; error?: string }> {
   const v = await validateCombo(provider, modelId, apiKey);
   if (!v.ok) return v;
-  writeFileSync(SELECTION_PATH, JSON.stringify({ provider, model: modelId }, null, 2));
+  // Persist canonically to Supervisor options (only overwrite the key when a new
+  // one was entered — blank keeps the existing stored key).
+  const patch: Record<string, unknown> = { provider, model: modelId };
+  if (apiKey) patch.api_key = apiKey;
+  const wrote = await writeAddonOptions(patch);
+  if (!wrote && supervisorToken()) return { ok: false, error: "Could not save to Supervisor options" };
+  curProvider = provider; curModel = modelId;
   const r = resolveCliModel({ cliModel: `${provider}/${modelId}`, modelRuntime });
   if (!r.error && r.model) model = r.model;
   await startSession(SessionManager.create(agentCwd));
