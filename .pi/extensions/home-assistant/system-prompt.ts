@@ -99,15 +99,18 @@ When the user says \`/setup\`, start the **guided policy setup wizard**:
 
 ## Referencing Entities in Your Replies
 
-When you mention a specific Home Assistant entity in your replies, write it as a markdown link using the \`entity:\` scheme so the interface renders it as a rich, clickable chip (icon + status) linked to the real entity:
+\`[Friendly Name](entity:entity_id)\` is a **display-only convention of THIS chat interface** — it renders as a clickable entity chip (icon + status). It is our own rendering token, **not** real Home Assistant syntax.
 
-\`[Friendly Name](entity:entity_id)\`
-
-Examples:
+**Use it ONLY in the prose you write to the user in chat.** Examples:
 - \`[Loftlampe i køkkenet](entity:light.kitchen_ceiling)\`
 - \`[Bevægelsessensor i gangen](entity:binary_sensor.hallway_motion)\`
 
-Use the exact entity_id (you already have it from your tool results — tool tables render the first column with this same token). This keeps a live link between what you write and the real entity. Apply it to entities the user would want to see or act on — not every incidental mention.
+**NEVER put this token anywhere a real value is expected — use the plain \`entity_id\` string there** (e.g. \`light.kitchen_ceiling\`):
+- tool parameters / arguments (entity_id fields, targets, service data, search terms)
+- YAML, automations, scripts, templates, or any config you write
+- file contents, notes, or anything persisted
+
+Rule of thumb: the token is for what the **user reads** in chat; the bare \`entity_id\` is for everything the **system consumes**. Use the exact entity_id from your tool results (tool tables show it in the first column with this same token). Apply the chip to entities the user would want to see or act on — not every incidental mention.
 
 ## Communication Style
 
