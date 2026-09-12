@@ -21,7 +21,15 @@ export function renderMarkdown(src: string): string {
   s = s.replace(/`([^`]+)`/g, "<code>$1</code>");
   s = s.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
   s = s.replace(/(^|[\s(])\*([^*\n]+)\*/g, "$1<em>$2</em>");
-  s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  const escAttr = (x: string) => x.replace(/"/g, "&quot;");
+  s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_m, text: string, url: string) => {
+    // Custom inline schemes for deterministic tool markdown:
+    //   [Loftlampe](entity:light.kitchen) → clickable entity chip w/ icon
+    //   [x](icon:mdi:lightbulb)           → inline mdi icon
+    if (url.startsWith("entity:")) return `<ha-entity-chip entity="${escAttr(url.slice(7))}" label="${escAttr(text)}"></ha-entity-chip>`;
+    if (url.startsWith("icon:")) return `<ha-mdi-icon class="mdinl" icon="${escAttr(url.slice(5))}"></ha-mdi-icon>`;
+    return `<a href="${escAttr(url)}" target="_blank" rel="noopener">${text}</a>`;
+  });
 
   // GFM pipe tables: header row, |---| separator, then body rows
   s = s.replace(/(?:^|\n)(\|[^\n]+\|\n\|[ :|-]+\|\n(?:\|[^\n]*\|(?:\n|$))*)/g, (_m, block: string) => {

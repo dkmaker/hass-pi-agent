@@ -10,6 +10,7 @@ import { toolMeta } from "../tool-meta.js";
 import { t as tr, col } from "../i18n.js";
 import { relTime } from "../reltime.js";
 import "../ha-icons.js";
+import "../entity-chip.js";
 
 const escapeHtml = (s: string): string => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 

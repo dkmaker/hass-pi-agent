@@ -1,6 +1,7 @@
 import { LitElement, html, css, nothing } from "lit";
 import { customElement, state, query } from "lit/decorators.js";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
+import "../entity-chip.js";
 import "@material/web/progress/circular-progress.js";
 import "@material/web/button/filled-button.js";
 import "@material/web/button/text-button.js";
