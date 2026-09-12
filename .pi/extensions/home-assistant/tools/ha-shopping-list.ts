@@ -9,6 +9,7 @@ import { Type } from "@earendil-works/pi-ai";
 import { StringEnum } from "@earendil-works/pi-ai";
 import { wsCommand } from "../lib/ws.js";
 import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
+import { defineHaTool, type HaDetails, type Row } from "../lib/tool-render.js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -21,7 +22,7 @@ interface ShoppingItem {
 // ── Tool registration ────────────────────────────────────────
 
 export function registerShoppingListTool(pi: ExtensionAPI): void {
-  pi.registerTool({
+  defineHaTool(pi, {
     name: "ha_shopping_list",
     label: "HA Shopping List",
     description: `Manage HA shopping list. Actions: list, add, update, remove, clear.`,
@@ -41,24 +42,13 @@ export function registerShoppingListTool(pi: ExtensionAPI): void {
     }),
 
 
-    renderCall(args: Record<string, unknown>, theme: any) {
-      return renderToolCall("HA Shopping List", args, theme);
-    },
-
-    renderResult(result: any) {
-      return renderMarkdownResult(result);
-    },
-
-    async execute(toolCallId, params, signal, onUpdate, ctx) {
-      const result = await executeAction(params);
-      return { content: [{ type: "text" as const, text: result }] };
-    },
+    execute: (params) => executeAction(params),
   });
 }
 
 // ── Action dispatch ──────────────────────────────────────────
 
-async function executeAction(params: Record<string, unknown>): Promise<string> {
+async function executeAction(params: Record<string, unknown>): Promise<string | HaDetails> {
   switch (params.action as string) {
     case "list": return handleList();
     case "add": return handleAdd(params);
@@ -71,23 +61,26 @@ async function executeAction(params: Record<string, unknown>): Promise<string> {
 
 // ── Handlers ─────────────────────────────────────────────────
 
-async function handleList(): Promise<string> {
+async function handleList(): Promise<string | HaDetails> {
   const items = await wsCommand<ShoppingItem[]>("shopping_list/items");
   if (items.length === 0) return "Shopping list is empty.";
 
-  const lines: string[] = [
-    "| Status | Name | ID |",
-    "|--------|------|----|",
-  ];
-  for (const item of items) {
-    const status = item.complete ? "☑" : "☐";
-    lines.push(`| ${status} | **${item.name}** | ${item.id} |`);
-  }
-
+  const rows: Row[] = items.map((item) => ({
+    icon: item.complete ? "checkbox-marked-outline" : "checkbox-blank-outline",
+    cells: { name: item.name, id: item.id },
+  }));
   const incomplete = items.filter((i) => !i.complete).length;
   const complete = items.filter((i) => i.complete).length;
-  lines.push(`\n${items.length} items (${incomplete} to buy, ${complete} done)`);
-  return lines.join("\n");
+  return {
+    kind: "table",
+    columns: [
+      { key: "name", label: "Name" },
+      { key: "id", label: "ID" },
+    ],
+    rows,
+    page: { offset: 0, limit: items.length, total: items.length },
+    note: `${items.length} items (${incomplete} to buy, ${complete} done)`,
+  };
 }
 
 async function handleAdd(params: Record<string, unknown>): Promise<string> {
