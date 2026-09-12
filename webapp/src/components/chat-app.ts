@@ -9,6 +9,7 @@ import "./setup-wizard.js";
 import { icon } from "../icon.js";
 import { mdiRobot, mdiMenu, mdiPlus, mdiSend, mdiStop, mdiThemeLightDark, mdiWeatherSunny, mdiWeatherNight, mdiCog, mdiHistory, mdiShapeOutline, mdiRobotOutline, mdiScriptTextOutline, mdiLightbulbOutline, mdiGauge, mdiFloorPlan } from "@mdi/js";
 import { renderMarkdown } from "../md.js";
+import { t as tr } from "../i18n.js";
 import type { Entry, ServerEvent, ToolResult, StatsOverview, SessionMeta } from "../types.js";
 
 let idc = 0;
@@ -39,9 +40,9 @@ function cannedSessions(): MockSession[] {
 
 /** Slash commands surfaced when the composer holds just "/". */
 const COMMANDS: { cmd: string; desc: string; icon: string }[] = [
-  { cmd: "/new", desc: "Start a new chat", icon: mdiPlus },
-  { cmd: "/sessions", desc: "Open past sessions", icon: mdiHistory },
-  { cmd: "/setup", desc: "Set up conventions", icon: mdiCog },
+  { cmd: "/new", desc: tr("cmd_new"), icon: mdiPlus },
+  { cmd: "/sessions", desc: tr("cmd_sessions"), icon: mdiHistory },
+  { cmd: "/setup", desc: tr("cmd_setup"), icon: mdiCog },
 ];
 
 @customElement("pi-chat-app")
@@ -52,7 +53,7 @@ export class PiChatApp extends LitElement {
   @state() private connected = false;
   @state() private draft = "";
   @state() private drawerOpen = false;
-  @state() private sessionTitle = "New chat";
+  @state() private sessionTitle = tr("new_chat");
   @state() private themeMode: "auto" | "light" | "dark" =
     ((typeof localStorage !== "undefined" && localStorage.getItem("pi-theme")) as "auto" | "light" | "dark") || "auto";
   @state() private setupOpen = false;
@@ -160,7 +161,7 @@ export class PiChatApp extends LitElement {
       case "stats": this.stats = ev.data; break;
       case "sessions": this.sessions = ev.data; break;
       case "session_title": this.sessionTitle = ev.title; this.wsSend({ type: "list_sessions" }); break;
-      case "session_cleared": this.entries = []; this.sessionTitle = "New chat"; this.busy = false; this.working = ""; this.bump(); break;
+      case "session_cleared": this.entries = []; this.sessionTitle = tr("new_chat"); this.busy = false; this.working = ""; this.bump(); break;
       case "history": this.entries = ev.data.map((e) => ({ ...e })); this.busy = false; this.working = ""; this.bump(); this.scrollSoon(); break;
       case "working": this.working = ev.label; break;
       case "message_start":
@@ -183,7 +184,7 @@ export class PiChatApp extends LitElement {
       case "turn_end": break;
       case "agent_end": this.busy = false; this.working = ""; this.bump(); break;
       case "aborted":
-        this.entries.push({ kind: "notice", id: nid(), text: "Stopped" });
+        this.entries.push({ kind: "notice", id: nid(), text: tr("stopped") });
         if (this.last?.kind === "assistant") (this.entries[this.entries.length - 2] as any).streaming = false;
         this.busy = false; this.working = ""; this.bump(); break;
     }
@@ -217,7 +218,7 @@ export class PiChatApp extends LitElement {
     if (cmd === "/sessions") { this.openDrawer(); this.clearDraft(); return; }
     if (this.busy || !this.ws || this.ws.readyState !== WebSocket.OPEN) return;
     this.entries.push({ kind: "user", id: nid(), text: t });
-    if (this.sessionTitle === "New chat") this.sessionTitle = t.length > 60 ? t.slice(0, 60) + "\u2026" : t;
+    if (this.sessionTitle === tr("new_chat")) this.sessionTitle = t.length > 60 ? t.slice(0, 60) + "\u2026" : t;
     this.clearDraft();
     this.busy = true;
     this.bump();
@@ -241,7 +242,7 @@ export class PiChatApp extends LitElement {
   private newSession(): void {
     this.stop();
     this.entries = [];
-    this.sessionTitle = "New chat";
+    this.sessionTitle = tr("new_chat");
     this.busy = false; this.working = "";
     this.drawerOpen = false;
     this.wsSend({ type: "new_session" });
@@ -385,7 +386,7 @@ export class PiChatApp extends LitElement {
     // assistant
     if (!e.text && !e.streaming) return nothing;
     // Thinking indicator — no bubble, sits directly on the background, small + italic; gone once text arrives
-    if (!e.text) return html`<div class="row assistant"><span class="thinking-ind">Thinking<span class="dots"><i>.</i><i>.</i><i>.</i></span></span></div>`;
+    if (!e.text) return html`<div class="row assistant"><span class="thinking-ind">${tr("thinking")}<span class="dots"><i>.</i><i>.</i><i>.</i></span></span></div>`;
     return html`<div class="row assistant"><div class="bubble">${unsafeHTML(renderMarkdown(e.text))}</div></div>`;
   }
 
@@ -402,13 +403,13 @@ export class PiChatApp extends LitElement {
         ? html`
             <div class="scrim" @click=${() => { this.drawerOpen = false; }}></div>
             <aside class="drawer">
-              <div class="drawer-head">Sessions</div>
+              <div class="drawer-head">${tr("sessions")}</div>
               <button class="newchat" @click=${() => this.newSession()}>
                 ${icon(mdiPlus, 18)}
-                New chat
+                ${tr("new_chat")}
               </button>
               <button class="sess" @click=${() => { this.setupOpen = true; this.drawerOpen = false; }}>
-                <span class="sess-t">Set up conventions</span><span class="sess-w">/setup wizard</span>
+                <span class="sess-t">${tr("setup_conventions")}</span><span class="sess-w">${tr("setup_wizard_sub")}</span>
               </button>
               ${this.sessions.slice(0, this.sessionLimit).map(
                 (s) => html`<button class="sess" @click=${() => this.openSession(s)}>
@@ -417,14 +418,14 @@ export class PiChatApp extends LitElement {
               )}
               ${this.sessions.length > this.sessionLimit
                 ? html`<button class="sess morebtn" @click=${() => { this.sessionLimit += 12; }}>
-                    <span class="sess-t">Vis flere (${this.sessions.length - this.sessionLimit})</span>
+                    <span class="sess-t">${tr("show_more")} (${this.sessions.length - this.sessionLimit})</span>
                   </button>`
                 : nothing}
             </aside>`
         : nothing}
 
       <header>
-        <button class="iconbtn" @click=${() => this.openDrawer()} title="Sessions" aria-label="Sessions">
+        <button class="iconbtn" @click=${() => this.openDrawer()} title="${tr("sessions")}" aria-label="${tr("sessions")}">
           ${icon(mdiMenu, 22)}
         </button>
         <div class="logo">${icon(mdiRobot, 20)}</div>
@@ -433,7 +434,7 @@ export class PiChatApp extends LitElement {
           <div class="sub">${this.sessionTitle}</div>
         </div>
         <div class="spacer"></div>
-        <button class="iconbtn" @click=${() => this.cycleTheme()} title="Theme: ${this.themeMode}" aria-label="Toggle theme">
+        <button class="iconbtn" @click=${() => this.cycleTheme()} title="${tr("theme")}: ${this.themeMode}" aria-label="Toggle theme">
           ${icon(this.themeIcon(), 22)}
         </button>
         <button class="iconbtn" @click=${() => this.newSession()} title="New chat" aria-label="New chat">
@@ -446,24 +447,24 @@ export class PiChatApp extends LitElement {
         ${empty
           ? html`<div class="empty">
               <div class="logo" style="margin:0 auto 12px">${icon(mdiRobot, 20)}</div>
-              <h2>How can I help with your home?</h2>
-              <div>Ask about entities, automations, scripts, or the dashboard.</div>
+              <h2>${tr("empty_title")}</h2>
+              <div>${tr("empty_sub")}</div>
               <div class="chips">
-                ${["Show my lights", "Update the porch light script", "Turn off the kitchen light", "What can you do?"].map(
+                ${[tr("chip_lights"), tr("chip_porch"), tr("chip_kitchen"), tr("chip_capabilities")].map(
                   (c) => html`<button class="chip" @click=${() => this.send(c)}>${c}</button>`,
                 )}
               </div>
               <div class="chips" style="margin-top: 6px">
-                <button class="chip" @click=${() => { this.setupOpen = true; }}>${icon(mdiCog, 16)} Set up conventions</button>
+                <button class="chip" @click=${() => { this.setupOpen = true; }}>${icon(mdiCog, 16)} ${tr("setup_conventions")}</button>
               </div>
               ${this.stats
                 ? html`<div class="stats">
-                    ${this.statCard(mdiShapeOutline, this.stats.entities, "Entities")}
-                    ${this.statCard(mdiRobotOutline, this.stats.automations, "Automations")}
-                    ${this.statCard(mdiScriptTextOutline, this.stats.scripts, "Scripts")}
-                    ${this.statCard(mdiLightbulbOutline, this.stats.lights, "Lights")}
-                    ${this.statCard(mdiGauge, this.stats.sensors, "Sensors")}
-                    ${this.statCard(mdiFloorPlan, this.stats.areas, "Areas")}
+                    ${this.statCard(mdiShapeOutline, this.stats.entities, tr("stat_entities"))}
+                    ${this.statCard(mdiRobotOutline, this.stats.automations, tr("stat_automations"))}
+                    ${this.statCard(mdiScriptTextOutline, this.stats.scripts, tr("stat_scripts"))}
+                    ${this.statCard(mdiLightbulbOutline, this.stats.lights, tr("stat_lights"))}
+                    ${this.statCard(mdiGauge, this.stats.sensors, tr("stat_sensors"))}
+                    ${this.statCard(mdiFloorPlan, this.stats.areas, tr("stat_areas"))}
                   </div>`
                 : nothing}
             </div>`
@@ -487,7 +488,7 @@ export class PiChatApp extends LitElement {
       <div class="composer">
         <textarea
           rows="1"
-          placeholder="Message Pi Agent…"
+          placeholder="${tr("composer_placeholder")}"
           .value=${this.draft}
           @input=${(e: Event) => { const t = e.target as HTMLTextAreaElement; this.draft = t.value; t.style.height = "auto"; t.style.height = `${Math.min(Math.max(t.scrollHeight + 2, 44), 140)}px`; }}
           @keydown=${this.onKey}

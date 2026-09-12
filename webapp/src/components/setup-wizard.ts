@@ -2,6 +2,7 @@ import { LitElement, html, css, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { icon } from "../icon.js";
 import { mdiClose, mdiCheck, mdiArrowLeft, mdiCheckCircle } from "@mdi/js";
+import { t, lang } from "../i18n.js";
 
 interface Opt { value: string; label: string; example?: string; }
 interface Step { id: string; topic: string; title: string; help: string; options: Opt[]; }
@@ -66,6 +67,19 @@ const STEPS: Step[] = [
   },
 ];
 
+// Danish content for the steps (option examples are code/entity-IDs — language-neutral, kept as-is).
+const DA_STEPS: Record<string, { topic: string; title: string; help: string; options: Record<string, string> }> = {
+  language: { topic: "Sprog", title: "Hvordan skal ting navngives?", help: "Vælg om entitets-ID'er og visningsnavne deler ét sprog eller opdeles (tekniske ID'er på engelsk, visningsnavne på dit sprog).", options: { english: "Kun engelsk", multilingual: "Flersproget (engelske ID'er + danske navne)" } },
+  entity_naming: { topic: "Entitets-ID'er", title: "Navnemønster for entitets-ID", help: "Hvor skal placeringen stå i entity_id?", options: { location_first: "Placering først", device_first: "Enhed først" } },
+  metrics: { topic: "Målesensorer", title: "Effekt vs. energi-navngivning", help: "Skeln øjeblikkelig (speedometer) fra akkumuleret (kilometertæller), så enheder forbliver klare.", options: { suffix: "Suffiks _power / _energy", explicit: "Eksplicit enhed i navnet" } },
+  friendly: { topic: "Visningsnavne", title: "Stil for visningsnavne", help: "Hvor detaljerede skal visningsnavne være? Stemmeassistenter foretrækker fulde, entydige navne.", options: { voice: "Stemme-optimeret (fuld)", short: "Kort" } },
+  areas: { topic: "Områder & etager", title: "Områdestruktur", help: "Hvordan skal rum organiseres?", options: { floors: "Etager → områder", flat: "Flade områder" } },
+  labels: { topic: "Labels", title: "Label-strategi", help: "Brug labels til at gå på tværs af områder (fx efter funktion eller automatisering).", options: { yes: "Brug labels", no: "Ingen labels" } },
+  automations: { topic: "Automatiseringer", title: "Navngivning af automatiseringer", help: "Hvordan skal automatiseringer navngives for nem overskuelighed?", options: { descriptive: "Beskrivende", prefixed: "Præfikset" } },
+};
+const trStep = (s: Step, f: "topic" | "title" | "help"): string => (lang === "da" ? DA_STEPS[s.id]?.[f] ?? s[f] : s[f]);
+const trOpt = (s: Step, o: Opt): string => (lang === "da" ? DA_STEPS[s.id]?.options[o.value] ?? o.label : o.label);
+
 @customElement("pi-setup-wizard")
 export class PiSetupWizard extends LitElement {
   @property({ type: Boolean }) open = false;
@@ -81,10 +95,10 @@ export class PiSetupWizard extends LitElement {
   private next(): void { if (this.step < STEPS.length) this.step += 1; }
   private close(): void { this.reset(); this.dispatchEvent(new CustomEvent("wizard-close")); }
   private finish(): void {
-    const summary = STEPS.map((s) => ({
-      topic: s.topic,
-      choice: s.options.find((o) => o.value === this.answers[s.id])?.label ?? "—",
-    }));
+    const summary = STEPS.map((s) => {
+      const o = s.options.find((x) => x.value === this.answers[s.id]);
+      return { topic: trStep(s, "topic"), choice: o ? trOpt(s, o) : "—" };
+    });
     this.dispatchEvent(new CustomEvent("wizard-complete", { detail: { summary } }));
     this.reset();
   }
@@ -155,9 +169,9 @@ export class PiSetupWizard extends LitElement {
       <div class="scrim" @click=${(e: Event) => { if (e.target === e.currentTarget) this.close(); }}>
         <div class="panel">
           <div class="head">
-            ${done ? nothing : html`<span class="step-of">Step ${this.step + 1} of ${STEPS.length}</span>`}
-            <span class="t">${done ? "Review" : "Set up conventions"}</span>
-            <button class="iconbtn" @click=${() => this.close()} aria-label="Close">${icon(mdiClose, 22)}</button>
+            ${done ? nothing : html`<span class="step-of">${t("wiz_step_of", { n: this.step + 1, t: STEPS.length })}</span>`}
+            <span class="t">${done ? t("wiz_review") : t("setup_conventions")}</span>
+            <button class="iconbtn" @click=${() => this.close()} aria-label="${t("wiz_close")}">${icon(mdiClose, 22)}</button>
           </div>
           <div class="bar"><i style="width:${done ? 100 : pct}%"></i></div>
 
@@ -165,35 +179,35 @@ export class PiSetupWizard extends LitElement {
             ? html`<div class="body">
                 <div class="summary">
                   <div class="big">${icon(mdiCheckCircle, 48)}</div>
-                  <h3>You're all set</h3>
-                  <p>These conventions will guide how I name and organize things.</p>
+                  <h3>${t("wiz_done_title")}</h3>
+                  <p>${t("wiz_done_sub")}</p>
                   <div class="rows">
-                    ${STEPS.map((st) => html`<div class="r"><span class="k">${st.topic}</span><span class="v">${st.options.find((o) => o.value === this.answers[st.id])?.label ?? "—"}</span></div>`)}
+                    ${STEPS.map((st) => { const o = st.options.find((x) => x.value === this.answers[st.id]); return html`<div class="r"><span class="k">${trStep(st, "topic")}</span><span class="v">${o ? trOpt(st, o) : "—"}</span></div>`; })}
                   </div>
                 </div>
               </div>
               <div class="foot">
-                <button class="btn" @click=${() => this.back()}>${icon(mdiArrowLeft, 18)} Back</button>
+                <button class="btn" @click=${() => this.back()}>${icon(mdiArrowLeft, 18)} ${t("wiz_back")}</button>
                 <span class="spacer"></span>
-                <button class="btn primary" @click=${() => this.finish()}>Save & finish</button>
+                <button class="btn primary" @click=${() => this.finish()}>${t("wiz_save")}</button>
               </div>`
             : html`<div class="body">
-                <p class="q">${s.title}</p>
-                <p class="help">${s.help}</p>
+                <p class="q">${trStep(s, "title")}</p>
+                <p class="help">${trStep(s, "help")}</p>
                 <div class="opts">
                   ${s.options.map(
                     (o) => html`<button class="opt ${chosen === o.value ? "sel" : ""}" @click=${() => this.select(s.id, o.value)}>
                       <span class="radio">${chosen === o.value ? icon(mdiCheck, 15) : nothing}</span>
-                      <span class="txt"><div class="lbl">${o.label}</div>${o.example ? html`<div class="ex">${o.example}</div>` : nothing}</span>
+                      <span class="txt"><div class="lbl">${trOpt(s, o)}</div>${o.example ? html`<div class="ex">${o.example}</div>` : nothing}</span>
                     </button>`,
                   )}
                 </div>
               </div>
               <div class="foot">
-                <button class="btn" ?disabled=${this.step === 0} @click=${() => this.back()}>${icon(mdiArrowLeft, 18)} Back</button>
+                <button class="btn" ?disabled=${this.step === 0} @click=${() => this.back()}>${icon(mdiArrowLeft, 18)} ${t("wiz_back")}</button>
                 <span class="spacer"></span>
                 <button class="btn primary" ?disabled=${!chosen} @click=${() => this.next()}>
-                  ${this.step === STEPS.length - 1 ? "Review" : "Next"}
+                  ${this.step === STEPS.length - 1 ? t("wiz_review") : t("wiz_next")}
                 </button>
               </div>`}
         </div>
