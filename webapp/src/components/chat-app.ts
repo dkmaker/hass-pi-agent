@@ -107,6 +107,7 @@ export class PiChatApp extends LitElement {
         "--pi-text-2": g("--secondary-text-color"),
         "--pi-divider": g("--divider-color"),
         "--pi-code-bg": g("--markdown-code-background-color") || g("--secondary-background-color"),
+        "--pi-header-h": g("--header-height"),
       };
       const el = document.documentElement;
       for (const [k, v] of Object.entries(map)) if (v) el.style.setProperty(k, v);
@@ -262,7 +263,8 @@ export class PiChatApp extends LitElement {
     :host { display: flex; flex-direction: column; height: 100dvh; max-width: var(--pi-maxw); margin: 0 auto; }
     header {
       display: flex; align-items: center; gap: 10px;
-      padding: 12px 16px calc(12px);
+      height: var(--pi-header-h, 56px); box-sizing: border-box;
+      padding: 0 16px;
       border-bottom: 1px solid var(--pi-divider);
       background: var(--pi-surface);
       position: sticky; top: 0; z-index: 2;
