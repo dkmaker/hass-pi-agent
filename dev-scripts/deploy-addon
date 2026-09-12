@@ -115,6 +115,15 @@ mkdir -p "$ADDON_DIR/extensions"
 cp -a "$REPO_ROOT/.pi/extensions/home-assistant" "$ADDON_DIR/extensions/home-assistant"
 rm -rf "$ADDON_DIR/extensions/home-assistant/node_modules" "$ADDON_DIR/extensions/home-assistant/data"
 
+# ── Step 1b: Sync webapp source into build context ────────────
+# Dockerfile COPYs webapp → /opt/pi-webapp; build context is addon/, so the
+# webapp must live inside it. Strip local build/runtime dirs (rebuilt in image).
+echo "📦 Syncing webapp source into addon build context..."
+rm -rf "$ADDON_DIR/webapp"
+cp -a "$REPO_ROOT/webapp" "$ADDON_DIR/webapp"
+rm -rf "$ADDON_DIR/webapp/node_modules" "$ADDON_DIR/webapp/dist" \
+       "$ADDON_DIR/webapp/.engine-agentdir" "$ADDON_DIR/webapp/.engine-scratch"
+
 # ── Step 2: Copy to VM ────────────────────────────────────────
 echo "📤 Copying addon/ → VM:/addons/${ADDON_SLUG}/"
 $SSH_CMD "rm -rf /addons/${ADDON_SLUG} && mkdir -p /addons/${ADDON_SLUG}"
