@@ -2,93 +2,71 @@
 
 [![Build](https://github.com/dkmaker/hass-pi-agent/actions/workflows/build.yaml/badge.svg)](https://github.com/dkmaker/hass-pi-agent/actions/workflows/build.yaml)
 
-AI coding agent with full Home Assistant access — manage automations, entities, dashboards, and more via natural language.
+An AI agent with full access to your Home Assistant — manage automations, entities, dashboards, helpers, and more through a chat panel, in plain language.
 
-Powered by [Pi](https://github.com/earendil-works/pi), an open-source coding agent that runs in your terminal.
+Powered by [Pi](https://github.com/earendil-works/pi), an open-source coding agent, embedded in-process and served as a native web chat over the add-on's Ingress.
 
 ## Installation
 
 ### 1. Add the repository
 
-1. Open Home Assistant
-2. Go to **Settings → Add-ons → Add-on Store**
-3. Click the **⋮** menu (top right) → **Repositories**
+1. Open Home Assistant.
+2. Go to **Settings → Add-ons → Add-on Store**.
+3. Click the **⋮** menu (top right) → **Repositories**.
 4. Add this URL:
    ```
    https://github.com/dkmaker/hass-pi-agent
    ```
-5. Click **Add → Close**
+5. Click **Add → Close**.
 
-### 2. Install the add-on
+### 2. Install and start
 
-1. Find **Pi Agent for Home Assistant** in the add-on store (refresh if needed)
-2. Click **Install**
-3. Go to the **Configuration** tab
-4. Add your AI provider API key under **Environment**, e.g.:
-   ```
-   ANTHROPIC_API_KEY=sk-ant-...
-   ```
-5. Click **Save**
-6. Go to the **Info** tab and click **Start**
+1. Find **Pi Agent for Home Assistant** in the add-on store (refresh if needed).
+2. Click **Install**, then **Start**.
 
-### 3. Open the agent
+### 3. Configure in the panel
 
-Click **Pi Agent** in the sidebar, or go to the **Info** tab and click **Open Web UI**.
+1. Open **Pi Agent** from the sidebar (or **Open Web UI** on the add-on's Info tab).
+2. The **welcome screen** asks you to choose a provider and model and paste that provider's API key. Pi runs a live test before saving — you can only continue once the key works.
+3. Start chatting. Use the **⚙️ settings** button in the top bar to change the provider, model, or key later.
+
+There are no API-key fields on the add-on's Configuration tab — the panel is the source of truth, and your choice is stored in the add-on options (surviving restarts and updates) under a collapsed, app-managed section.
 
 ## Configuration
 
-### Provider
+### Provider & model
 
-Select your AI provider from the **Default Provider** dropdown:
+Set up entirely in the panel. The setup lists the providers that authenticate with a single **API key**, and fetches each provider's model list live from pi:
 
-Anthropic · OpenAI · Google · OpenRouter · Groq · xAI · Mistral · Cerebras · Hugging Face · GitHub Copilot · Amazon Bedrock · Google Vertex · Azure OpenAI
+Anthropic · OpenAI · Google (Gemini) · OpenRouter · xAI (Grok) · Groq · Mistral · Cerebras · Hugging Face
 
-### API Keys
+OAuth-only (GitHub Copilot) and multi-credential (Amazon Bedrock, Google Vertex, Azure OpenAI) providers are not offered — the setup is single-API-key only.
 
-Add your provider's API key as an environment variable in the **Environment** list:
+### Other add-on options
 
-| Provider | Environment variable |
-|----------|---------------------|
-| Anthropic | `ANTHROPIC_API_KEY=sk-ant-...` |
-| OpenAI | `OPENAI_API_KEY=sk-...` |
-| Google | `GEMINI_API_KEY=AI...` |
-| OpenRouter | `OPENROUTER_API_KEY=sk-or-...` |
-| Groq | `GROQ_API_KEY=gsk_...` |
-| xAI | `XAI_API_KEY=xai-...` |
-| Mistral | `MISTRAL_API_KEY=...` |
-| Cerebras | `CEREBRAS_API_KEY=...` |
-| Hugging Face | `HF_TOKEN=hf_...` |
-| GitHub Copilot | `GITHUB_TOKEN=gho_...` |
-| Amazon Bedrock | `AWS_ACCESS_KEY_ID=...` + `AWS_SECRET_ACCESS_KEY=...` + `AWS_REGION=us-east-1` |
-
-### Model
-
-Optionally set a **Default Model** — accepts any model ID or fuzzy pattern:
-
-- `anthropic/claude-sonnet-4-20250514`
-- `openai/gpt-4o`
-- `*sonnet*` (fuzzy match)
-
-Leave empty to use the provider's default.
-
-### Additional Packages
-
-Install extra Alpine Linux packages at startup (e.g., `jq`, `imagemagick`).
+| Option | What it does |
+|--------|--------------|
+| **Install Conversation Integration** | Installs the Pi Agent integration so automations and Assist can call the `pi_agent.ask` service (on by default). |
+| **Additional Packages** | Extra Alpine Linux packages to install at startup (e.g. `jq`, `imagemagick`). |
+| **Write Guard** | Filesystem write protection: `strict` (default), `warn`, or `off`. |
+| **Write Guard Allowlist** | Extra paths (globs, relative to `/homeassistant`) the agent may write to. |
 
 ## What can it do?
 
 Pi Agent has full access to your Home Assistant instance:
 
-- **Automations** — create, edit, debug, and manage automations
-- **Entities & Devices** — inspect states, rename, organize into areas
-- **Dashboards** — build and modify Lovelace dashboards and cards
-- **Services** — discover and call any Home Assistant service
-- **Helpers** — create input booleans, counters, timers, templates, and more
-- **Areas & Labels** — organize your smart home
-- **Add-ons** — manage installed add-ons
-- **Templates** — render and test Jinja2 templates
-- **Backups** — create and manage backups
-- **System** — view system info, restart, and reload configuration
+- **Automations** — create, edit, debug, and manage automations.
+- **Entities & Devices** — inspect states, rename, organize into areas.
+- **Dashboards** — build and modify Lovelace dashboards and cards.
+- **Services** — discover and call any Home Assistant service.
+- **Helpers** — create input booleans, counters, timers, templates, and more.
+- **Areas & Labels** — organize your smart home.
+- **Add-ons** — manage installed add-ons.
+- **Templates** — render and test Jinja2 templates.
+- **Backups** — create and manage backups.
+- **System** — view system info, restart, and reload configuration.
+
+The chat panel follows your Home Assistant theme and interface language (English, Danish, Norwegian, Swedish, German), renders tool results as rich clickable tables, and supports `/new`, `/sessions`, and `/setup` slash commands.
 
 ## Supported architectures
 
