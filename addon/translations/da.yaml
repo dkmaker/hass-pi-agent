@@ -21,6 +21,27 @@ configuration:
         name: API-nøgle
         description: >-
           API-nøgle til den valgte udbyder.
+  websearch:
+    name: Websøgning
+    description: >-
+      Valgfri live-websøgning for agenten — sin egen sektion. Når slået til får
+      agenten et web_search-værktøj og bliver instrueret i at validere fakta
+      online i stedet for at stole på pre-trained viden. Når slået fra
+      registreres intet websøgnings-værktøj.
+    fields:
+      enabled:
+        name: Slå websøgning til
+        description: >-
+          Registrer web_search-værktøjet. Kræver en provider og API-nøgle nedenfor.
+      provider:
+        name: Provider
+        description: >-
+          perplexity (Perplexity API), perplexity_openrouter (Perplexity-modeller
+          via OpenRouter — brug en OpenRouter-nøgle) eller brave (Brave Search API).
+      api_key:
+        name: API-nøgle
+        description: >-
+          API-nøgle til den valgte provider (Perplexity, OpenRouter eller Brave).
   install_integration:
     name: Installér samtaleintegration
     description: >-

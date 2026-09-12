@@ -55,6 +55,7 @@ const T: Record<string, Meta> = {
   ha_template: { icon: mdiCodeBraces, label: { en: "Template", da: "Skabelon", no: "Mal", sv: "Mall", de: "Vorlage" }, desc: { en: "Render & test Jinja2", da: "Render & test Jinja2", no: "Render & test Jinja2", sv: "Rendera & testa Jinja2", de: "Jinja2 rendern & testen" } },
   ha_yaml: { icon: mdiFileCodeOutline, label: { en: "YAML config", da: "YAML-config", no: "YAML-config", sv: "YAML-config", de: "YAML-Konfig" }, desc: { en: "Edit YAML config", da: "Redigér YAML-config", no: "Rediger YAML-config", sv: "Redigera YAML-config", de: "YAML-Konfig bearbeiten" } },
   ha_zones: { icon: mdiMapMarkerRadiusOutline, label: { en: "Zones", da: "Zoner", no: "Soner", sv: "Zoner", de: "Zonen" }, desc: { en: "Geographic zones", da: "Geografiske zoner", no: "Geografiske soner", sv: "Geografiska zoner", de: "Geografische Zonen" } },
+  web_search: { icon: mdiMagnify, label: { en: "Web search", da: "Websøgning", no: "Websøk", sv: "Webbsökning", de: "Websuche" }, desc: { en: "Search the live web", da: "Søg på det åbne web", no: "Søk på nettet", sv: "Sök på webben", de: "Im Web suchen" } },
 
   // Base agent tools
   bash: { icon: mdiConsole, label: { en: "Terminal", da: "Terminal", no: "Terminal", sv: "Terminal", de: "Terminal" }, desc: { en: "Run a terminal command", da: "Kør en terminal-kommando", no: "Kjør en terminal-kommando", sv: "Kör ett terminalkommando", de: "Terminal-Befehl ausführen" } },
