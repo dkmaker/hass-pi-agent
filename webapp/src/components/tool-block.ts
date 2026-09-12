@@ -6,6 +6,7 @@ import { icon } from "../icon.js";
 import { renderMarkdown } from "../md.js";
 import { mdiCheck, mdiAlertCircle } from "@mdi/js";
 import type { ToolResult } from "../types.js";
+import { toolMeta } from "../tool-meta.js";
 
 /** Per-tool render block: a titled card whose body depends on the result kind. */
 @customElement("pi-tool-block")
@@ -30,11 +31,12 @@ export class PiToolBlock extends LitElement {
       display: flex; align-items: center; gap: 8px;
       padding: 8px 12px;
       background: var(--pi-surface-2);
-      font: 600 13px/1.2 var(--pi-mono);
+      font: 600 13.5px/1.2 var(--pi-font);
       color: var(--pi-text);
     }
-    .head .name { color: var(--pi-primary); }
-    .head .args { color: var(--pi-text-2); font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .head > svg { width: 17px; height: 17px; color: var(--pi-primary); flex: 0 0 auto; }
+    .head .name { color: var(--pi-text); font-weight: 600; }
+    .head .args { color: var(--pi-text-2); font: 400 12px/1.2 var(--pi-mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .head .spacer { flex: 1; }
     .body { padding: 10px 12px; font: 13px/1.5 var(--pi-font); }
     md-circular-progress { --md-circular-progress-size: 18px; }
@@ -111,11 +113,13 @@ export class PiToolBlock extends LitElement {
   }
 
   render() {
+    const meta = toolMeta(this.toolName);
     return html`
       <div class="card">
         <div class="head">
-          <span class="name">${this.toolName}</span>
-          <span class="args">${this.argSummary()}</span>
+          ${icon(meta.icon, 17)}
+          <span class="name" title=${meta.desc}>${meta.label}</span>
+          <span class="args" title=${this.toolName}>${this.argSummary()}</span>
           <span class="spacer"></span>
           ${this.running
             ? html`<md-circular-progress indeterminate aria-label="running"></md-circular-progress>`
