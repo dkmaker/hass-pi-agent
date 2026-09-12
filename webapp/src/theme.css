@@ -19,7 +19,7 @@
   --pi-radius: 16px;
   --pi-radius-sm: 10px;
   --pi-gap: 12px;
-  --pi-maxw: 860px;
+  --pi-maxw: 100%;
   --pi-font: "Roboto", "Helvetica Neue", -apple-system, BlinkMacSystemFont, sans-serif;
   --pi-mono: "Roboto Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
