@@ -9,6 +9,7 @@ import { Type } from "@earendil-works/pi-ai";
 import { StringEnum } from "@earendil-works/pi-ai";
 import { wsCommand } from "../lib/ws.js";
 import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
+import { defineHaTool, type HaDetails, type Row } from "../lib/tool-render.js";
 import { backupBeforeMutation } from "../lib/mutation-log.js";
 
 // ── Types ────────────────────────────────────────────────────
@@ -24,7 +25,7 @@ interface WSPerson {
 // ── Tool registration ────────────────────────────────────────
 
 export function registerPeopleTool(pi: ExtensionAPI): void {
-  pi.registerTool({
+  defineHaTool(pi, {
     name: "ha_people",
     label: "HA People",
     description: `Manage HA people (presence detection). Actions: list, get, create, update, delete.`,
@@ -49,24 +50,13 @@ export function registerPeopleTool(pi: ExtensionAPI): void {
     }),
 
 
-    renderCall(args: Record<string, unknown>, theme: any) {
-      return renderToolCall("HA People", args, theme);
-    },
-
-    renderResult(result: any) {
-      return renderMarkdownResult(result);
-    },
-
-    async execute(toolCallId, params, signal, onUpdate, ctx) {
-      const result = await executeAction(params);
-      return { content: [{ type: "text" as const, text: result }] };
-    },
+    execute: (params) => executeAction(params),
   });
 }
 
 // ── Action dispatch ──────────────────────────────────────────
 
-async function executeAction(params: Record<string, unknown>): Promise<string> {
+async function executeAction(params: Record<string, unknown>): Promise<string | HaDetails> {
   switch (params.action as string) {
     case "list": return handleList();
     case "get": return handleGet(params.id as string | undefined);
@@ -79,22 +69,33 @@ async function executeAction(params: Record<string, unknown>): Promise<string> {
 
 // ── Handlers ─────────────────────────────────────────────────
 
-async function handleList(): Promise<string> {
+async function handleList(): Promise<string | HaDetails> {
   const raw = await wsCommand<{ storage: WSPerson[]; config: WSPerson[] } | WSPerson[]>("person/list");
   const people = Array.isArray(raw) ? raw : [...(raw.storage || []), ...(raw.config || [])];
   if (people.length === 0) return "No people defined.";
 
   people.sort((a, b) => a.name.localeCompare(b.name));
-  const lines: string[] = [
-    "| Name | User ID | Device Trackers | ID |",
-    "|------|---------|----------------|----|",
-    ...people.map((p) => {
-      const trackers = p.device_trackers.length > 0 ? p.device_trackers.join(", ") : "";
-      return `| **${p.name}** | ${p.user_id || ""} | ${trackers} | ${p.id} |`;
-    }),
-    `\n${people.length} people`,
-  ];
-  return lines.join("\n");
+  const rows: Row[] = people.map((p) => ({
+    icon: "account",
+    cells: {
+      name: p.name,
+      userid: p.user_id || "",
+      trackers: p.device_trackers.length > 0 ? p.device_trackers.join(", ") : "",
+      id: p.id,
+    },
+  }));
+  return {
+    kind: "table",
+    columns: [
+      { key: "name", label: "Name" },
+      { key: "userid", label: "User ID" },
+      { key: "trackers", label: "Device Trackers" },
+      { key: "id", label: "ID" },
+    ],
+    rows,
+    page: { offset: 0, limit: people.length, total: people.length },
+    note: `${people.length} people`,
+  };
 }
 
 async function handleGet(id?: string): Promise<string> {

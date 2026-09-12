@@ -11,6 +11,7 @@ import { wsCommand } from "../lib/ws.js";
 import { coerceJsonParams } from "../lib/tool-args.js";
 import { apiGet, apiPost, apiDelete } from "../lib/api.js";
 import { timeSince, formatTrace, renderMarkdownResult, renderToolCall } from "../lib/format.js";
+import { defineHaTool, entityIcon, type HaDetails, type Row } from "../lib/tool-render.js";
 import type { HAState, TraceListEntry } from "../lib/types.js";
 import { toYaml } from "../lib/yaml.js";
 import { backupBeforeMutation } from "../lib/mutation-log.js";
@@ -26,7 +27,7 @@ function resolveEntityId(params: Record<string, unknown>): string {
 
 // ── List ─────────────────────────────────────────────────────
 
-async function handleList(params: Record<string, unknown>): Promise<string> {
+async function handleList(params: Record<string, unknown>): Promise<HaDetails> {
   const allStates = await wsCommand<HAState[]>("get_states");
   const limit = (params.limit as number) || 50;
   const offset = (params.offset as number) || 0;
@@ -52,26 +53,39 @@ async function handleList(params: Record<string, unknown>): Promise<string> {
 
   if (total === 0) return "No scripts found.";
 
-  const rows: string[] = [
-    "| | Name | Script ID | Mode | Last triggered |",
-    "|---|------|-----------|------|----------------|",
-  ];
-  for (const s of page) {
-    const name = (s.attributes.friendly_name as string) || s.entity_id;
+  const rows: Row[] = page.map((s) => {
     const lastTriggered = s.attributes.last_triggered as string;
-    const mode = (s.attributes.mode as string) || "single";
-    const stateIcon = s.state === "on" ? "🔄" : "⏹️";
-    const objectId = s.entity_id.replace("script.", "");
-    const ago = lastTriggered ? timeSince(lastTriggered) : "—";
-    rows.push(`| ${stateIcon} | ${name} | ${objectId} | ${mode} | ${ago} |`);
-  }
+    return {
+      entity_id: s.entity_id,
+      state: s.state,
+      icon: entityIcon(s.entity_id, { override: s.attributes.icon as string | undefined }),
+      cells: {
+        name: (s.attributes.friendly_name as string) || s.entity_id,
+        state: s.state,
+        scriptid: s.entity_id.replace("script.", ""),
+        mode: (s.attributes.mode as string) || "single",
+        last: lastTriggered || "",
+      },
+    };
+  });
 
-  const summary = total <= limit && offset === 0
+  const note = total <= limit && offset === 0
     ? `${total} scripts`
     : `Showing ${offset + 1}-${Math.min(offset + limit, total)} of ${total} scripts`;
 
-  rows.push(`\n${summary}`);
-  return rows.join("\n");
+  return {
+    kind: "table",
+    columns: [
+      { key: "name", label: "Name" },
+      { key: "state", label: "State" },
+      { key: "scriptid", label: "Script ID" },
+      { key: "mode", label: "Mode" },
+      { key: "last", label: "Last triggered", type: "reltime" },
+    ],
+    rows,
+    page: { offset, limit, total },
+    note,
+  };
 }
 
 // ── Get ──────────────────────────────────────────────────────
@@ -283,7 +297,7 @@ const ALL_ACTIONS = [
 ] as const;
 
 export function registerScriptsTool(pi: ExtensionAPI): void {
-  pi.registerTool({
+  defineHaTool(pi, {
     name: "ha_scripts",
     prepareArguments: (args) => coerceJsonParams(args, ["config", "variables"]),
     label: "HA Scripts",
@@ -334,24 +348,13 @@ export function registerScriptsTool(pi: ExtensionAPI): void {
     }),
 
 
-    renderCall(args: Record<string, unknown>, theme: any) {
-      return renderToolCall("HA Scripts", args, theme);
-    },
-
-    renderResult(result: any) {
-      return renderMarkdownResult(result);
-    },
-
-    async execute(toolCallId, params, signal, onUpdate, ctx) {
-      const result = await dispatch(params);
-      return { content: [{ type: "text" as const, text: result }] };
-    },
+    execute: (params) => dispatch(params),
   });
 }
 
 // ── Action dispatch ──────────────────────────────────────────
 
-async function dispatch(params: Record<string, unknown>): Promise<string> {
+async function dispatch(params: Record<string, unknown>): Promise<string | HaDetails> {
   switch (params.action as string) {
     case "list": return handleList(params);
     case "get": return handleGet(params);

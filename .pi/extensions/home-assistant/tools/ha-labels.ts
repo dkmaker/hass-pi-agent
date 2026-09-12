@@ -9,6 +9,7 @@ import { Type } from "@earendil-works/pi-ai";
 import { StringEnum } from "@earendil-works/pi-ai";
 import { wsCommand } from "../lib/ws.js";
 import { renderMarkdownResult, renderToolCall } from "../lib/format.js";
+import { defineHaTool, type HaDetails, type Row } from "../lib/tool-render.js";
 import { backupBeforeMutation } from "../lib/mutation-log.js";
 
 // ── Types ────────────────────────────────────────────────────
@@ -24,7 +25,7 @@ interface WSLabel {
 // ── Tool registration ────────────────────────────────────────
 
 export function registerLabelsTool(pi: ExtensionAPI): void {
-  pi.registerTool({
+  defineHaTool(pi, {
     name: "ha_labels",
     label: "HA Labels",
     description: `Manage HA labels. Actions: list, create, update, delete.`,
@@ -59,24 +60,13 @@ export function registerLabelsTool(pi: ExtensionAPI): void {
     }),
 
 
-    renderCall(args: Record<string, unknown>, theme: any) {
-      return renderToolCall("HA Labels", args, theme);
-    },
-
-    renderResult(result: any) {
-      return renderMarkdownResult(result);
-    },
-
-    async execute(toolCallId, params, signal, onUpdate, ctx) {
-      const result = await executeAction(params);
-      return { content: [{ type: "text" as const, text: result }] };
-    },
+    execute: (params) => executeAction(params),
   });
 }
 
 // ── Action dispatch ──────────────────────────────────────────
 
-async function executeAction(params: Record<string, unknown>): Promise<string> {
+async function executeAction(params: Record<string, unknown>): Promise<string | HaDetails> {
   switch (params.action as string) {
     case "list": return handleList();
     case "create": return handleCreate(params);
@@ -89,23 +79,32 @@ async function executeAction(params: Record<string, unknown>): Promise<string> {
 
 // ── Handlers ─────────────────────────────────────────────────
 
-async function handleList(): Promise<string> {
+async function handleList(): Promise<string | HaDetails> {
   const labels = await wsCommand<WSLabel[]>("config/label_registry/list");
   if (labels.length === 0) return "No labels defined.";
 
   labels.sort((a, b) => a.name.localeCompare(b.name));
-  const lines: string[] = [
-    "| Name | Color | Icon | Description | ID |",
-    "|------|-------|------|-------------|----|",
-    ...labels.map((l) => {
-      const color = l.color || "";
-      const icon = l.icon || "";
-      const desc = l.description || "";
-      return `| **${l.name}** | ${color} | ${icon} | ${desc} | ${l.label_id} |`;
-    }),
-    `\n${labels.length} labels`,
-  ];
-  return lines.join("\n");
+  const rows: Row[] = labels.map((l) => ({
+    icon: (l.icon || "").replace(/^mdi:/, "") || "tag-outline",
+    cells: {
+      name: l.name,
+      color: l.color || "",
+      description: l.description || "",
+      id: l.label_id,
+    },
+  }));
+  return {
+    kind: "table",
+    columns: [
+      { key: "name", label: "Name" },
+      { key: "color", label: "Color" },
+      { key: "description", label: "Description" },
+      { key: "id", label: "ID" },
+    ],
+    rows,
+    page: { offset: 0, limit: labels.length, total: labels.length },
+    note: `${labels.length} labels`,
+  };
 }
 
 async function handleCreate(params: Record<string, unknown>): Promise<string> {
