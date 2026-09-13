@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.0-beta.10](https://github.com/dkmaker/hass-pi-agent/compare/v1.1.0-beta.9...v1.1.0-beta.10) (2026-09-13)
+
+
+### Bug Fixes
+
+* frame the HA agent as an assistant, not a developer ([819dc15](https://github.com/dkmaker/hass-pi-agent/commit/819dc1505759a187809063a9e9bbe3b81eccdfde))
+* **webapp:** show drawer AI/theme actions on mobile only ([84538d9](https://github.com/dkmaker/hass-pi-agent/commit/84538d9d54cac6838d6cdc11607f2a36698660df))
+
 ## [1.1.0-beta.9](https://github.com/dkmaker/hass-pi-agent/compare/v1.1.0-beta.8...v1.1.0-beta.9) (2026-09-13)
 
 
