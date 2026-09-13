@@ -474,9 +474,6 @@ export class PiChatApp extends LitElement {
                 ${icon(mdiPlus, 18)}
                 ${tr("new_chat")}
               </button>
-              <button class="sess" @click=${() => { this.policyOpen = true; this.drawerOpen = false; }}>
-                <span class="sess-t">${tr("setup_conventions")}</span><span class="sess-w">${tr("setup_wizard_sub")}</span>
-              </button>
               <button class="sess" @click=${() => { this.configOpen = true; this.drawerOpen = false; }}>
                 <span class="sess-t">${tr("ai_settings")}</span>
               </button>
