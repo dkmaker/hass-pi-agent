@@ -332,7 +332,8 @@ export class PiChatApp extends LitElement {
     .sess:hover { background: var(--pi-surface-2); }
     .sess-t { font-size: 14px; font-weight: 500; }
     .sess-w { font-size: 12px; color: var(--pi-text-2); }
-    .drawer-actions { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--pi-divider); }
+    /* AI settings + theme in the drawer are mobile-only; on desktop they live in the top-right header. */
+    .drawer-actions { display: none; flex-direction: column; gap: 4px; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--pi-divider); }
     .action { display: flex; align-items: center; gap: 10px; padding: 9px 14px; border: none; background: transparent; color: var(--pi-text-2); border-radius: 10px; cursor: pointer; font: 500 13px var(--pi-font); text-align: left; width: 100%; }
     .action svg { width: 16px; height: 16px; flex: none; }
     .action:hover { background: var(--pi-surface-2); color: var(--pi-text); }
@@ -421,6 +422,7 @@ export class PiChatApp extends LitElement {
     @media (max-width: 640px) {
       header { display: none; }
       .menu-btn { display: grid; }
+      .drawer-actions { display: flex; }
     }
   `;
 
