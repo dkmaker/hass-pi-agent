@@ -332,6 +332,10 @@ export class PiChatApp extends LitElement {
     .sess:hover { background: var(--pi-surface-2); }
     .sess-t { font-size: 14px; font-weight: 500; }
     .sess-w { font-size: 12px; color: var(--pi-text-2); }
+    .drawer-actions { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--pi-divider); }
+    .action { display: flex; align-items: center; gap: 10px; padding: 9px 14px; border: none; background: transparent; color: var(--pi-text-2); border-radius: 10px; cursor: pointer; font: 500 13px var(--pi-font); text-align: left; width: 100%; }
+    .action svg { width: 16px; height: 16px; flex: none; }
+    .action:hover { background: var(--pi-surface-2); color: var(--pi-text); }
 
     .scroll { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
     /* Anchor messages to the bottom like a normal chat: when the conversation is
@@ -469,17 +473,19 @@ export class PiChatApp extends LitElement {
         ? html`
             <div class="scrim" @click=${() => { this.drawerOpen = false; }}></div>
             <aside class="drawer">
-              <div class="drawer-head">${tr("sessions")}</div>
               <button class="newchat" @click=${() => this.newSession()}>
                 ${icon(mdiPlus, 18)}
                 ${tr("new_chat")}
               </button>
-              <button class="sess" @click=${() => { this.configOpen = true; this.drawerOpen = false; }}>
-                <span class="sess-t">${tr("ai_settings")}</span>
-              </button>
-              <button class="sess" @click=${() => this.cycleTheme()}>
-                <span class="sess-t">${tr("theme")}: ${this.themeMode}</span>
-              </button>
+              <div class="drawer-actions">
+                <button class="action" @click=${() => { this.configOpen = true; this.drawerOpen = false; }}>
+                  ${icon(mdiCog, 16)}<span>${tr("ai_settings")}</span>
+                </button>
+                <button class="action" @click=${() => this.cycleTheme()}>
+                  ${icon(this.themeIcon(), 16)}<span>${tr("theme")}: ${this.themeMode}</span>
+                </button>
+              </div>
+              <div class="drawer-head">${tr("sessions")}</div>
               ${this.sessions.slice(0, this.sessionLimit).map(
                 (s) => html`<button class="sess" @click=${() => this.openSession(s)}>
                   <span class="sess-t">${s.title}</span><span class="sess-w">${s.when}</span>
