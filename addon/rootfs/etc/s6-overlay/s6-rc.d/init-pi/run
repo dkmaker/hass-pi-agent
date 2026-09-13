@@ -41,6 +41,24 @@ printf '%s' "1" > /var/run/s6/container_environment/PI_SKIP_VERSION_CHECK
 # persisted by the engine to /data/engine-agentdir (selection.json + auth.json).
 # No provider/model/key env mapping here — the engine owns that setup now.
 
+# --- Web search (own config section; read by the extension via env) ---
+# Registers the web_search tool only when enabled + keyed.
+ws_enabled=$(bashio::config 'websearch.enabled')
+ws_provider=$(bashio::config 'websearch.provider')
+ws_key=$(bashio::config 'websearch.api_key')
+if bashio::var.true "${ws_enabled}"; then
+    printf '%s' "true" > /var/run/s6/container_environment/WEBSEARCH_ENABLED
+else
+    printf '%s' "false" > /var/run/s6/container_environment/WEBSEARCH_ENABLED
+fi
+if bashio::var.has_value "${ws_provider}"; then
+    printf '%s' "${ws_provider}" > /var/run/s6/container_environment/WEBSEARCH_PROVIDER
+fi
+if bashio::var.has_value "${ws_key}"; then
+    printf '%s' "${ws_key}" > /var/run/s6/container_environment/WEBSEARCH_API_KEY
+fi
+bashio::log.info "Web search: enabled=${ws_enabled} provider=${ws_provider}"
+
 # --- Write-guard (filesystem write allowlist) ---
 write_guard_mode=$(bashio::config 'write_guard')
 if bashio::var.has_value "${write_guard_mode}"; then

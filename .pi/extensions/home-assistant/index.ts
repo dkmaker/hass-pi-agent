@@ -36,6 +36,8 @@ import { registerPoliciesTool } from "./tools/ha-policies.js";
 import { registerMutationsTool } from "./tools/ha-mutations.js";
 import { registerNotesTool } from "./tools/ha-notes.js";
 import { registerYamlTool } from "./tools/ha-yaml.js";
+import { registerWebSearchTool, WEBSEARCH_VALIDATE_PROMPT } from "./tools/ha-websearch.js";
+import { webSearchConfig } from "./lib/websearch-config.js";
 import { readChangelog } from "./lib/mutation-log.js";
 import { policiesExist, loadPolicies, formatPoliciesForPrompt } from "./lib/policies.js";
 import { wsClose } from "./lib/ws.js";
@@ -110,6 +112,9 @@ export default function (pi: ExtensionAPI) {
   registerMutationsTool(pi);
   registerNotesTool(pi);
   registerYamlTool(pi);
+  // Registers only when web search is enabled + keyed (own config section).
+  registerWebSearchTool(pi);
+  const webSearchEnabled = webSearchConfig().enabled;
 
   // /ha-log slash command — show recent mutation changelog
   pi.registerCommand("ha-log", {
@@ -329,6 +334,14 @@ ${addonLines || "No add-ons installed"}${areaLine}`;
           ? appendedPrompt + "\n\n" + policyPrompt
           : policyPrompt;
       }
+    }
+
+    // When web search is enabled, instruct the agent to validate via search
+    // rather than rely on pre-trained knowledge.
+    if (webSearchEnabled) {
+      appendedPrompt = appendedPrompt
+        ? appendedPrompt + "\n\n" + WEBSEARCH_VALIDATE_PROMPT
+        : WEBSEARCH_VALIDATE_PROMPT;
     }
 
     if (appendedPrompt) {
