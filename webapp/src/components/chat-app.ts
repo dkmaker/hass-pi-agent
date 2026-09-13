@@ -290,7 +290,7 @@ export class PiChatApp extends LitElement {
 
   static styles = css`
     * { box-sizing: border-box; }
-    :host { display: flex; flex-direction: column; height: 100dvh; max-width: var(--pi-maxw); margin: 0 auto; }
+    :host { display: flex; flex-direction: column; height: 100dvh; }
     header {
       display: flex; align-items: center; gap: 10px;
       height: var(--pi-header-h, 56px); box-sizing: border-box;
@@ -330,18 +330,22 @@ export class PiChatApp extends LitElement {
        short it sits at the bottom and grows upward; when it overflows the auto
        top-margin collapses and it scrolls normally (no clipping). */
     .scroll > *:first-child { margin-top: auto; }
-    .row { display: flex; }
+    /* Only the message rows are centered + width-capped (header, nav bar and
+       composer stay full width). Bubbles align right/left inside the column. */
+    .row { display: flex; width: 100%; max-width: var(--pi-maxw); margin-inline: auto; }
     .row.user { justify-content: flex-end; }
-    .bubble { max-width: 86%; padding: 10px 14px; border-radius: var(--pi-radius); font-size: 15px; line-height: 1.55; }
+    .bubble { max-width: 90%; padding: 10px 14px; border-radius: var(--pi-radius); font-size: 15px; line-height: 1.55; }
     .user .bubble { background: var(--pi-user-bubble); color: var(--pi-text); border-bottom-right-radius: 6px; }
-    .assistant .bubble { background: var(--pi-surface); border: 1px solid var(--pi-divider); border-bottom-left-radius: 6px; width: 100%; }
+    /* Assistant replies are left-aligned bubbles capped at 90% (not full width).
+       Tool blocks keep the full column width — they render their own card. */
+    .assistant .bubble { background: var(--pi-surface); border: 1px solid var(--pi-divider); border-bottom-left-radius: 6px; }
     .assistant .bubble p:first-child { margin-top: 0; } .assistant .bubble p:last-child { margin-bottom: 0; }
     .bubble :is(pre.code) { background: var(--pi-code-bg); padding: 10px 12px; border-radius: 8px; overflow-x: auto; font: 13px/1.5 var(--pi-mono); }
     .bubble code { font-family: var(--pi-mono); font-size: 0.92em; background: var(--pi-code-bg); padding: 1px 5px; border-radius: 5px; }
     .bubble a { color: var(--pi-primary); }
     .thinking { font-size: 12.5px; color: var(--pi-text-2); font-style: italic; border-left: 3px solid var(--pi-divider); padding-left: 8px; margin-bottom: 8px; white-space: pre-wrap; }
     .notice { align-self: center; font-size: 12px; color: var(--pi-text-2); background: var(--pi-surface-2); padding: 4px 12px; border-radius: 999px; }
-    .working { display: flex; align-items: center; gap: 10px; color: var(--pi-text-2); font-size: 14px; padding-left: 4px; }
+    .working { display: flex; align-items: center; gap: 10px; color: var(--pi-text-2); font-size: 14px; padding-left: 4px; width: 100%; max-width: var(--pi-maxw); margin-inline: auto; }
     md-circular-progress { --md-circular-progress-size: 20px; }
     .thinking-ind { display: inline-flex; align-items: baseline; gap: 1px; padding: 2px 6px; font-size: 13px; color: var(--pi-text-2); font-style: italic; }
     .thinking-ind .dots { display: inline-flex; font-style: normal; }
