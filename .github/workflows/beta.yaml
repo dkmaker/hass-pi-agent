@@ -85,7 +85,7 @@ jobs:
           grep '^image:' addon/config.yaml
 
       - name: Build & push beta add-on image
-        uses: home-assistant/builder@2026.06.0
+        uses: home-assistant/builder@2026.02.1
         with:
           args: |
             --${{ matrix.arch }} \
