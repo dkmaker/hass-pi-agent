@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0-beta.5](https://github.com/dkmaker/hass-pi-agent/compare/v1.1.0-beta.4...v1.1.0-beta.5) (2026-09-13)
+
+
+### Bug Fixes
+
+* drawer — show AI settings & theme as controls, not chat rows ([df8733e](https://github.com/dkmaker/hass-pi-agent/commit/df8733e3c2ea607fb34a1ca77ba5aa40707cc670))
+
 ## [1.1.0-beta.4](https://github.com/dkmaker/hass-pi-agent/compare/v1.1.0-beta.3...v1.1.0-beta.4) (2026-09-13)
 
 
