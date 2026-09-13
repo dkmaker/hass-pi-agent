@@ -545,6 +545,14 @@ wss.on("connection", (ws) => {
   sendTo({ type: "websearch_status", data: websearchStatus() });
   void fetchStats().then((s) => { if (s) sendTo({ type: "stats", data: s }); });
   void listSessions().then((s) => sendTo({ type: "sessions", data: s }));
+  // DMDQW: restore the open session on (re)connect so a page reload keeps the same
+  // chat instead of dropping to a blank new chat. historyEntries() is [] for a fresh
+  // session, which the frontend renders as the normal empty/welcome state.
+  if (session) {
+    sendTo({ type: "history", data: historyEntries() });
+    const title = currentSm?.getSessionName?.();
+    if (title) sendTo({ type: "session_title", title });
+  }
   ws.on("message", (raw) => {
     let cmd: { type?: string; text?: string; path?: string; provider?: string; model?: string; apiKey?: string };
     try { cmd = JSON.parse(String(raw)); } catch { return; }
