@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.1.0-beta.2](https://github.com/dkmaker/hass-pi-agent/compare/v1.1.0-beta.1...v1.1.0-beta.2) (2026-09-13)
+
+
+### Features
+
+* configure web search in-app (mirror the AI provider flow) ([3566003](https://github.com/dkmaker/hass-pi-agent/commit/35660039f45ad074a59cf22808fbd1799b45b565))
+
+
+### Bug Fixes
+
+* websearch validation test call needs max_tokens&gt;=16 (Perplexity) ([9e4c342](https://github.com/dkmaker/hass-pi-agent/commit/9e4c342b7bcbdd72574bdeffbe670c3e82ceb16a))
+
 ## [1.1.0-beta.1](https://github.com/dkmaker/hass-pi-agent/compare/v1.1.0-beta...v1.1.0-beta.1) (2026-09-13)
 
 
