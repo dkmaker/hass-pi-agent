@@ -82,7 +82,16 @@ Find the matching frontend tag with: `gh api repos/home-assistant/core/contents/
 
 **Two release-please tracks:** `beta` cuts prereleases (`1.1.0-beta.X`) via `release-please-config-beta.json` + `.release-please-manifest-beta.json`; `main` cuts stable (`X.Y.Z`) via the stable config/manifest. They use separate tags (`v*-beta.X` vs `v*`) and separate changelog files (`addon-beta/CHANGELOG.md` vs `CHANGELOG.md`), so they never collide.
 
-**Stable = merge `beta → main`:** at stable-release time, merge beta into main in one PR. Main's stable release-please then computes the version bump + changelog from the `feat:`/`fix:` commits and opens/updates its release PR. This works cleanly *because every commit is labelled by its true Conventional-Commit type* (see below).
+**Promote by MERGING, never cherry-pick.** This is the canonical release-please flow (confirmed: googleapis/release-please#2515 + docs/customizing.md): release-please computes versions purely from the commit history present on the branch it runs on. A feature authored once on `beta` therefore flows to stable by a plain `git merge beta → main` — main's release-please then sees those commits “as if developed directly on main” and computes the stable bump. NEVER cherry-pick a commit onto both branches (that is the double-work trap): author it once on `beta`, merge to promote.
+
+**Stable release steps:**
+1. `git merge beta → main` (one PR). Main's stable release-please computes the bump + changelog from the merged `feat:`/`fix:` commits and opens/updates its release PR.
+2. Merge that stable release PR → stable tag `vX.Y.Z` + GHCR images + `addon/config.yaml` bump.
+3. **Back-merge `main → beta`** afterwards so beta continues from the new stable baseline (main now carries the `chore(main): release` commit + stable manifest bump that beta lacks). Standard release-branch hygiene, not double work.
+
+**Graduation version:** release-please has no native “re-tag `1.1.0-beta.3` as `1.1.0`” (issue #2515). It simply computes the next stable from `feat:`/`fix:` since the last *stable* tag — post-1.0.0 that means feats → minor (`1.0.1 → 1.1.0`). To force an exact number, land a `Release-As: X.Y.Z` commit on main. Beta prerelease tags (`v*-beta.N`) never collide with stable tags (`v*`).
+
+All of the above works cleanly *only because every commit is labelled by its true Conventional-Commit type* (see below).
 
 **Commit-message rule (load-bearing for clean beta→main):** every commit MUST state what the change actually is with its correct Conventional-Commit type + scope (`feat:`, `fix:`, `docs:`, `refactor:`, `chore:`, …). Never mislabel a change to influence release-please, and never dump real changes under a generic `chore`. Honest typing is what lets features flow straight over on beta→main and keeps both changelogs correct.
 
