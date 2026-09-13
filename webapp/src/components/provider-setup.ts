@@ -17,6 +17,9 @@ const L: Record<Lang, Dict> = {
     key_ph: "Paste the provider's API key", key_hint: "Stored securely in the add-on. Leave blank to keep the existing key.",
     save: "Save & test", testing: "Testing the connection…", loading: "Loading providers…",
     ok: "Connection works — saved.", need_fields: "Pick a provider and model first.",
+    ws_title: "Web search (optional)", ws_provider: "Search provider", ws_key: "API key",
+    ws_key_ph: "Paste the search provider's API key", ws_hint: "When it validates, the agent gets a web_search tool and is told to check facts online instead of guessing.",
+    ws_save: "Save & test", ws_disable: "Disable", ws_on: "Active", ws_off: "Off",
   },
   da: {
     welcome: "Velkommen til Pi Agent", welcome_sub: "Vælg en AI-udbyder og model, og indsæt API-nøglen. Pi tjekker at den virker før den gemmer — du kan chatte så snart det lykkes.",
@@ -25,6 +28,9 @@ const L: Record<Lang, Dict> = {
     key_ph: "Indsæt udbyderens API-nøgle", key_hint: "Gemmes sikkert i add-on'en. Lad stå tom for at beholde den nuværende nøgle.",
     save: "Gem & test", testing: "Tester forbindelsen…", loading: "Henter udbydere…",
     ok: "Forbindelsen virker — gemt.", need_fields: "Vælg udbyder og model først.",
+    ws_title: "Websøgning (valgfri)", ws_provider: "Søge-udbyder", ws_key: "API-nøgle",
+    ws_key_ph: "Indsæt søge-udbyderens API-nøgle", ws_hint: "Når den validerer, får agenten et web_search-værktøj og bliver bedt om at tjekke fakta online i stedet for at gætte.",
+    ws_save: "Gem & test", ws_disable: "Slå fra", ws_on: "Aktiv", ws_off: "Fra",
   },
   no: {
     welcome: "Velkommen til Pi Agent", welcome_sub: "Velg en AI-leverandør og modell, og lim inn API-nøkkelen. Pi sjekker at den virker før den lagrer — du kan chatte så snart det lykkes.",
@@ -70,6 +76,13 @@ export class PiProviderSetup extends LitElement {
   @state() private apiKey = "";
   @state() private requested = false;
 
+  /** Web search config status + save state (from chat-app over WS). */
+  @property({ attribute: false }) websearch: { enabled: boolean; provider: string; providers: string[] } = { enabled: false, provider: "perplexity", providers: [] };
+  @property({ type: Boolean }) wsBusy = false;
+  @property() wsError = "";
+  @state() private wsProvider = "";
+  @state() private wsKey = "";
+
   updated(changed: Map<string, unknown>): void {
     if (changed.has("open")) {
       if (this.open) {
@@ -77,8 +90,9 @@ export class PiProviderSetup extends LitElement {
         if (!this.requested) { this.dispatchEvent(new CustomEvent("request-providers")); this.requested = true; }
         if (this.initialProvider && !this.provider) this.provider = this.initialProvider;
         if (this.initialModel && !this.model) this.model = this.initialModel;
+        if (!this.wsProvider) this.wsProvider = this.websearch.provider || "perplexity";
       } else {
-        this.apiKey = ""; this.requested = false; // reset for next open
+        this.apiKey = ""; this.wsKey = ""; this.requested = false; // reset for next open
       }
     }
     if ((changed.has("initialProvider") || changed.has("initialModel")) && this.open) {
@@ -94,6 +108,15 @@ export class PiProviderSetup extends LitElement {
   private save(): void {
     if (!this.provider || !this.model || this.busy) return;
     this.dispatchEvent(new CustomEvent("save-config", { detail: { provider: this.provider, model: this.model, apiKey: this.apiKey } }));
+  }
+
+  private saveWs(): void {
+    if (!this.wsProvider || this.wsBusy) return;
+    this.dispatchEvent(new CustomEvent("save-websearch", { detail: { provider: this.wsProvider, apiKey: this.wsKey } }));
+  }
+  private disableWs(): void { if (!this.wsBusy) this.dispatchEvent(new CustomEvent("disable-websearch")); }
+  private wsLabel(id: string): string {
+    return id === "brave" ? "Brave Search" : id === "perplexity_openrouter" ? "Perplexity via OpenRouter" : "Perplexity (API)";
   }
 
   private close(): void { if (this.mustConfigure) return; this.dispatchEvent(new CustomEvent("setup-close")); }
@@ -140,6 +163,12 @@ export class PiProviderSetup extends LitElement {
     md-circular-progress { --md-circular-progress-size: 18px; }
     .spin { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff; border-radius: 50%; animation: sp 0.7s linear infinite; }
     @keyframes sp { to { transform: rotate(360deg); } }
+    .ws-sep { border-top: 1px solid var(--pi-divider); margin: 20px 0 12px; }
+    .ws-head { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 15px; }
+    .ws-status { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--pi-surface-2); color: var(--pi-text-2); }
+    .ws-status.on { background: color-mix(in srgb, var(--pi-ok) 18%, transparent); color: var(--pi-ok); }
+    .ws-actions { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
+    .ws-actions .spacer { flex: 1; }
   `;
 
   render() {
@@ -191,6 +220,32 @@ export class PiProviderSetup extends LitElement {
               : this.busy
                 ? html`<div class="msg">${icon(mdiCheckCircle, 18)}<span>${tl("testing")}</span></div>`
                 : nothing}
+
+            ${!this.mustConfigure ? html`
+              <div class="ws-sep"></div>
+              <div class="ws-head">${tl("ws_title")}
+                <span class="ws-status ${this.websearch.enabled ? "on" : ""}">${this.websearch.enabled ? tl("ws_on") : tl("ws_off")}</span></div>
+              <label class="field">
+                <span class="lbl">${tl("ws_provider")}</span>
+                <select .value=${this.wsProvider} @change=${(e: Event) => { this.wsProvider = (e.target as HTMLSelectElement).value; }}>
+                  ${(this.websearch.providers.length ? this.websearch.providers : ["perplexity", "perplexity_openrouter", "brave"]).map((pp) => html`<option value=${pp} ?selected=${this.wsProvider === pp}>${this.wsLabel(pp)}</option>`)}
+                </select>
+              </label>
+              <label class="field">
+                <span class="lbl">${tl("ws_key")}</span>
+                <div class="key-wrap">${icon(mdiKeyVariant, 18)}
+                  <input type="password" autocomplete="off" spellcheck="false" placeholder=${tl("ws_key_ph")}
+                    .value=${this.wsKey} @input=${(e: Event) => { this.wsKey = (e.target as HTMLInputElement).value; }} /></div>
+                <div class="hint">${tl("ws_hint")}</div>
+              </label>
+              ${this.wsError ? html`<div class="msg err">${icon(mdiAlertCircleOutline, 18)}<span>${this.wsError}</span></div>` : nothing}
+              <div class="ws-actions">
+                ${this.websearch.enabled ? html`<button class="btn" ?disabled=${this.wsBusy} @click=${() => this.disableWs()}>${tl("ws_disable")}</button>` : nothing}
+                <span class="spacer"></span>
+                <button class="btn primary" ?disabled=${this.wsBusy || !this.wsProvider} @click=${() => this.saveWs()}>
+                  ${this.wsBusy ? html`<span class="spin"></span>` : nothing}${this.wsBusy ? tl("testing") : tl("ws_save")}
+                </button>
+              </div>` : nothing}
           </div>
           <div class="foot">
             <span class="spacer"></span>

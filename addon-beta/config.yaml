@@ -1,3 +1,7 @@
+# The options/schema/map/api-flag surface below MUST mirror ../addon/config.yaml
+# (only name/slug/image/version/description/panel_title differ). If they drift,
+# the beta add-on won't expose new config options. CI enforces this — see
+# dev-scripts/check-beta-config.py.
 name: Pi Agent for Home Assistant (Beta)
 version: 1.1.0-beta.1
 slug: pi_agent_beta
@@ -31,6 +35,10 @@ options:
     provider: ''
     model: ''
     api_key: ''
+  websearch:
+    enabled: false
+    provider: perplexity
+    api_key: ''
   install_integration: true
   additional_packages: []
   write_guard: strict
@@ -39,6 +47,10 @@ schema:
   ai:
     provider: str?
     model: str?
+    api_key: password?
+  websearch:
+    enabled: bool?
+    provider: list(perplexity|perplexity_openrouter|brave)?
     api_key: password?
   install_integration: bool?
   additional_packages:

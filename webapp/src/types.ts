@@ -63,7 +63,12 @@ export type ServerEvent =
   | { type: "config_status"; data: { configured: boolean; provider?: string; model?: string } }
   | { type: "providers"; data: ProviderInfo[] }
   | { type: "config_result"; data: { ok: boolean; error?: string } }
+  | { type: "websearch_status"; data: WebsearchStatus }
+  | { type: "websearch_result"; data: { ok: boolean; error?: string } }
   | { type: "aborted" };
+
+/** Web search config status (in-app setup). */
+export interface WebsearchStatus { enabled: boolean; provider: string; providers: string[]; }
 
 /** AI provider + its selectable models (in-app setup). */
 export interface ProviderInfo { id: string; name: string; models: Array<{ id: string; name: string }>; }
@@ -76,7 +81,9 @@ export type ClientCommand =
   | { type: "new_session" }
   | { type: "open_session"; path: string }
   | { type: "list_providers" }
-  | { type: "save_config"; provider: string; model: string; apiKey: string };
+  | { type: "save_config"; provider: string; model: string; apiKey: string }
+  | { type: "save_websearch"; provider: string; apiKey: string }
+  | { type: "disable_websearch" };
 
 /** Timeline model (client-side). */
 export type Entry =
