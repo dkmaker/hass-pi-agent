@@ -24,10 +24,11 @@ configuration:
   websearch:
     name: Web search
     description: >-
-      Optional live web search for the agent — its own section. When enabled,
-      the agent gets a web_search tool and is instructed to validate facts
-      online instead of relying on pre-trained knowledge. When disabled, no web
-      search tool is registered at all.
+      Web search for the agent, configured inside the Pi Agent panel (the ⚙️
+      settings button): pick a provider and paste its API key — the app runs a
+      live test before enabling, then the web_search tool appears automatically.
+      Managed by the app; only edit these by hand as a fallback (manual changes
+      aren't validated and take effect on the next restart).
     fields:
       enabled:
         name: Enable web search

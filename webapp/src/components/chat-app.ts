@@ -66,6 +66,9 @@ export class PiChatApp extends LitElement {
   @state() private configModel = "";
   @state() private configBusy = false;
   @state() private configError = "";
+  @state() private websearch: import("../types.js").WebsearchStatus = { enabled: false, provider: "perplexity", providers: [] };
+  @state() private wsBusy = false;
+  @state() private wsError = "";
   @state() private stats?: StatsOverview;
   @state() private sessions: SessionMeta[] = [];
   @state() private sessionLimit = 12;
@@ -179,6 +182,11 @@ export class PiChatApp extends LitElement {
         if (ev.data.ok) { this.configOpen = false; this.configError = ""; }
         else this.configError = ev.data.error || "error";
         break;
+      case "websearch_status": this.websearch = ev.data; break;
+      case "websearch_result":
+        this.wsBusy = false;
+        this.wsError = ev.data.ok ? "" : (ev.data.error || "error");
+        break;
       case "sessions": this.sessions = ev.data; break;
       case "session_title": this.sessionTitle = ev.title; this.wsSend({ type: "list_sessions" }); break;
       case "session_cleared": this.entries = []; this.sessionTitle = tr("new_chat"); this.busy = false; this.working = ""; this.bump(); break;
@@ -290,7 +298,7 @@ export class PiChatApp extends LitElement {
 
   static styles = css`
     * { box-sizing: border-box; }
-    :host { display: flex; flex-direction: column; height: 100dvh; max-width: var(--pi-maxw); margin: 0 auto; }
+    :host { display: flex; flex-direction: column; height: 100dvh; }
     header {
       display: flex; align-items: center; gap: 10px;
       height: var(--pi-header-h, 56px); box-sizing: border-box;
@@ -324,24 +332,33 @@ export class PiChatApp extends LitElement {
     .sess:hover { background: var(--pi-surface-2); }
     .sess-t { font-size: 14px; font-weight: 500; }
     .sess-w { font-size: 12px; color: var(--pi-text-2); }
+    /* AI settings + theme in the drawer are mobile-only; on desktop they live in the top-right header. */
+    .drawer-actions { display: none; flex-direction: column; gap: 4px; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--pi-divider); }
+    .action { display: flex; align-items: center; gap: 10px; padding: 9px 14px; border: none; background: transparent; color: var(--pi-text-2); border-radius: 10px; cursor: pointer; font: 500 13px var(--pi-font); text-align: left; width: 100%; }
+    .action svg { width: 16px; height: 16px; flex: none; }
+    .action:hover { background: var(--pi-surface-2); color: var(--pi-text); }
 
     .scroll { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
     /* Anchor messages to the bottom like a normal chat: when the conversation is
        short it sits at the bottom and grows upward; when it overflows the auto
        top-margin collapses and it scrolls normally (no clipping). */
     .scroll > *:first-child { margin-top: auto; }
-    .row { display: flex; }
+    /* Only the message rows are centered + width-capped (header, nav bar and
+       composer stay full width). Bubbles align right/left inside the column. */
+    .row { display: flex; width: 100%; max-width: var(--pi-maxw); margin-inline: auto; }
     .row.user { justify-content: flex-end; }
-    .bubble { max-width: 86%; padding: 10px 14px; border-radius: var(--pi-radius); font-size: 15px; line-height: 1.55; }
+    .bubble { max-width: 90%; padding: 10px 14px; border-radius: var(--pi-radius); font-size: 15px; line-height: 1.55; }
     .user .bubble { background: var(--pi-user-bubble); color: var(--pi-text); border-bottom-right-radius: 6px; }
-    .assistant .bubble { background: var(--pi-surface); border: 1px solid var(--pi-divider); border-bottom-left-radius: 6px; width: 100%; }
+    /* Assistant replies are left-aligned bubbles capped at 90% (not full width).
+       Tool blocks keep the full column width — they render their own card. */
+    .assistant .bubble { background: var(--pi-surface); border: 1px solid var(--pi-divider); border-bottom-left-radius: 6px; }
     .assistant .bubble p:first-child { margin-top: 0; } .assistant .bubble p:last-child { margin-bottom: 0; }
     .bubble :is(pre.code) { background: var(--pi-code-bg); padding: 10px 12px; border-radius: 8px; overflow-x: auto; font: 13px/1.5 var(--pi-mono); }
     .bubble code { font-family: var(--pi-mono); font-size: 0.92em; background: var(--pi-code-bg); padding: 1px 5px; border-radius: 5px; }
     .bubble a { color: var(--pi-primary); }
     .thinking { font-size: 12.5px; color: var(--pi-text-2); font-style: italic; border-left: 3px solid var(--pi-divider); padding-left: 8px; margin-bottom: 8px; white-space: pre-wrap; }
     .notice { align-self: center; font-size: 12px; color: var(--pi-text-2); background: var(--pi-surface-2); padding: 4px 12px; border-radius: 999px; }
-    .working { display: flex; align-items: center; gap: 10px; color: var(--pi-text-2); font-size: 14px; padding-left: 4px; }
+    .working { display: flex; align-items: center; gap: 10px; color: var(--pi-text-2); font-size: 14px; padding-left: 4px; width: 100%; max-width: var(--pi-maxw); margin-inline: auto; }
     md-circular-progress { --md-circular-progress-size: 20px; }
     .thinking-ind { display: inline-flex; align-items: baseline; gap: 1px; padding: 2px 6px; font-size: 13px; color: var(--pi-text-2); font-style: italic; }
     .thinking-ind .dots { display: inline-flex; font-style: normal; }
@@ -399,6 +416,14 @@ export class PiChatApp extends LitElement {
     .sendbtn.stop { background: var(--pi-danger); }
     .sendbtn:disabled { opacity: 0.4; cursor: default; }
     .sendbtn svg { width: 20px; height: 20px; fill: currentColor; }
+    /* Bottom-left menu button — mobile only (the top header is hidden there). */
+    .menu-btn { display: none; flex: 0 0 auto; width: 44px; height: 44px; border-radius: 50%; border: none; cursor: pointer; place-items: center; background: var(--pi-surface-2); color: var(--pi-text); }
+    .menu-btn svg { width: 22px; height: 22px; }
+    @media (max-width: 640px) {
+      header { display: none; }
+      .menu-btn { display: grid; }
+      .drawer-actions { display: flex; }
+    }
   `;
 
   private statCard(path: string, n: number, label: string) {
@@ -436,8 +461,13 @@ export class PiChatApp extends LitElement {
         .initialModel=${this.configModel}
         .busy=${this.configBusy}
         .error=${this.configError}
+        .websearch=${this.websearch}
+        .wsBusy=${this.wsBusy}
+        .wsError=${this.wsError}
         @request-providers=${() => this.wsSend({ type: "list_providers" })}
         @save-config=${(e: CustomEvent) => { this.configBusy = true; this.configError = ""; this.wsSend({ type: "save_config", ...e.detail }); }}
+        @save-websearch=${(e: CustomEvent) => { this.wsBusy = true; this.wsError = ""; this.wsSend({ type: "save_websearch", ...e.detail }); }}
+        @disable-websearch=${() => { this.wsBusy = true; this.wsError = ""; this.wsSend({ type: "disable_websearch" }); }}
         @setup-close=${() => { this.configOpen = false; this.configError = ""; }}
       ></pi-provider-setup>
 
@@ -445,14 +475,19 @@ export class PiChatApp extends LitElement {
         ? html`
             <div class="scrim" @click=${() => { this.drawerOpen = false; }}></div>
             <aside class="drawer">
-              <div class="drawer-head">${tr("sessions")}</div>
               <button class="newchat" @click=${() => this.newSession()}>
                 ${icon(mdiPlus, 18)}
                 ${tr("new_chat")}
               </button>
-              <button class="sess" @click=${() => { this.policyOpen = true; this.drawerOpen = false; }}>
-                <span class="sess-t">${tr("setup_conventions")}</span><span class="sess-w">${tr("setup_wizard_sub")}</span>
-              </button>
+              <div class="drawer-actions">
+                <button class="action" @click=${() => { this.configOpen = true; this.drawerOpen = false; }}>
+                  ${icon(mdiCog, 16)}<span>${tr("ai_settings")}</span>
+                </button>
+                <button class="action" @click=${() => this.cycleTheme()}>
+                  ${icon(this.themeIcon(), 16)}<span>${tr("theme")}: ${this.themeMode}</span>
+                </button>
+              </div>
+              <div class="drawer-head">${tr("sessions")}</div>
               ${this.sessions.slice(0, this.sessionLimit).map(
                 (s) => html`<button class="sess" @click=${() => this.openSession(s)}>
                   <span class="sess-t">${s.title}</span><span class="sess-w">${s.when}</span>
@@ -531,6 +566,7 @@ export class PiChatApp extends LitElement {
         : nothing}
 
       <div class="composer">
+        <button class="menu-btn" @click=${() => this.openDrawer()} title="${tr("sessions")}" aria-label="${tr("sessions")}">${icon(mdiMenu, 22)}</button>
         <textarea
           rows="1"
           placeholder="${tr("composer_placeholder")}"
