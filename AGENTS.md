@@ -75,7 +75,7 @@ Find the matching frontend tag with: `gh api repos/home-assistant/core/contents/
 - Alpine Linux base image; VM has no `rsync` (use `scp`)
 - `ha store reload` (not `ha addons reload`) for local add-on changes
 - Local add-ons get `local_` prefix in Supervisor slug
-- **Add-on image builds are fast — ≤2 min per arch** (amd64 measured at 1.4 min). A build running **longer than ~5 min is hung/broken, not slow** — cancel and rebuild immediately; never wait 30-60 min for it. The `home-assistant/builder@master` action (deprecated, tracked in issue #H5U58) is the flaky part and has hung the aarch64 leg for ~50 min; when a build stalls, suspect the runner/builder, not "emulated aarch64 is just slow."
+- **Add-on image build times:** native amd64 is ~1-2 min; aarch64 is built **emulated (QEMU) on an amd64 runner** so it is legitimately slower (~5-12 min). **Under ~15 min is fine; ~30 min means it is hung/broken** — cancel and rebuild. The real tell of a zombie build is **corrupt/frozen timestamps + no step progression** (as in the beta.4 aarch64 hang: ~50 min, `startedAt` missing), NOT wall-clock alone. Pinned to `home-assistant/builder@2026.02.1` (the last action tag whose `{arch}-builder` image actually exists; deprecated — migration + native-ARM-runner + pre-flight image check tracked in issue #H5U58).
 
 ## Release & Branching Workflow
 
