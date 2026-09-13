@@ -507,7 +507,7 @@ async function validateWebsearch(provider: string, key: string): Promise<{ ok: b
     }
     const endpoint = provider === "perplexity_openrouter" ? "https://openrouter.ai/api/v1/chat/completions" : "https://api.perplexity.ai/chat/completions";
     const m = provider === "perplexity_openrouter" ? "perplexity/sonar" : "sonar";
-    const r = await fetch(endpoint, { method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" }, body: JSON.stringify({ model: m, messages: [{ role: "user", content: "ping" }], max_tokens: 1 }) });
+    const r = await fetch(endpoint, { method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" }, body: JSON.stringify({ model: m, messages: [{ role: "user", content: "ping" }], max_tokens: 16 }) });
     if (r.ok) return { ok: true };
     const t = await r.text().catch(() => "");
     return { ok: false, error: `HTTP ${r.status} ${t.slice(0, 140)}` };
