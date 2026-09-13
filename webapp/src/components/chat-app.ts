@@ -411,6 +411,13 @@ export class PiChatApp extends LitElement {
     .sendbtn.stop { background: var(--pi-danger); }
     .sendbtn:disabled { opacity: 0.4; cursor: default; }
     .sendbtn svg { width: 20px; height: 20px; fill: currentColor; }
+    /* Bottom-left menu button — mobile only (the top header is hidden there). */
+    .menu-btn { display: none; flex: 0 0 auto; width: 44px; height: 44px; border-radius: 50%; border: none; cursor: pointer; place-items: center; background: var(--pi-surface-2); color: var(--pi-text); }
+    .menu-btn svg { width: 22px; height: 22px; }
+    @media (max-width: 640px) {
+      header { display: none; }
+      .menu-btn { display: grid; }
+    }
   `;
 
   private statCard(path: string, n: number, label: string) {
@@ -469,6 +476,12 @@ export class PiChatApp extends LitElement {
               </button>
               <button class="sess" @click=${() => { this.policyOpen = true; this.drawerOpen = false; }}>
                 <span class="sess-t">${tr("setup_conventions")}</span><span class="sess-w">${tr("setup_wizard_sub")}</span>
+              </button>
+              <button class="sess" @click=${() => { this.configOpen = true; this.drawerOpen = false; }}>
+                <span class="sess-t">${tr("ai_settings")}</span>
+              </button>
+              <button class="sess" @click=${() => this.cycleTheme()}>
+                <span class="sess-t">${tr("theme")}: ${this.themeMode}</span>
               </button>
               ${this.sessions.slice(0, this.sessionLimit).map(
                 (s) => html`<button class="sess" @click=${() => this.openSession(s)}>
@@ -548,6 +561,7 @@ export class PiChatApp extends LitElement {
         : nothing}
 
       <div class="composer">
+        <button class="menu-btn" @click=${() => this.openDrawer()} title="${tr("sessions")}" aria-label="${tr("sessions")}">${icon(mdiMenu, 22)}</button>
         <textarea
           rows="1"
           placeholder="${tr("composer_placeholder")}"
