@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0-beta.8](https://github.com/dkmaker/hass-pi-agent/compare/v1.1.0-beta.7...v1.1.0-beta.8) (2026-09-13)
+
+
+### Features
+
+* scope chat sessions per HA user (privacy) with parallel per-user sessions ([b5570b4](https://github.com/dkmaker/hass-pi-agent/commit/b5570b403015622dcb389717d32ba47140eba8c6))
+
 ## [1.1.0-beta.7](https://github.com/dkmaker/hass-pi-agent/compare/v1.1.0-beta.6...v1.1.0-beta.7) (2026-09-13)
 
 
