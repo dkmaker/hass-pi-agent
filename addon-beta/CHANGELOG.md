@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0-beta.1](https://github.com/dkmaker/hass-pi-agent/compare/v1.1.0-beta...v1.1.0-beta.1) (2026-09-13)
+
+
+### Features
+
+* add an optional web_search tool for the agent ([1b637ae](https://github.com/dkmaker/hass-pi-agent/commit/1b637ae9781420f9d22c97cb804930bd64b95900))
+
 ## [1.1.0-beta](https://github.com/dkmaker/hass-pi-agent/compare/v1.0.1...v1.1.0-beta) (2026-09-12)
 
 
