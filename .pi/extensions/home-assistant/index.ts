@@ -368,6 +368,17 @@ ${addonLines || "No add-ons installed"}${areaLine}`;
   // (scratch dir + configuration.yaml + its !includes + allowlisted globs).
   // Pragmatic guardrail, not a sandbox; custom ha_* tools are never gated here.
   pi.on("tool_call", async (event) => {
+    // EFEAR: enforce a bash timeout — default 60s, hard cap 600s. pi's own bash cap
+    // is effectively unbounded (~24 days) and it has no default, so a command with no
+    // timeout runs forever. Mutating event.input in place is honored: the agent loop
+    // passes validatedArgs by reference to this hook and then executes the tool with
+    // that same object (pi-agent-core agent-loop.js).
+    if (event.toolName === "bash") {
+      const input = event.input as { timeout?: number };
+      const t = typeof input.timeout === "number" && Number.isFinite(input.timeout) && input.timeout > 0 ? input.timeout : 60;
+      input.timeout = Math.min(t, 600);
+    }
+
     const mode = getMode();
     if (mode === "off") return;
 
