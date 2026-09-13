@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.0-beta.3](https://github.com/dkmaker/hass-pi-agent/compare/v1.1.0-beta.2...v1.1.0-beta.3) (2026-09-13)
+
+
+### Features
+
+* center only the chat messages in a 900px column ([3a4f052](https://github.com/dkmaker/hass-pi-agent/commit/3a4f05254c96b316d680b2336ec3aa5ee5838880))
+* mobile — hide the top header, move the menu to a bottom-left burger ([479a61d](https://github.com/dkmaker/hass-pi-agent/commit/479a61de9acfa73d6e1d3152e0977f119457f44a))
+
 ## [1.1.0-beta.2](https://github.com/dkmaker/hass-pi-agent/compare/v1.1.0-beta.1...v1.1.0-beta.2) (2026-09-13)
 
 
