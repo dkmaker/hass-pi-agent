@@ -1,5 +1,74 @@
 # Changelog
 
+## [1.1.0](https://github.com/dkmaker/hass-pi-agent/compare/v1.0.1...v1.1.0) (2026-09-13)
+
+
+### Features
+
+* add a beta pre-release add-on channel ([#52](https://github.com/dkmaker/hass-pi-agent/issues/52)) ([66bbef4](https://github.com/dkmaker/hass-pi-agent/commit/66bbef4f3885ea69c7daafe3e434866810a41170))
+* add an optional web_search tool for the agent ([1b637ae](https://github.com/dkmaker/hass-pi-agent/commit/1b637ae9781420f9d22c97cb804930bd64b95900))
+* add an optional web_search tool for the agent ([#56](https://github.com/dkmaker/hass-pi-agent/issues/56)) ([bc8a1ae](https://github.com/dkmaker/hass-pi-agent/commit/bc8a1ae6cf94d2b853befc04429a2313852121ee))
+* center only the chat messages in a 900px column ([3a4f052](https://github.com/dkmaker/hass-pi-agent/commit/3a4f05254c96b316d680b2336ec3aa5ee5838880))
+* configure web search in-app (mirror the AI provider flow) ([3566003](https://github.com/dkmaker/hass-pi-agent/commit/35660039f45ad074a59cf22808fbd1799b45b565))
+* drive the beta channel with release-please (pre-release versioning) ([#53](https://github.com/dkmaker/hass-pi-agent/issues/53)) ([f937e16](https://github.com/dkmaker/hass-pi-agent/commit/f937e16fe7f83c521b9919d9fe21f1dc6bf47c58))
+* mobile — hide the top header, move the menu to a bottom-left burger ([479a61d](https://github.com/dkmaker/hass-pi-agent/commit/479a61de9acfa73d6e1d3152e0977f119457f44a))
+* scope chat sessions per HA user (privacy) with parallel per-user sessions ([b5570b4](https://github.com/dkmaker/hass-pi-agent/commit/b5570b403015622dcb389717d32ba47140eba8c6))
+
+
+### Bug Fixes
+
+* drawer — show AI settings & theme as controls, not chat rows ([df8733e](https://github.com/dkmaker/hass-pi-agent/commit/df8733e3c2ea607fb34a1ca77ba5aa40707cc670))
+* enforce a bash timeout — default 60s, hard cap 600s ([0474102](https://github.com/dkmaker/hass-pi-agent/commit/047410211a5792dcad338f2c96c6c74d450c7062))
+* frame the HA agent as an assistant, not a developer ([819dc15](https://github.com/dkmaker/hass-pi-agent/commit/819dc1505759a187809063a9e9bbe3b81eccdfde))
+* keep the HA agent in scope — don't make changes unprompted ([9f07fb4](https://github.com/dkmaker/hass-pi-agent/commit/9f07fb4201e5c0eb6a72b4c1726265cde4f0d5d3))
+* remove the unused Set up conventions row from chat history ([c9e7944](https://github.com/dkmaker/hass-pi-agent/commit/c9e794479e1c889ca2409ac0985a0c1e5d2360e4))
+* restore the open session on reconnect ([719219c](https://github.com/dkmaker/hass-pi-agent/commit/719219cd35d45f4515b5bde2498c8a5a8f6fdfd7))
+* **webapp:** show drawer AI/theme actions on mobile only ([84538d9](https://github.com/dkmaker/hass-pi-agent/commit/84538d9d54cac6838d6cdc11607f2a36698660df))
+* websearch validation test call needs max_tokens&gt;=16 (Perplexity) ([9e4c342](https://github.com/dkmaker/hass-pi-agent/commit/9e4c342b7bcbdd72574bdeffbe670c3e82ceb16a))
+
+
+### Chores
+
+* **beta:** release 1.1.0-beta ([67e1926](https://github.com/dkmaker/hass-pi-agent/commit/67e1926b09506de1af5228e8bcb7f7ff2887e420))
+* **beta:** release 1.1.0-beta ([86f241f](https://github.com/dkmaker/hass-pi-agent/commit/86f241fe25de125672952e8f5fd8d18f96086d52))
+* **beta:** release 1.1.0-beta.1 ([30b08c1](https://github.com/dkmaker/hass-pi-agent/commit/30b08c172dcec776355a2a0ecd7f612a2249a6c1))
+* **beta:** release 1.1.0-beta.1 ([b757623](https://github.com/dkmaker/hass-pi-agent/commit/b7576233141bd99ae664eb6e7abd8bd08ec10ec2))
+* **beta:** release 1.1.0-beta.10 ([16c50f1](https://github.com/dkmaker/hass-pi-agent/commit/16c50f1194b049ee4f78944f4c52b608a3783794))
+* **beta:** release 1.1.0-beta.10 ([75695ca](https://github.com/dkmaker/hass-pi-agent/commit/75695caf16c533151c8794e0f5af2fb4c5e72b2c))
+* **beta:** release 1.1.0-beta.2 ([6177438](https://github.com/dkmaker/hass-pi-agent/commit/6177438f05b759353afd21ba424b1444da32492a))
+* **beta:** release 1.1.0-beta.2 ([a56cdb7](https://github.com/dkmaker/hass-pi-agent/commit/a56cdb7e439ba41942c1651d4e32b543d25ebad4))
+* **beta:** release 1.1.0-beta.3 ([7240278](https://github.com/dkmaker/hass-pi-agent/commit/7240278bd407b831defb08f440da9900b694ad7b))
+* **beta:** release 1.1.0-beta.3 ([158af45](https://github.com/dkmaker/hass-pi-agent/commit/158af45a762438839d05afa37fefb856659dfca6))
+* **beta:** release 1.1.0-beta.4 ([69c15cf](https://github.com/dkmaker/hass-pi-agent/commit/69c15cf7aa5de47b826a7e05bd9a888facc48f40))
+* **beta:** release 1.1.0-beta.4 ([bb70232](https://github.com/dkmaker/hass-pi-agent/commit/bb70232802c195179e5ba137658043a867e5ae47))
+* **beta:** release 1.1.0-beta.5 ([be101f5](https://github.com/dkmaker/hass-pi-agent/commit/be101f50658506c4fc2f0b1e07f54da1c0e130cd))
+* **beta:** release 1.1.0-beta.5 ([6bccc97](https://github.com/dkmaker/hass-pi-agent/commit/6bccc97f1ee25f93afe56240b2bd6b13baaa5431))
+* **beta:** release 1.1.0-beta.6 ([8ccacdb](https://github.com/dkmaker/hass-pi-agent/commit/8ccacdbc269ea5a4d05794f6d621783bee002181))
+* **beta:** release 1.1.0-beta.6 ([b327495](https://github.com/dkmaker/hass-pi-agent/commit/b3274956cd8742ac69aea5a5e2b4c06bff92de6a))
+* **beta:** release 1.1.0-beta.7 ([349e67f](https://github.com/dkmaker/hass-pi-agent/commit/349e67fb9674f777eabc1ac544cd88afa3062da9))
+* **beta:** release 1.1.0-beta.7 ([1106865](https://github.com/dkmaker/hass-pi-agent/commit/11068650a97018d8f018f10e8e544f5e8eff95a3))
+* **beta:** release 1.1.0-beta.8 ([7a8c638](https://github.com/dkmaker/hass-pi-agent/commit/7a8c63846e7ea5e7859d53517cfafbcc9ded5139))
+* **beta:** release 1.1.0-beta.8 ([cef1d88](https://github.com/dkmaker/hass-pi-agent/commit/cef1d88f2d7c7cc22fc26cf91d74761835e05fcc))
+* **beta:** release 1.1.0-beta.9 ([9ad8d27](https://github.com/dkmaker/hass-pi-agent/commit/9ad8d271a0850b6cec3e52d6a621a761910cab8d))
+* **beta:** release 1.1.0-beta.9 ([ba4af5e](https://github.com/dkmaker/hass-pi-agent/commit/ba4af5e6fa33d1989530f88d15ae550f561ebb04))
+* **beta:** sync tile to 1.1.0-beta [skip ci] ([c6aeef8](https://github.com/dkmaker/hass-pi-agent/commit/c6aeef84f7134c4cfcdb8ba7ce0a755857e2f3e1))
+* **beta:** sync tile to 1.1.0-beta.1 [skip ci] ([8986be0](https://github.com/dkmaker/hass-pi-agent/commit/8986be051d7b67de62b1a73dbc24007e57a3b5db))
+* **beta:** sync tile to 1.1.0-beta.10 [skip ci] ([b789d05](https://github.com/dkmaker/hass-pi-agent/commit/b789d05b1cbeadf073897875bb422d81da5dfa3e))
+* **beta:** sync tile to 1.1.0-beta.2 [skip ci] ([4e9d7f2](https://github.com/dkmaker/hass-pi-agent/commit/4e9d7f2509385ca0c3ee5cf62234b71bcd113685))
+* **beta:** sync tile to 1.1.0-beta.3 [skip ci] ([ca78647](https://github.com/dkmaker/hass-pi-agent/commit/ca786474c3df11352812b162e38ba7aae2b4558d))
+* **beta:** sync tile to 1.1.0-beta.4 [skip ci] ([a1e4520](https://github.com/dkmaker/hass-pi-agent/commit/a1e4520f7a6fd941580a39d67d1dfeef5897e4a8))
+* **beta:** sync tile to 1.1.0-beta.6 [skip ci] ([2c622ea](https://github.com/dkmaker/hass-pi-agent/commit/2c622ea05f393926daf3a47745938ec9037ef778))
+* **beta:** sync tile to 1.1.0-beta.7 [skip ci] ([5be2e98](https://github.com/dkmaker/hass-pi-agent/commit/5be2e983e85a237ea0bf90bc5ed628e8fb555019))
+* **beta:** sync tile to 1.1.0-beta.8 [skip ci] ([a09bd62](https://github.com/dkmaker/hass-pi-agent/commit/a09bd62307b5108fed32ec3ed02931e268641a48))
+* **beta:** sync tile to 1.1.0-beta.9 [skip ci] ([67ea2d3](https://github.com/dkmaker/hass-pi-agent/commit/67ea2d3afd1f29526a6b246a6167cd8b7c17ec87))
+* release 1.1.0 ([1a76ca3](https://github.com/dkmaker/hass-pi-agent/commit/1a76ca3ba2fbca06203af9ead8455d30a2ef5bb9))
+
+
+### CI
+
+* build add-on images with buildx on native runners (drop home-assistant/builder) ([2b3ab8a](https://github.com/dkmaker/hass-pi-agent/commit/2b3ab8a295d4256965709b0339d501a2e244624a))
+* pin builder to 2026.02.1 (2026.06.0 has no builder image) ([73d2968](https://github.com/dkmaker/hass-pi-agent/commit/73d2968acc3b72a038abfe126646da8c6fa2bff3))
+
 ## [1.0.1](https://github.com/dkmaker/hass-pi-agent/compare/v1.0.0...v1.0.1) (2026-09-12)
 
 
