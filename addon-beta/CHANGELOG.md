@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0-beta.7](https://github.com/dkmaker/hass-pi-agent/compare/v1.1.0-beta.6...v1.1.0-beta.7) (2026-09-13)
+
+
+### CI
+
+* build add-on images with buildx on native runners (drop home-assistant/builder) ([2b3ab8a](https://github.com/dkmaker/hass-pi-agent/commit/2b3ab8a295d4256965709b0339d501a2e244624a))
+
 ## [1.1.0-beta.6](https://github.com/dkmaker/hass-pi-agent/compare/v1.1.0-beta.5...v1.1.0-beta.6) (2026-09-13)
 
 
