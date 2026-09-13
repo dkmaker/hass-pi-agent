@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.1.0](https://github.com/dkmaker/hass-pi-agent/compare/v1.1.0-beta.10...v1.1.0) (2026-09-13)
+
+
+### Chores
+
+* **beta:** sync tile to 1.1.0-beta.10 [skip ci] ([b789d05](https://github.com/dkmaker/hass-pi-agent/commit/b789d05b1cbeadf073897875bb422d81da5dfa3e))
+* **main:** release 1.1.0 ([7483444](https://github.com/dkmaker/hass-pi-agent/commit/7483444c5bd210134d23b1fc3306069967632ddf))
+* **main:** release 1.1.0 ([225d7e3](https://github.com/dkmaker/hass-pi-agent/commit/225d7e3fb51d1c430c2bbb02d8b8b9164f4cf657))
+* release 1.1.0 ([1a76ca3](https://github.com/dkmaker/hass-pi-agent/commit/1a76ca3ba2fbca06203af9ead8455d30a2ef5bb9))
+
 ## [1.1.0-beta.10](https://github.com/dkmaker/hass-pi-agent/compare/v1.1.0-beta.9...v1.1.0-beta.10) (2026-09-13)
 
 
