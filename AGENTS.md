@@ -75,7 +75,7 @@ Find the matching frontend tag with: `gh api repos/home-assistant/core/contents/
 - Alpine Linux base image; VM has no `rsync` (use `scp`)
 - `ha store reload` (not `ha addons reload`) for local add-on changes
 - Local add-ons get `local_` prefix in Supervisor slug
-- **Add-on image build times:** native amd64 is ~1-2 min; aarch64 is built **emulated (QEMU) on an amd64 runner** so it is legitimately slower (~5-12 min). **Under ~15 min is fine; ~30 min means it is hung/broken** — cancel and rebuild. The real tell of a zombie build is **corrupt/frozen timestamps + no step progression** (as in the beta.4 aarch64 hang: ~50 min, `startedAt` missing), NOT wall-clock alone. Pinned to `home-assistant/builder@2026.02.1` (the last action tag whose `{arch}-builder` image actually exists; deprecated — migration + native-ARM-runner + pre-flight image check tracked in issue #H5U58).
+- **Add-on image builds run `docker buildx` + `docker/build-push-action` on NATIVE runners** — amd64 on `ubuntu-latest`, aarch64 on `ubuntu-24.04-arm` (free for public repos). No QEMU emulation, so **each arch builds in ~1.5 min** (measured beta.7: amd64 1.4 min, aarch64 1.3 min). The deprecated `home-assistant/builder` action is gone. The Dockerfile is the source of truth (`ARG BUILD_FROM` + `FROM`; base image comes from `addon/build.yaml` `build_from[arch]`); per-arch image names (`{arch}-pi_agent[_beta]`) + `io.hass.*` labels are set via build-args. **Any arch build over ~5 min now means something is wrong** (runner provisioning stall or a real failure) — cancel and rerun, don't wait.
 
 ## Release & Branching Workflow
 
