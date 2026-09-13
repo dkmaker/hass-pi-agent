@@ -19,7 +19,10 @@
   --pi-radius: 16px;
   --pi-radius-sm: 10px;
   --pi-gap: 12px;
-  --pi-maxw: 100%;
+  /* Message column width. Caps + centers ONLY the message bubbles/rows on wide
+     screens (the header/nav bar and the composer stay full width). On mobile the
+     rows just fill the viewport (max-width only caps). Tweak to widen/narrow. */
+  --pi-maxw: 900px;
   --pi-header-h: 56px;
   --pi-font: "Roboto", "Helvetica Neue", -apple-system, BlinkMacSystemFont, sans-serif;
   --pi-mono: "Roboto Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
