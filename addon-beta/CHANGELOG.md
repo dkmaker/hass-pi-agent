@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0-beta.6](https://github.com/dkmaker/hass-pi-agent/compare/v1.1.0-beta.5...v1.1.0-beta.6) (2026-09-13)
+
+
+### CI
+
+* pin builder to 2026.02.1 (2026.06.0 has no builder image) ([73d2968](https://github.com/dkmaker/hass-pi-agent/commit/73d2968acc3b72a038abfe126646da8c6fa2bff3))
+
 ## [1.1.0-beta.5](https://github.com/dkmaker/hass-pi-agent/compare/v1.1.0-beta.4...v1.1.0-beta.5) (2026-09-13)
 
 
