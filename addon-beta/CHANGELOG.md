@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.1.0-beta.4](https://github.com/dkmaker/hass-pi-agent/compare/v1.1.0-beta.3...v1.1.0-beta.4) (2026-09-13)
+
+
+### Bug Fixes
+
+* enforce a bash timeout — default 60s, hard cap 600s ([0474102](https://github.com/dkmaker/hass-pi-agent/commit/047410211a5792dcad338f2c96c6c74d450c7062))
+* remove the unused Set up conventions row from chat history ([c9e7944](https://github.com/dkmaker/hass-pi-agent/commit/c9e794479e1c889ca2409ac0985a0c1e5d2360e4))
+* restore the open session on reconnect ([719219c](https://github.com/dkmaker/hass-pi-agent/commit/719219cd35d45f4515b5bde2498c8a5a8f6fdfd7))
+
 ## [1.1.0-beta.3](https://github.com/dkmaker/hass-pi-agent/compare/v1.1.0-beta.2...v1.1.0-beta.3) (2026-09-13)
 
 
