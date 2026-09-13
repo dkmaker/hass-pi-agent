@@ -43,15 +43,20 @@ jobs:
   build:
     needs: release
     if: needs.release.outputs.release_created == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
       packages: write
     strategy:
+      fail-fast: false
       matrix:
-        arch:
-          - amd64
-          - aarch64
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+            platform: linux/amd64
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+            platform: linux/arm64
     steps:
       - name: Checkout released beta tag
         uses: actions/checkout@v7
@@ -79,19 +84,34 @@ jobs:
           rm -rf addon/webapp/node_modules addon/webapp/dist \
                  addon/webapp/.engine-agentdir addon/webapp/.engine-scratch
 
-      - name: Point the build at the beta image name
+      - name: Resolve build metadata
+        id: meta
         run: |
-          sed -i 's#{arch}-pi_agent#{arch}-pi_agent_beta#' addon/config.yaml
-          grep '^image:' addon/config.yaml
+          echo "from=$(grep -E "^  ${{ matrix.arch }}:" addon/build.yaml | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+          echo "name=$(grep -E '^name:' addon/config.yaml | sed 's/^name:[[:space:]]*//')" >> "$GITHUB_OUTPUT"
 
-      - name: Build & push beta add-on image
-        uses: home-assistant/builder@2026.02.1
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build & push beta add-on image (native ${{ matrix.arch }})
+        uses: docker/build-push-action@v6
         with:
-          args: |
-            --${{ matrix.arch }} \
-            --target ${{ env.ADDON_TARGET }} \
-            --version "${{ needs.release.outputs.version }}" \
-            --no-cache
+          context: addon
+          file: addon/Dockerfile
+          platforms: ${{ matrix.platform }}
+          push: true
+          provenance: false
+          sbom: false
+          no-cache: true
+          tags: |
+            ghcr.io/dkmaker/hass-pi-agent/${{ matrix.arch }}-pi_agent_beta:${{ needs.release.outputs.version }}
+            ghcr.io/dkmaker/hass-pi-agent/${{ matrix.arch }}-pi_agent_beta:latest
+          build-args: |
+            BUILD_FROM=${{ steps.meta.outputs.from }}
+            BUILD_ARCH=${{ matrix.arch }}
+            BUILD_VERSION=${{ needs.release.outputs.version }}
+            BUILD_NAME=${{ steps.meta.outputs.name }}
+            BUILD_DESCRIPTION=Pi coding agent for Home Assistant
 
   sync-main:
     needs: [release, build]

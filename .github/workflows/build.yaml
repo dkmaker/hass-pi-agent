@@ -38,15 +38,20 @@ jobs:
   build:
     name: Build ${{ matrix.arch }}
     needs: config-sync
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
       packages: write
     strategy:
+      fail-fast: false
       matrix:
-        arch:
-          - amd64
-          - aarch64
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+            platform: linux/amd64
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+            platform: linux/arm64
 
     steps:
       - name: Checkout
@@ -87,11 +92,31 @@ jobs:
           rm -rf addon/webapp/node_modules addon/webapp/dist \
                  addon/webapp/.engine-agentdir addon/webapp/.engine-scratch
 
-      - name: Build add-on
-        uses: home-assistant/builder@2026.02.1
+      - name: Resolve build metadata
+        id: meta
+        run: |
+          echo "from=$(grep -E "^  ${{ matrix.arch }}:" addon/build.yaml | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+          echo "name=$(grep -E '^name:' addon/config.yaml | sed 's/^name:[[:space:]]*//')" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build & push add-on image (native ${{ matrix.arch }})
+        uses: docker/build-push-action@v6
         with:
-          args: |
-            --${{ matrix.arch }} \
-            --target ${{ env.ADDON_TARGET }} \
-            --version "${{ steps.version.outputs.version }}" \
-            ${{ github.event_name == 'pull_request' && '--test' || '--no-cache' }}
+          context: addon
+          file: addon/Dockerfile
+          platforms: ${{ matrix.platform }}
+          push: ${{ github.event_name != 'pull_request' }}
+          provenance: false
+          sbom: false
+          no-cache: true
+          tags: |
+            ghcr.io/dkmaker/hass-pi-agent/${{ matrix.arch }}-pi_agent:${{ steps.version.outputs.version }}
+            ghcr.io/dkmaker/hass-pi-agent/${{ matrix.arch }}-pi_agent:latest
+          build-args: |
+            BUILD_FROM=${{ steps.meta.outputs.from }}
+            BUILD_ARCH=${{ matrix.arch }}
+            BUILD_VERSION=${{ steps.version.outputs.version }}
+            BUILD_NAME=${{ steps.meta.outputs.name }}
+            BUILD_DESCRIPTION=Pi coding agent for Home Assistant
