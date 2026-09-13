@@ -66,6 +66,9 @@ export class PiChatApp extends LitElement {
   @state() private configModel = "";
   @state() private configBusy = false;
   @state() private configError = "";
+  @state() private websearch: import("../types.js").WebsearchStatus = { enabled: false, provider: "perplexity", providers: [] };
+  @state() private wsBusy = false;
+  @state() private wsError = "";
   @state() private stats?: StatsOverview;
   @state() private sessions: SessionMeta[] = [];
   @state() private sessionLimit = 12;
@@ -178,6 +181,11 @@ export class PiChatApp extends LitElement {
         this.configBusy = false;
         if (ev.data.ok) { this.configOpen = false; this.configError = ""; }
         else this.configError = ev.data.error || "error";
+        break;
+      case "websearch_status": this.websearch = ev.data; break;
+      case "websearch_result":
+        this.wsBusy = false;
+        this.wsError = ev.data.ok ? "" : (ev.data.error || "error");
         break;
       case "sessions": this.sessions = ev.data; break;
       case "session_title": this.sessionTitle = ev.title; this.wsSend({ type: "list_sessions" }); break;
@@ -436,8 +444,13 @@ export class PiChatApp extends LitElement {
         .initialModel=${this.configModel}
         .busy=${this.configBusy}
         .error=${this.configError}
+        .websearch=${this.websearch}
+        .wsBusy=${this.wsBusy}
+        .wsError=${this.wsError}
         @request-providers=${() => this.wsSend({ type: "list_providers" })}
         @save-config=${(e: CustomEvent) => { this.configBusy = true; this.configError = ""; this.wsSend({ type: "save_config", ...e.detail }); }}
+        @save-websearch=${(e: CustomEvent) => { this.wsBusy = true; this.wsError = ""; this.wsSend({ type: "save_websearch", ...e.detail }); }}
+        @disable-websearch=${() => { this.wsBusy = true; this.wsError = ""; this.wsSend({ type: "disable_websearch" }); }}
         @setup-close=${() => { this.configOpen = false; this.configError = ""; }}
       ></pi-provider-setup>
 

@@ -123,6 +123,18 @@ async function readAi(): Promise<{ provider?: string; model?: string; api_key?: 
   return ai && typeof ai === "object" ? (ai as { provider?: string; model?: string; api_key?: string }) : {};
 }
 
+// Web search config lives under the `websearch` option (app-managed, like `ai`).
+// The in-app setup writes it; init-pi maps it to WEBSEARCH_* env at boot; the
+// extension registers the web_search tool from that env at loader.reload().
+const WS_PROVIDERS = ["perplexity", "perplexity_openrouter", "brave"] as const;
+type WsProvider = typeof WS_PROVIDERS[number];
+async function readWebsearch(): Promise<{ enabled?: boolean; provider?: string; api_key?: string }> {
+  const ws = (await readAddonOptions()).websearch;
+  return ws && typeof ws === "object" ? (ws as { enabled?: boolean; provider?: string; api_key?: string }) : {};
+}
+let wsEnabled = false;
+let wsProvider = "perplexity";
+
 let curProvider = "";
 let curModel = "";
 let model;
@@ -140,6 +152,11 @@ let model;
     if (r.error) console.error("[engine] model resolve error:", r.error);
     else { model = r.model; if (r.warning) console.warn("[engine]", r.warning); }
   }
+}
+{
+  const ws = await readWebsearch();
+  wsProvider = ws.provider || "perplexity";
+  wsEnabled = !!ws.enabled && !!ws.api_key;
 }
 
 // The active session is mutable — /new and resume replace it (re-subscribing toWire).
@@ -468,11 +485,64 @@ const server = createServer(async (req, res) => {
   } catch { res.writeHead(500).end("server error"); }
 });
 
+// ── Web search config (mirrors the AI provider flow) ────────
+// A tool can't be hot-swapped like a model key: it must re-register. reloadTools
+// re-runs loader.reload() (re-executes the extension → registerWebSearchTool reads
+// the new WEBSEARCH_* env) and rebuilds the active session so web_search appears
+// live, with no add-on restart.
+async function reloadTools(): Promise<void> {
+  try { await loader.reload(); } catch (e) { console.error("[engine] loader.reload:", (e as Error).message); }
+  if (currentSm && model) { try { await startSession(currentSm); } catch (e) { console.error("[engine] reload session:", (e as Error).message); } }
+}
+function websearchStatus(): { enabled: boolean; provider: string; providers: string[] } {
+  return { enabled: wsEnabled, provider: wsProvider, providers: [...WS_PROVIDERS] };
+}
+async function validateWebsearch(provider: string, key: string): Promise<{ ok: boolean; error?: string }> {
+  if (!WS_PROVIDERS.includes(provider as WsProvider)) return { ok: false, error: "Unsupported provider" };
+  if (!key) return { ok: false, error: "Missing API key" };
+  try {
+    if (provider === "brave") {
+      const r = await fetch("https://api.search.brave.com/res/v1/web/search?q=test&count=1", { headers: { Accept: "application/json", "X-Subscription-Token": key } });
+      return r.ok ? { ok: true } : { ok: false, error: `Brave HTTP ${r.status}` };
+    }
+    const endpoint = provider === "perplexity_openrouter" ? "https://openrouter.ai/api/v1/chat/completions" : "https://api.perplexity.ai/chat/completions";
+    const m = provider === "perplexity_openrouter" ? "perplexity/sonar" : "sonar";
+    const r = await fetch(endpoint, { method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" }, body: JSON.stringify({ model: m, messages: [{ role: "user", content: "ping" }], max_tokens: 1 }) });
+    if (r.ok) return { ok: true };
+    const t = await r.text().catch(() => "");
+    return { ok: false, error: `HTTP ${r.status} ${t.slice(0, 140)}` };
+  } catch (e) { return { ok: false, error: (e as Error).message }; }
+}
+async function saveWebsearch(provider: string, key: string): Promise<{ ok: boolean; error?: string }> {
+  const cur = await readWebsearch();
+  const finalKey = key || cur.api_key || "";
+  const v = await validateWebsearch(provider, finalKey);
+  if (!v.ok) return v;
+  const wrote = await writeAddonOptions({ websearch: { enabled: true, provider, api_key: finalKey } });
+  if (!wrote) return { ok: false, error: "Failed to persist config" };
+  process.env.WEBSEARCH_ENABLED = "true";
+  process.env.WEBSEARCH_PROVIDER = provider;
+  process.env.WEBSEARCH_API_KEY = finalKey;
+  wsEnabled = true; wsProvider = provider;
+  await reloadTools();
+  broadcast({ type: "websearch_status", data: websearchStatus() });
+  return { ok: true };
+}
+async function disableWebsearch(): Promise<void> {
+  const cur = await readWebsearch();
+  await writeAddonOptions({ websearch: { enabled: false, provider: cur.provider || "perplexity", api_key: cur.api_key || "" } });
+  process.env.WEBSEARCH_ENABLED = "false";
+  wsEnabled = false;
+  await reloadTools();
+  broadcast({ type: "websearch_status", data: websearchStatus() });
+}
+
 const wss = new WebSocketServer({ server, path: "/ws" });
 wss.on("connection", (ws) => {
   clients.add(ws);
   const sendTo = (msg: unknown) => { try { ws.send(JSON.stringify(msg)); } catch { /* dropped */ } };
   sendTo({ type: "config_status", data: configStatus() });
+  sendTo({ type: "websearch_status", data: websearchStatus() });
   void fetchStats().then((s) => { if (s) sendTo({ type: "stats", data: s }); });
   void listSessions().then((s) => sendTo({ type: "sessions", data: s }));
   ws.on("message", (raw) => {
@@ -486,6 +556,8 @@ wss.on("connection", (ws) => {
       case "open_session": if (cmd.path) void startSession(SessionManager.open(cmd.path)).then(() => broadcast({ type: "history", data: historyEntries() })); break;
       case "list_providers": void listApiKeyProviders().then((p) => sendTo({ type: "providers", data: p })); break;
       case "save_config": void saveCombo(cmd.provider ?? "", cmd.model ?? "", cmd.apiKey ?? "").then((r) => sendTo({ type: "config_result", data: r })); break;
+      case "save_websearch": void saveWebsearch(cmd.provider ?? "", cmd.apiKey ?? "").then((r) => sendTo({ type: "websearch_result", data: r })); break;
+      case "disable_websearch": void disableWebsearch(); break;
     }
   });
   ws.on("close", () => clients.delete(ws));

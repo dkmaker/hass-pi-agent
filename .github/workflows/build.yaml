@@ -25,8 +25,19 @@ env:
   ADDON_TARGET: addon
 
 jobs:
+  config-sync:
+    name: Beta tile config in sync
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+      - run: python3 -m pip install --quiet pyyaml
+      - run: python3 dev-scripts/check-beta-config.py
+
   build:
     name: Build ${{ matrix.arch }}
+    needs: config-sync
     runs-on: ubuntu-latest
     permissions:
       contents: read
