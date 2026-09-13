@@ -75,3 +75,15 @@ Find the matching frontend tag with: `gh api repos/home-assistant/core/contents/
 - Alpine Linux base image; VM has no `rsync` (use `scp`)
 - `ha store reload` (not `ha addons reload`) for local add-on changes
 - Local add-ons get `local_` prefix in Supervisor slug
+
+## Release & Branching Workflow
+
+**Branch model:** `beta` is the integration branch. New feature/fix PRs target **`beta`** (base = beta), not `main`. `main` is release-only — we touch it solely by merging `beta → main` when cutting a stable release. Do NOT open feature PRs against `main`.
+
+**Two release-please tracks:** `beta` cuts prereleases (`1.1.0-beta.X`) via `release-please-config-beta.json` + `.release-please-manifest-beta.json`; `main` cuts stable (`X.Y.Z`) via the stable config/manifest. They use separate tags (`v*-beta.X` vs `v*`) and separate changelog files (`addon-beta/CHANGELOG.md` vs `CHANGELOG.md`), so they never collide.
+
+**Stable = merge `beta → main`:** at stable-release time, merge beta into main in one PR. Main's stable release-please then computes the version bump + changelog from the `feat:`/`fix:` commits and opens/updates its release PR. This works cleanly *because every commit is labelled by its true Conventional-Commit type* (see below).
+
+**Commit-message rule (load-bearing for clean beta→main):** every commit MUST state what the change actually is with its correct Conventional-Commit type + scope (`feat:`, `fix:`, `docs:`, `refactor:`, `chore:`, …). Never mislabel a change to influence release-please, and never dump real changes under a generic `chore`. Honest typing is what lets features flow straight over on beta→main and keeps both changelogs correct.
+
+**Harmless auto-noise:** release-please's own release-marker commits (`chore(beta): release …`) and the beta workflow's tile-sync commits (`chore(beta): sync tile … [skip ci]`) are auto-generated — not hand-written. They are genuine chores: they don't bump the stable version and don't appear in the stable changelog. Leave them as-is; do not try to relabel them (that would misrepresent what they are). They are the only `chore(beta)` commits that ride along on a beta→main merge, and they are cosmetic.
