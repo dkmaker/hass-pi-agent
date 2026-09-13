@@ -78,7 +78,9 @@ Find the matching frontend tag with: `gh api repos/home-assistant/core/contents/
 
 ## Release & Branching Workflow
 
-**Branch model:** `beta` is the integration branch. New feature/fix PRs target **`beta`** (base = beta), not `main`. `main` is release-only — we touch it solely by merging `beta → main` when cutting a stable release. Do NOT open feature PRs against `main`.
+**Branch model:** `beta` is the integration branch. Branch off **`beta` or `main` — whichever makes sense**, and open the PR against the same base: features/fixes that should go through beta testing branch off `beta` (the default); a stable-only hotfix or a docs tweak can branch off `main` directly. Whatever you branch off, PR back into that same branch — don't branch off beta and PR into main.
+
+**ALWAYS fetch first — local is often stale.** release-please's release PRs and the beta workflow's tile-sync push commits to BOTH `main` and `beta` on their own, so your local `main`/`beta` fall behind origin constantly. Before branching, committing, or pushing: `git fetch <remote>` and branch off / rebase onto `<remote>/<branch>` (not your stale local ref). A rejected fast-forward push means you skipped this — fetch + rebase, don't force.
 
 **Two release-please tracks:** `beta` cuts prereleases (`1.1.0-beta.X`) via `release-please-config-beta.json` + `.release-please-manifest-beta.json`; `main` cuts stable (`X.Y.Z`) via the stable config/manifest. They use separate tags (`v*-beta.X` vs `v*`) and separate changelog files (`addon-beta/CHANGELOG.md` vs `CHANGELOG.md`), so they never collide.
 
