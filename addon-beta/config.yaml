@@ -1,5 +1,5 @@
 name: Pi Agent for Home Assistant (Beta)
-version: 1.1.0-beta.10
+version: 1.1.0
 slug: pi_agent_beta
 image: ghcr.io/dkmaker/hass-pi-agent/{arch}-pi_agent_beta
 description: >-
