@@ -159,45 +159,75 @@ let model;
   wsEnabled = !!ws.enabled && !!ws.api_key;
 }
 
-// The active session is mutable — /new and resume replace it (re-subscribing toWire).
-let session!: AgentSession;
-let unsub: (() => void) | null = null;
-let currentSm: ReturnType<typeof SessionManager.create> | null = null;
 const TOPIC_MIN_MESSAGES = 10;
 
-// ── WS clients + event fan-out ──────────────────────────────
-const clients = new Set<WebSocket>();
-let busy = false;
+// ── Per-user sessions (issue #NANH3) ────────────────────────
+// Each HA user (X-Remote-User-Id from ingress) gets its OWN active session,
+// event stream, and single-flight lock. Sessions run in parallel across users;
+// one turn at a time PER user. Session STORAGE is isolated via a per-user
+// sessionDir (cwd stays agentCwd, so tools/scratch/write-guard are unchanged).
+interface UserSession {
+  session: AgentSession | null;
+  unsub: (() => void) | null;
+  sm: ReturnType<typeof SessionManager.create> | null;
+  clients: Set<WebSocket>;
+  busy: boolean;
+  lockHeld: boolean;
+  lastActivity: number;
+}
+const users = new Map<string, UserSession>();
+const MAX_USERS = 5;
+const IDLE_MS = 30 * 60 * 1000;
 
-// Global single-flight lock: interactive prompts acquire immediately (reject if
-// held); pi_agent.ask calls QUEUE behind whatever is running (never concurrent).
-let lockHeld = false;
-const askWaiters: Array<() => void> = [];
-function acquireNow(): boolean { if (lockHeld) return false; lockHeld = true; return true; }
-function releaseLock(): void { lockHeld = false; const next = askWaiters.shift(); if (next) { lockHeld = true; next(); } }
-function acquireQueued(): Promise<void> { return new Promise((res) => { if (!lockHeld) { lockHeld = true; res(); } else askWaiters.push(res); }); }
-
-function broadcast(msg: unknown): void {
-  const s = JSON.stringify(msg);
-  for (const ws of clients) { try { ws.send(s); } catch { /* dropped */ } }
+function sanitizeUserId(id: string | undefined): string {
+  const s = (id ?? "").trim().replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 64);
+  return s || "default";
+}
+function userDir(userId: string): string {
+  return join(engineAgentDir, "sessions", "users", userId);
+}
+function newUserSession(): UserSession {
+  return { session: null, unsub: null, sm: null, clients: new Set(), busy: false, lockHeld: false, lastActivity: Date.now() };
 }
 
-/** Map a real AgentSessionEvent → the frontend wire shape (src/types.ts ServerEvent). */
-function toWire(e: AgentSessionEvent): void {
+// Per-user event fan-out: broadcast only to the clients of that user.
+function broadcastTo(u: UserSession, msg: unknown): void {
+  const s = JSON.stringify(msg);
+  for (const ws of u.clients) { try { ws.send(s); } catch { /* dropped */ } }
+}
+// Broadcast to every connected client (config/websearch status — shared state).
+function broadcastAll(msg: unknown): void {
+  const s = JSON.stringify(msg);
+  for (const u of users.values()) for (const ws of u.clients) { try { ws.send(s); } catch { /* dropped */ } }
+}
+
+// Per-user single-flight: interactive prompts acquire immediately (reject if held).
+function acquireNow(u: UserSession): boolean { if (u.lockHeld) return false; u.lockHeld = true; return true; }
+function releaseLock(u: UserSession): void { u.lockHeld = false; }
+
+// pi_agent.ask runs its own isolated ephemeral session; it queues behind other
+// ask calls only (never blocks or is blocked by interactive user turns).
+let askLockHeld = false;
+const askWaiters: Array<() => void> = [];
+function acquireAsk(): Promise<void> { return new Promise((res) => { if (!askLockHeld) { askLockHeld = true; res(); } else askWaiters.push(res); }); }
+function releaseAsk(): void { askLockHeld = false; const next = askWaiters.shift(); if (next) { askLockHeld = true; next(); } }
+
+/** Map a real AgentSessionEvent → the frontend wire shape (src/types.ts ServerEvent), scoped to one user's clients. */
+function toWire(u: UserSession, e: AgentSessionEvent): void {
   switch (e.type) {
-    case "agent_start": broadcast({ type: "agent_start" }); broadcast({ type: "working", label: "Thinking" }); break;
-    case "message_start": broadcast({ type: "working", label: "" }); broadcast({ type: "message_start" }); break;
+    case "agent_start": broadcastTo(u, { type: "agent_start" }); broadcastTo(u, { type: "working", label: "Thinking" }); break;
+    case "message_start": broadcastTo(u, { type: "working", label: "" }); broadcastTo(u, { type: "message_start" }); break;
     case "message_update": {
       const a = (e as { assistantMessageEvent?: { type: string; delta?: string } }).assistantMessageEvent;
-      if (a?.type === "text_delta" && a.delta) broadcast({ type: "text_delta", delta: a.delta });
-      else if (a?.type === "thinking_delta" && a.delta) broadcast({ type: "thinking_delta", delta: a.delta });
+      if (a?.type === "text_delta" && a.delta) broadcastTo(u, { type: "text_delta", delta: a.delta });
+      else if (a?.type === "thinking_delta" && a.delta) broadcastTo(u, { type: "thinking_delta", delta: a.delta });
       break;
     }
-    case "message_end": broadcast({ type: "message_end" }); break;
+    case "message_end": broadcastTo(u, { type: "message_end" }); break;
     case "tool_execution_start": {
       const t = e as { toolName?: string; toolCallId?: string; id?: string; args?: unknown; input?: unknown };
-      broadcast({ type: "working", label: "" });
-      broadcast({ type: "tool_start", id: t.toolCallId ?? t.id ?? "", toolName: t.toolName ?? "tool", args: (t.args ?? t.input ?? {}) as Record<string, unknown> });
+      broadcastTo(u, { type: "working", label: "" });
+      broadcastTo(u, { type: "tool_start", id: t.toolCallId ?? t.id ?? "", toolName: t.toolName ?? "tool", args: (t.args ?? t.input ?? {}) as Record<string, unknown> });
       break;
     }
     case "tool_execution_end": {
@@ -208,27 +238,30 @@ function toWire(e: AgentSessionEvent): void {
       // UI renders an empty block (it has no kind to render).
       const details = t.result?.details as { kind?: string } | undefined;
       const result = details && details.kind ? { kind: "details", details, data: text } : { kind: "text", data: text };
-      broadcast({ type: "tool_end", id: t.toolCallId ?? t.id ?? "", toolName: t.toolName ?? "tool", isError: !!t.isError, result });
+      broadcastTo(u, { type: "tool_end", id: t.toolCallId ?? t.id ?? "", toolName: t.toolName ?? "tool", isError: !!t.isError, result });
       break;
     }
-    case "turn_end": broadcast({ type: "turn_end" }); break;
-    case "agent_end": broadcast({ type: "agent_end" }); busy = false; break;
+    case "turn_end": broadcastTo(u, { type: "turn_end" }); break;
+    case "agent_end": broadcastTo(u, { type: "agent_end" }); u.busy = false; break;
     default: break; // queue_update / compaction_* / auto_retry_* — not surfaced yet
   }
 }
-async function handlePrompt(text: string): Promise<void> {
-  if (!acquireNow()) { broadcast({ type: "notice", text: "Busy — one turn at a time." }); return; }
-  busy = true;
+async function handlePrompt(u: UserSession, text: string): Promise<void> {
+  if (!u.session) { broadcastTo(u, { type: "notice", text: "Not configured yet." }); return; }
+  if (!acquireNow(u)) { broadcastTo(u, { type: "notice", text: "Busy — one turn at a time." }); return; }
+  u.busy = true;
+  u.lastActivity = Date.now();
   try {
-    await session.prompt(text);
+    await u.session.prompt(text);
   } catch (err) {
-    broadcast({ type: "text_delta", delta: `\n[engine error: ${(err as Error).message}]` });
-    broadcast({ type: "agent_end" });
+    broadcastTo(u, { type: "text_delta", delta: `\n[engine error: ${(err as Error).message}]` });
+    broadcastTo(u, { type: "agent_end" });
   } finally {
-    busy = false;
-    releaseLock();
+    u.busy = false;
+    u.lastActivity = Date.now();
+    releaseLock(u);
   }
-  void maybeGenerateTopic();
+  void maybeGenerateTopic(u);
 }
 
 // ── Auto-topic: once a chat has ~10 messages, generate a short session title
@@ -257,18 +290,18 @@ async function generateTopic(msgs: Array<Record<string, unknown>>): Promise<stri
   return out.trim().replace(/^["'#\s]+|["'\s]+$/g, "").split("\n")[0].slice(0, 64);
 }
 
-async function maybeGenerateTopic(): Promise<void> {
+async function maybeGenerateTopic(u: UserSession): Promise<void> {
   try {
-    if (!session || !currentSm || currentSm.getSessionName()) return;
-    if ((session.messages ?? []).length < TOPIC_MIN_MESSAGES) return;
-    if (!acquireNow()) return; // user busy — retry after the next turn
-    busy = true;
+    if (!u.session || !u.sm || u.sm.getSessionName()) return;
+    if ((u.session.messages ?? []).length < TOPIC_MIN_MESSAGES) return;
+    if (!acquireNow(u)) return; // user busy — retry after the next turn
+    u.busy = true;
     let title = "";
-    try { title = await generateTopic((session.messages ?? []) as Array<Record<string, unknown>>); }
-    finally { busy = false; releaseLock(); }
-    if (title && currentSm && !currentSm.getSessionName()) {
-      currentSm.appendSessionInfo(title);
-      broadcast({ type: "session_title", title });
+    try { title = await generateTopic((u.session.messages ?? []) as Array<Record<string, unknown>>); }
+    finally { u.busy = false; releaseLock(u); }
+    if (title && u.sm && !u.sm.getSessionName()) {
+      u.sm.appendSessionInfo(title);
+      broadcastTo(u, { type: "session_title", title });
     }
   } catch { /* best-effort */ }
 }
@@ -287,7 +320,7 @@ async function fireLogbook(name: string, message: string): Promise<void> {
 }
 
 async function handleAsk(question: string, overrides: { provider?: string; model?: string }): Promise<void> {
-  await acquireQueued(); // wait behind any running interactive/ask turn
+  await acquireAsk(); // queue behind other ask calls only (isolated from user turns)
   let askModel = model;
   if (overrides.provider && overrides.model) {
     const r = resolveCliModel({ cliModel: `${overrides.provider}/${overrides.model}`, modelRuntime });
@@ -308,23 +341,46 @@ async function handleAsk(question: string, overrides: { provider?: string; model
     clearTimeout(timer);
     unsub();
     try { askSession.dispose(); } catch { /* ignore */ }
-    releaseLock();
+    releaseAsk();
   }
   await fireLogbook("Pi Agent", answer.trim() || "(no answer)");
 }
 
 // ── Session lifecycle: /new, /sessions list, resume ───────
-async function startSession(sm: ReturnType<typeof SessionManager.create>): Promise<void> {
-  if (unsub) { unsub(); unsub = null; }
-  if (session) { try { session.dispose(); } catch { /* ignore */ } }
-  currentSm = sm;
+async function startSessionFor(u: UserSession, sm: ReturnType<typeof SessionManager.create>): Promise<void> {
+  if (u.unsub) { u.unsub(); u.unsub = null; }
+  if (u.session) { try { u.session.dispose(); } catch { /* ignore */ } }
+  u.sm = sm;
   // Not configured yet (no provider/model/key) — defer session creation until the
-  // in-app setup saves a working combo (saveCombo sets `model` then calls this).
-  if (!model) return;
+  // in-app setup saves a working combo (saveCombo sets `model`).
+  if (!model) { u.session = null; return; }
   const created = await createAgentSession({ resourceLoader: loader, cwd: agentCwd, sessionManager: sm, model, modelRuntime });
-  session = created.session;
-  unsub = session.subscribe(toWire);
-  busy = false;
+  u.session = created.session;
+  u.unsub = u.session.subscribe((e) => toWire(u, e));
+  u.busy = false;
+}
+
+// Get-or-create a user's session slot. Enforces the MAX_USERS cap by evicting the
+// least-recently-used idle (not busy) user first. Creates the session lazily.
+async function getOrCreateUser(userId: string): Promise<UserSession> {
+  let u = users.get(userId);
+  if (u) { u.lastActivity = Date.now(); return u; }
+  if (users.size >= MAX_USERS) {
+    const victim = [...users.entries()].filter(([, s]) => !s.busy).sort((a, b) => a[1].lastActivity - b[1].lastActivity)[0];
+    if (victim) { disposeUser(victim[0]); }
+  }
+  u = newUserSession();
+  users.set(userId, u);
+  await startSessionFor(u, SessionManager.create(agentCwd, userDir(userId)));
+  return u;
+}
+
+function disposeUser(userId: string): void {
+  const u = users.get(userId);
+  if (!u) return;
+  if (u.unsub) { try { u.unsub(); } catch { /* ignore */ } }
+  if (u.session) { try { u.session.dispose(); } catch { /* ignore */ } }
+  users.delete(userId);
 }
 
 function relTime(iso?: string): string {
@@ -336,8 +392,8 @@ function relTime(iso?: string): string {
   return h < 24 ? `${h}h ago` : `${Math.round(h / 24)}d ago`;
 }
 
-async function listSessions(): Promise<Array<{ path: string; id: string; title: string; when: string; count: number }>> {
-  const list = (await SessionManager.list(agentCwd)) as Array<Record<string, unknown>>;
+async function listSessions(userId: string): Promise<Array<{ path: string; id: string; title: string; when: string; count: number }>> {
+  const list = (await SessionManager.list(agentCwd, userDir(userId))) as Array<Record<string, unknown>>;
   return list
     .map((s) => ({
       path: String(s.path ?? ""),
@@ -353,12 +409,12 @@ async function listSessions(): Promise<Array<{ path: string; id: string; title: 
 }
 
 /** Reconstruct the frontend timeline (src/types.ts Entry[]) from a resumed session's messages. */
-function historyEntries(): Array<Record<string, unknown>> {
+function historyEntries(u: UserSession): Array<Record<string, unknown>> {
   const out: Array<Record<string, unknown>> = [];
   const toolById: Record<string, Record<string, unknown>> = {};
   let n = 0;
   const nid = () => `h${n++}`;
-  for (const m of (session.messages ?? []) as Array<Record<string, unknown>>) {
+  for (const m of (u.session?.messages ?? []) as Array<Record<string, unknown>>) {
     const role = m.role as string;
     const content = (m.content ?? []) as Array<Record<string, unknown>>;
     if (role === "user") {
@@ -386,12 +442,16 @@ function historyEntries(): Array<Record<string, unknown>> {
   return out;
 }
 
-await startSession(SessionManager.create(agentCwd));
-if (session) {
-  console.log("[engine] ready — model=%s tools=%d (ha_*=%d)",
-    session.model?.id ?? "(default)",
-    session.agent.state.tools.length,
-    session.agent.state.tools.filter((t) => t.name.startsWith("ha_")).length);
+// No global session at boot — sessions are created per HA user on WS connect
+// (issue #NANH3). Probe once (throwaway) just to log readiness + tool count.
+if (model) {
+  try {
+    const probe = (await createAgentSession({ resourceLoader: loader, cwd: agentCwd, sessionManager: SessionManager.inMemory(agentCwd), model, modelRuntime })).session;
+    const tools = probe.agent.state.tools;
+    console.log("[engine] ready — model=%s tools=%d (ha_*=%d)",
+      probe.model?.id ?? "(default)", tools.length, tools.filter((t) => t.name.startsWith("ha_")).length);
+    try { probe.dispose(); } catch { /* ignore */ }
+  } catch { console.log("[engine] ready — model=%s", model.id); }
 } else {
   console.log("[engine] ready — awaiting in-app provider/model/key setup");
 }
@@ -465,8 +525,13 @@ async function saveCombo(provider: string, modelId: string, apiKey: string): Pro
   curProvider = provider; curModel = modelId;
   const r = resolveCliModel({ cliModel: `${provider}/${modelId}`, modelRuntime });
   if (!r.error && r.model) model = r.model;
-  await startSession(SessionManager.create(agentCwd));
-  broadcast({ type: "config_status", data: configStatus() });
+  // Apply the new model to every active user's session (preserve their conversation
+  // via setModel); create a session for any connected-but-unconfigured slot.
+  for (const [uid, u] of users) {
+    if (u.session && model) { try { await u.session.setModel(model); } catch { /* ignore */ } }
+    else { try { await startSessionFor(u, u.sm ?? SessionManager.create(agentCwd, userDir(uid))); } catch { /* ignore */ } }
+  }
+  broadcastAll({ type: "config_status", data: configStatus() });
   return { ok: true };
 }
 
@@ -491,8 +556,13 @@ const server = createServer(async (req, res) => {
 // the new WEBSEARCH_* env) and rebuilds the active session so web_search appears
 // live, with no add-on restart.
 async function reloadTools(): Promise<void> {
+  // A tool can't be hot-swapped: recreate each active user's session so the new
+  // WEBSEARCH_* tool set re-registers. Rare admin action (websearch enable/disable).
   try { await loader.reload(); } catch (e) { console.error("[engine] loader.reload:", (e as Error).message); }
-  if (currentSm && model) { try { await startSession(currentSm); } catch (e) { console.error("[engine] reload session:", (e as Error).message); } }
+  if (!model) return;
+  for (const [uid, u] of users) {
+    try { await startSessionFor(u, u.sm ?? SessionManager.create(agentCwd, userDir(uid))); } catch (e) { console.error("[engine] reload session:", (e as Error).message); }
+  }
 }
 function websearchStatus(): { enabled: boolean; provider: string; providers: string[] } {
   return { enabled: wsEnabled, provider: wsProvider, providers: [...WS_PROVIDERS] };
@@ -525,7 +595,7 @@ async function saveWebsearch(provider: string, key: string): Promise<{ ok: boole
   process.env.WEBSEARCH_API_KEY = finalKey;
   wsEnabled = true; wsProvider = provider;
   await reloadTools();
-  broadcast({ type: "websearch_status", data: websearchStatus() });
+  broadcastAll({ type: "websearch_status", data: websearchStatus() });
   return { ok: true };
 }
 async function disableWebsearch(): Promise<void> {
@@ -534,42 +604,60 @@ async function disableWebsearch(): Promise<void> {
   process.env.WEBSEARCH_ENABLED = "false";
   wsEnabled = false;
   await reloadTools();
-  broadcast({ type: "websearch_status", data: websearchStatus() });
+  broadcastAll({ type: "websearch_status", data: websearchStatus() });
 }
 
 const wss = new WebSocketServer({ server, path: "/ws" });
-wss.on("connection", (ws) => {
-  clients.add(ws);
+wss.on("connection", (ws, req) => {
+  // Identify the HA user from the ingress headers (issue #NANH3). Sessions are
+  // isolated per user; fallback "default" for local dev / non-ingress access.
+  const hdr = (k: string): string => { const v = req.headers[k]; return Array.isArray(v) ? v[0] : (v ?? ""); };
+  const userId = sanitizeUserId(hdr("x-remote-user-id") || hdr("x-remote-user-name"));
   const sendTo = (msg: unknown) => { try { ws.send(JSON.stringify(msg)); } catch { /* dropped */ } };
+  // Shared status (model/websearch config + stats) goes out immediately.
   sendTo({ type: "config_status", data: configStatus() });
   sendTo({ type: "websearch_status", data: websearchStatus() });
   void fetchStats().then((s) => { if (s) sendTo({ type: "stats", data: s }); });
-  void listSessions().then((s) => sendTo({ type: "sessions", data: s }));
-  // DMDQW: restore the open session on (re)connect so a page reload keeps the same
-  // chat instead of dropping to a blank new chat. historyEntries() is [] for a fresh
-  // session, which the frontend renders as the normal empty/welcome state.
-  if (session) {
-    sendTo({ type: "history", data: historyEntries() });
-    const title = currentSm?.getSessionName?.();
-    if (title) sendTo({ type: "session_title", title });
-  }
+  void listSessions(userId).then((s) => sendTo({ type: "sessions", data: s }));
+  // Resolve this user's session slot, register the client, and restore the open
+  // chat (DMDQW: page reload keeps the same session instead of a blank new chat).
+  const ready = getOrCreateUser(userId).then((u) => {
+    u.clients.add(ws);
+    ws.on("close", () => u.clients.delete(ws));
+    if (u.session) {
+      sendTo({ type: "history", data: historyEntries(u) });
+      const title = u.sm?.getSessionName?.();
+      if (title) sendTo({ type: "session_title", title });
+    }
+    return u;
+  });
   ws.on("message", (raw) => {
     let cmd: { type?: string; text?: string; path?: string; provider?: string; model?: string; apiKey?: string };
     try { cmd = JSON.parse(String(raw)); } catch { return; }
-    switch (cmd.type) {
-      case "prompt": if (cmd.text && session) void handlePrompt(cmd.text); break;
-      case "abort": if (session) void session.abort().then(() => broadcast({ type: "aborted" })); break;
-      case "list_sessions": void listSessions().then((s) => sendTo({ type: "sessions", data: s })); break;
-      case "new_session": void startSession(SessionManager.create(agentCwd)).then(() => broadcast({ type: "session_cleared" })); break;
-      case "open_session": if (cmd.path) void startSession(SessionManager.open(cmd.path)).then(() => broadcast({ type: "history", data: historyEntries() })); break;
-      case "list_providers": void listApiKeyProviders().then((p) => sendTo({ type: "providers", data: p })); break;
-      case "save_config": void saveCombo(cmd.provider ?? "", cmd.model ?? "", cmd.apiKey ?? "").then((r) => sendTo({ type: "config_result", data: r })); break;
-      case "save_websearch": void saveWebsearch(cmd.provider ?? "", cmd.apiKey ?? "").then((r) => sendTo({ type: "websearch_result", data: r })); break;
-      case "disable_websearch": void disableWebsearch(); break;
-    }
+    void ready.then((u) => {
+      switch (cmd.type) {
+        case "prompt": if (cmd.text) void handlePrompt(u, cmd.text); break;
+        case "abort": if (u.session) void u.session.abort().then(() => broadcastTo(u, { type: "aborted" })); break;
+        case "list_sessions": void listSessions(userId).then((s) => sendTo({ type: "sessions", data: s })); break;
+        case "new_session": void startSessionFor(u, SessionManager.create(agentCwd, userDir(userId))).then(() => broadcastTo(u, { type: "session_cleared" })); break;
+        case "open_session": if (cmd.path) void startSessionFor(u, SessionManager.open(cmd.path, userDir(userId))).then(() => broadcastTo(u, { type: "history", data: historyEntries(u) })); break;
+        case "list_providers": void listApiKeyProviders().then((p) => sendTo({ type: "providers", data: p })); break;
+        case "save_config": void saveCombo(cmd.provider ?? "", cmd.model ?? "", cmd.apiKey ?? "").then((r) => sendTo({ type: "config_result", data: r })); break;
+        case "save_websearch": void saveWebsearch(cmd.provider ?? "", cmd.apiKey ?? "").then((r) => sendTo({ type: "websearch_result", data: r })); break;
+        case "disable_websearch": void disableWebsearch(); break;
+      }
+    });
   });
-  ws.on("close", () => clients.delete(ws));
 });
+
+// Idle eviction: dispose sessions idle > IDLE_MS (not busy, no live clients) to
+// free heap — the JSONL persists on disk and reopens on demand (issue #NANH3).
+setInterval(() => {
+  const now = Date.now();
+  for (const [uid, u] of [...users]) {
+    if (!u.busy && u.clients.size === 0 && now - u.lastActivity > IDLE_MS) disposeUser(uid);
+  }
+}, 60_000).unref?.();
 
 server.listen(PORT, "0.0.0.0", () => console.log(`[engine] http+ws on http://127.0.0.1:${PORT}`));
 
@@ -590,7 +678,7 @@ const askServer = createServer((req, res) => {
       j(202, { status: "accepted" });
     });
   } else if (req.method === "GET" && req.url === "/health") {
-    j(200, { status: "ok", pending: askPending, busy: lockHeld });
+    j(200, { status: "ok", pending: askPending, busy: askLockHeld || [...users.values()].some((u) => u.busy) });
   } else {
     res.writeHead(404).end();
   }
