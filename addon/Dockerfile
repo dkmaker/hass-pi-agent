@@ -27,7 +27,7 @@ RUN apk add --no-cache \
     mosquitto-clients
 
 # Install pi coding agent and requested extensions (pinned versions)
-RUN npm install -g @earendil-works/pi-coding-agent@1.3.0 \
+RUN npm install -g @earendil-works/pi-coding-agent@1.5.0 \
     context-mode \
     pi-web-access
 

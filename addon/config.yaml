@@ -1,5 +1,5 @@
 name: HASS AI Assistant
-version: 0.10.11
+version: 0.10.12
 slug: hass_ai_assistant
 image: ghcr.io/ito-69/hass-pi-agent/{arch}-hass_ai_assistant
 description: >-
