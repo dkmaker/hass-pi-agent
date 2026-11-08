@@ -7,7 +7,7 @@
 import { apiGet } from "./api.js";
 import { HA_TOKEN } from "./config.js";
 import { supervisorApi } from "./supervisor.js";
-import { wsSendCommand } from "./ws.js";
+import { wsCommand } from "./ws.js";
 
 interface HAState {
   entity_id: string;
@@ -130,9 +130,7 @@ export async function gatherContext(): Promise<HAContext | null> {
     // Try to get areas
     let areas: string[] = [];
     try {
-      const areaList = (await wsSendCommand({
-        type: "config/area_registry/list",
-      })) as any[];
+      const areaList = await wsCommand<any[]>("config/area_registry/list");
       areas = areaList.map((a: any) => a.name);
     } catch {}
 

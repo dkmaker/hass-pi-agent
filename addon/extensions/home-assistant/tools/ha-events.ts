@@ -111,7 +111,10 @@ export function registerEventsTool(pi: ExtensionAPI): void {
       if (params.event_type) wsParams.event_type = params.event_type;
 
       const typeLabel = params.event_type || "all";
-      onUpdate?.(`Listening for ${typeLabel} events for ${timeout}s...`);
+      onUpdate?.({
+        content: [{ type: "text", text: `Listening for ${typeLabel} events for ${timeout}s...` }],
+        details: {},
+      });
 
       const events = await wsSubscribe<HAEvent>(
         "subscribe_events",
